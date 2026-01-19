@@ -5,5 +5,5 @@
     "@perspective/sdk": "1.0.0-alpha.1",
     "@perspective/sdk-react": "1.0.0-alpha.1"
   },
-  "changesets": []
+  "changesets": ["short-clouds-say"]
 }
