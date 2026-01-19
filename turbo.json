@@ -17,7 +17,7 @@
       "persistent": true
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "src/**", "tsconfig.json"]
     },
     "test": {
