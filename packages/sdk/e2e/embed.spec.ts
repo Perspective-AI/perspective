@@ -1,6 +1,7 @@
 import { test, expect, Route } from "@playwright/test";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { fileURLToPath } from "node:url";
 
 /**
  * E2E tests for @perspective/sdk
@@ -12,6 +13,8 @@ import * as fs from "node:fs";
  * 4. PostMessage communication
  * 5. Origin validation security
  */
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Path to built SDK - tests require build first
 const SDK_PATH = path.resolve(__dirname, "../dist/cdn/perspective.global.js");
