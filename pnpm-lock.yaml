@@ -57,7 +57,7 @@ importers:
   packages/sdk-react:
     dependencies:
       '@perspective/sdk':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../sdk
     devDependencies:
       '@testing-library/dom':
