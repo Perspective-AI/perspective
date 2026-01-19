@@ -2,6 +2,9 @@
   "name": "perspective-embed",
   "private": true,
   "packageManager": "pnpm@10.25.0",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "postinstall": "lefthook install",
     "build": "turbo build",
