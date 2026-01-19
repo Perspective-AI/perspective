@@ -6,7 +6,7 @@ on:
   pull_request:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -18,31 +18,25 @@ env:
 
 jobs:
   ci:
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [20, 22]
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: package.json
           cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint:check
 
-      - name: Format check
+      - name: Format
         run: pnpm format:check
 
       - name: Typecheck
@@ -57,10 +51,10 @@ jobs:
       - name: Test SSR
         run: pnpm test:ssr
 
-      - name: Test types (arethetypeswrong)
+      - name: Test types
         run: pnpm test:types
 
-      - name: Install Playwright browsers
+      - name: Install Playwright
         run: pnpm --filter @perspective/sdk exec playwright install --with-deps chromium
 
       - name: Test E2E
