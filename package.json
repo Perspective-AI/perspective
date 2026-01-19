@@ -1,0 +1,40 @@
+{
+  "name": "perspective-embed",
+  "private": true,
+  "packageManager": "pnpm@10.25.0",
+  "scripts": {
+    "postinstall": "lefthook install",
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:watch": "turbo test -- --watch",
+    "test:coverage": "turbo test -- --coverage",
+    "test:ssr": "turbo test:ssr",
+    "test:types": "attw --pack packages/sdk --ignore-rules=no-resolution && attw --pack packages/sdk-react --ignore-rules=no-resolution",
+    "test:e2e": "turbo test:e2e",
+    "test:e2e:ui": "pnpm --filter @perspective/sdk exec playwright test --ui",
+    "check": "pnpm lint:check && pnpm format:check && pnpm typecheck",
+    "changeset": "changeset",
+    "version": "changeset version && pnpm install --lockfile-only",
+    "release": "turbo build && changeset publish"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
+    "@changesets/cli": "^2.29.8",
+    "@playwright/test": "^1.52.0",
+    "@vitest/coverage-v8": "^4.0.17",
+    "happy-dom": "^20.3.3",
+    "lefthook": "^2.0.15",
+    "oxlint": "^1.0.0",
+    "prettier": "^3.5.0",
+    "serve": "^14.2.4",
+    "turbo": "^2.7.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
+  }
+}

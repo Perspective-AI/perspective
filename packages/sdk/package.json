@@ -1,0 +1,82 @@
+{
+  "name": "@perspective/sdk",
+  "version": "1.0.0-alpha.1",
+  "description": "Embed SDK for Perspective AI research interviews",
+  "type": "module",
+  "sideEffects": [
+    "./dist/browser.js",
+    "./dist/browser.cjs"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./constants": {
+      "import": {
+        "types": "./dist/constants.d.ts",
+        "default": "./dist/constants.js"
+      },
+      "require": {
+        "types": "./dist/constants.d.cts",
+        "default": "./dist/constants.cjs"
+      }
+    },
+    "./browser": {
+      "import": {
+        "types": "./dist/browser.d.ts",
+        "default": "./dist/browser.js"
+      },
+      "require": {
+        "types": "./dist/browser.d.cts",
+        "default": "./dist/browser.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:ssr": "node -e \"require('./dist/index.cjs'); require('./dist/constants.cjs');\" && echo 'SSR safe ✓'"
+  },
+  "keywords": [
+    "perspective",
+    "embed",
+    "research",
+    "interview",
+    "widget"
+  ],
+  "author": "Perspective AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Perspective-AI/perspective.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/Perspective-AI/perspective/issues"
+  },
+  "homepage": "https://getperspective.ai",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Manual API Test</title>
+    <style>
+      .widget-container {
+        height: 500px;
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Manual API Test</h1>
+
+    <!-- Container for programmatic widget -->
+    <div id="widget-container" class="widget-container"></div>
+
+    <!-- Buttons for programmatic control -->
+    <button id="create-widget-btn">Create Widget</button>
+    <button id="open-popup-btn">Open Popup</button>
+    <button id="open-slider-btn">Open Slider</button>
+    <button id="create-float-btn">Create Float Bubble</button>
+    <button id="destroy-all-btn">Destroy All</button>
+
+    <!-- Track callback events for testing -->
+    <script>
+      window.__testEvents = [];
+      window.__handles = {};
+      window.__trackEvent = (name, data) => {
+        window.__testEvents.push({ name, data, timestamp: Date.now() });
+      };
+    </script>
+
+    <!-- Load SDK from built dist -->
+    <script src="/sdk/perspective.global.js"></script>
+
+    <script>
+      // Configure to use test host
+      Perspective.configure({ host: "http://localhost:3456" });
+
+      document
+        .getElementById("create-widget-btn")
+        .addEventListener("click", () => {
+          const container = document.getElementById("widget-container");
+          window.__handles.widget = Perspective.createWidget(container, {
+            researchId: "pbbvdh26",
+            params: { source: "manual", user: "xyz" },
+            onReady: () => window.__trackEvent("widget:ready"),
+            onSubmit: (data) => window.__trackEvent("widget:submit", data),
+            onError: (err) => window.__trackEvent("widget:error", err),
+          });
+        });
+
+      document
+        .getElementById("open-popup-btn")
+        .addEventListener("click", () => {
+          window.__handles.popup = Perspective.openPopup({
+            researchId: "pbbvdh26",
+            params: { source: "manual" },
+            onReady: () => window.__trackEvent("popup:ready"),
+            onClose: () => window.__trackEvent("popup:close"),
+            onSubmit: (data) => window.__trackEvent("popup:submit", data),
+          });
+        });
+
+      document
+        .getElementById("open-slider-btn")
+        .addEventListener("click", () => {
+          window.__handles.slider = Perspective.openSlider({
+            researchId: "pbbvdh26",
+            params: { source: "manual" },
+            onReady: () => window.__trackEvent("slider:ready"),
+            onClose: () => window.__trackEvent("slider:close"),
+            onSubmit: (data) => window.__trackEvent("slider:submit", data),
+          });
+        });
+
+      document
+        .getElementById("create-float-btn")
+        .addEventListener("click", () => {
+          window.__handles.float = Perspective.createFloatBubble({
+            researchId: "pbbvdh26",
+            params: { source: "manual" },
+            onReady: () => window.__trackEvent("float:ready"),
+            onClose: () => window.__trackEvent("float:close"),
+          });
+        });
+
+      document
+        .getElementById("destroy-all-btn")
+        .addEventListener("click", () => {
+          Perspective.destroyAll();
+          window.__trackEvent("destroyAll");
+        });
+    </script>
+  </body>
+</html>

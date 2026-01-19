@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Perspective Embed - Vanilla JS Example</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+      h1 {
+        color: #7c3aed;
+      }
+      .demo-section {
+        margin: 2rem 0;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+      }
+      .demo-section h2 {
+        margin-top: 0;
+        font-size: 1.25rem;
+      }
+      .widget-container {
+        height: 500px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      button {
+        background: #7c3aed;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        margin-right: 0.5rem;
+      }
+      button:hover {
+        background: #6d28d9;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Perspective Embed SDK</h1>
+    <p>Examples of different embed types using the vanilla JS SDK.</p>
+
+    <!-- Widget Example (Data Attributes) -->
+    <div class="demo-section">
+      <h2>Widget Embed (Data Attributes)</h2>
+      <p>
+        Uses <code>data-perspective-widget</code> for automatic initialization.
+      </p>
+      <div
+        class="widget-container"
+        data-perspective-widget="YOUR_RESEARCH_ID"
+        data-perspective-params="source=example,page=demo"
+      ></div>
+    </div>
+
+    <!-- Popup Button Example -->
+    <div class="demo-section">
+      <h2>Popup & Slider Triggers</h2>
+      <p>Buttons that open modal/slider embeds.</p>
+      <button data-perspective-popup="YOUR_RESEARCH_ID">Open Popup</button>
+      <button data-perspective-slider="YOUR_RESEARCH_ID">Open Slider</button>
+    </div>
+
+    <!-- Programmatic Example -->
+    <div class="demo-section">
+      <h2>Programmatic API</h2>
+      <p>Use the JavaScript API directly.</p>
+      <button id="open-popup-btn">Open Popup (JS)</button>
+      <button id="open-slider-btn">Open Slider (JS)</button>
+    </div>
+
+    <!-- Load the SDK from local build -->
+    <script src="../../packages/embed/dist/cdn/perspective.global.js"></script>
+
+    <script>
+      // Programmatic API examples
+      document
+        .getElementById("open-popup-btn")
+        .addEventListener("click", () => {
+          Perspective.openPopup({
+            researchId: "YOUR_RESEARCH_ID",
+            params: { source: "programmatic" },
+            onReady: () => console.log("Popup ready"),
+            onClose: () => console.log("Popup closed"),
+          });
+        });
+
+      document
+        .getElementById("open-slider-btn")
+        .addEventListener("click", () => {
+          Perspective.openSlider({
+            researchId: "YOUR_RESEARCH_ID",
+            params: { source: "programmatic" },
+            onReady: () => console.log("Slider ready"),
+            onClose: () => console.log("Slider closed"),
+          });
+        });
+    </script>
+  </body>
+</html>

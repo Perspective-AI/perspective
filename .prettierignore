@@ -1,0 +1,18 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+.turbo
+
+# Test outputs
+coverage
+test-results
+playwright-report
+
+# Generated files
+*.d.ts
+pnpm-lock.yaml
+
+# Changesets
+.changeset/*.md

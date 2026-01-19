@@ -1,0 +1,36 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "src/**",
+        "tsconfig.json",
+        "tsup.config.ts"
+      ],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "inputs": ["$TURBO_DEFAULT$", "src/**", "tsconfig.json"]
+    },
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", "src/**", "vitest.config.ts"]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "src/**", "e2e/**", "playwright.config.ts"],
+      "outputs": ["playwright-report/**", "test-results/**"]
+    },
+    "test:ssr": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "dist/**"]
+    }
+  }
+}

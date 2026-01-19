@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Script Tag Auto-Init Test</title>
+    <style>
+      .widget-container {
+        height: 500px;
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Script Tag Auto-Init</h1>
+
+    <!-- Widget with data attributes -->
+    <div
+      id="widget-container"
+      class="widget-container"
+      data-perspective-widget="pbbvdh26"
+      data-perspective-params="source=test,user=abc"
+    ></div>
+
+    <!-- Popup trigger -->
+    <button id="popup-trigger" data-perspective-popup="pbbvdh26">
+      Open Popup
+    </button>
+
+    <!-- Slider trigger -->
+    <button id="slider-trigger" data-perspective-slider="pbbvdh26">
+      Open Slider
+    </button>
+
+    <!-- Float bubble - uses different ID to avoid conflict with widget -->
+    <div id="float-container" data-perspective-float="pbbvdh26-float"></div>
+
+    <!-- Track callback events for testing -->
+    <script>
+      window.__testEvents = [];
+      window.__trackEvent = (name, data) => {
+        window.__testEvents.push({ name, data, timestamp: Date.now() });
+      };
+    </script>
+
+    <!-- Load SDK from built dist -->
+    <script src="/sdk/perspective.global.js"></script>
+  </body>
+</html>

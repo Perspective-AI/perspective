@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mock Interview Iframe</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .mock-content {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      button {
+        margin: 5px;
+        padding: 10px 20px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mock-content">
+      <h2>Mock Interview</h2>
+      <p id="research-id">Research ID: Loading...</p>
+      <p id="embed-type">Embed Type: Loading...</p>
+
+      <div>
+        <button id="send-submit">Send Submit Event</button>
+        <button id="send-close">Send Close Event</button>
+        <button id="send-resize">Send Resize Event</button>
+        <button id="send-error">Send Error Event</button>
+      </div>
+    </div>
+
+    <script>
+      // Parse URL params
+      const params = new URLSearchParams(window.location.search);
+      const researchId =
+        window.location.pathname.split("/interview/")[1]?.split("?")[0] ||
+        "unknown";
+      const embedType = params.get("embed_type") || "widget";
+
+      document.getElementById("research-id").textContent =
+        `Research ID: ${researchId}`;
+      document.getElementById("embed-type").textContent =
+        `Embed Type: ${embedType}`;
+
+      // Helper to send messages to parent
+      function sendToParent(message) {
+        window.parent.postMessage(message, "*");
+      }
+
+      // Send ready event on load
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          sendToParent({
+            type: "perspective:ready",
+            researchId: researchId,
+          });
+        }, 50);
+      });
+
+      // Button handlers
+      document.getElementById("send-submit").addEventListener("click", () => {
+        sendToParent({
+          type: "perspective:submit",
+          researchId: researchId,
+        });
+      });
+
+      document.getElementById("send-close").addEventListener("click", () => {
+        sendToParent({
+          type: "perspective:close",
+          researchId: researchId,
+        });
+      });
+
+      document.getElementById("send-resize").addEventListener("click", () => {
+        sendToParent({
+          type: "perspective:resize",
+          researchId: researchId,
+          height: 600,
+        });
+      });
+
+      document.getElementById("send-error").addEventListener("click", () => {
+        sendToParent({
+          type: "perspective:error",
+          researchId: researchId,
+          error: "Test error message",
+          code: "TEST_ERROR",
+        });
+      });
+
+      // Handle messages from parent
+      window.addEventListener("message", (event) => {
+        console.log("[MockIframe] Received message:", event.data);
+
+        // Respond to init message
+        if (event.data?.type === "perspective:init") {
+          console.log(
+            "[MockIframe] Init received, version:",
+            event.data.version
+          );
+        }
+      });
+    </script>
+  </body>
+</html>

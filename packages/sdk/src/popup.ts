@@ -1,0 +1,157 @@
+/**
+ * Popup/modal embed - opens in a centered modal overlay
+ * SSR-safe - returns no-op handle on server
+ */
+
+import type { EmbedConfig, EmbedHandle } from "./types";
+import { hasDom, getHost } from "./config";
+import {
+  createIframe,
+  setupMessageListener,
+  registerIframe,
+  ensureGlobalListeners,
+} from "./iframe";
+import { createLoadingIndicator } from "./loading";
+import { injectStyles, CLOSE_ICON } from "./styles";
+import { cn, getThemeClass } from "./utils";
+
+function createNoOpHandle(researchId: string): EmbedHandle {
+  return {
+    unmount: () => {},
+    update: () => {},
+    destroy: () => {},
+    researchId,
+    type: "popup",
+    iframe: null,
+    container: null,
+  };
+}
+
+export function openPopup(config: EmbedConfig): EmbedHandle {
+  const { researchId } = config;
+
+  // SSR safety: return no-op handle
+  if (!hasDom()) {
+    return createNoOpHandle(researchId);
+  }
+  const host = getHost(config.host);
+
+  injectStyles();
+  ensureGlobalListeners();
+
+  // Create overlay
+  const overlay = document.createElement("div");
+  overlay.className = cn(
+    "perspective-overlay perspective-embed-root",
+    getThemeClass(config.theme)
+  );
+
+  // Create modal container
+  const modal = document.createElement("div");
+  modal.className = "perspective-modal";
+
+  // Create close button
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "perspective-close";
+  closeBtn.innerHTML = CLOSE_ICON;
+  closeBtn.setAttribute("aria-label", "Close");
+
+  // Create loading indicator with theme and brand colors
+  const loading = createLoadingIndicator({
+    theme: config.theme,
+    brand: config.brand,
+  });
+  loading.style.borderRadius = "16px";
+
+  // Create iframe (hidden initially)
+  const iframe = createIframe(
+    researchId,
+    "popup",
+    host,
+    config.params,
+    config.brand,
+    config.theme
+  );
+  iframe.style.opacity = "0";
+  iframe.style.transition = "opacity 0.3s ease";
+
+  modal.appendChild(closeBtn);
+  modal.appendChild(loading);
+  modal.appendChild(iframe);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Mutable config reference for updates
+  let currentConfig = { ...config };
+  let isOpen = true;
+  let messageCleanup: (() => void) | null = null;
+
+  // Register iframe for theme change notifications
+  const unregisterIframe = registerIframe(iframe, host);
+
+  const destroy = () => {
+    if (!isOpen) return;
+    isOpen = false;
+    messageCleanup?.();
+    unregisterIframe();
+    overlay.remove();
+    document.removeEventListener("keydown", escHandler);
+    currentConfig.onClose?.();
+  };
+
+  // Set up message listener with loading state handling
+  messageCleanup = setupMessageListener(
+    researchId,
+    {
+      get onReady() {
+        return () => {
+          loading.style.opacity = "0";
+          iframe.style.opacity = "1";
+          setTimeout(() => loading.remove(), 300);
+          currentConfig.onReady?.();
+        };
+      },
+      get onSubmit() {
+        return currentConfig.onSubmit;
+      },
+      get onNavigate() {
+        return currentConfig.onNavigate;
+      },
+      get onClose() {
+        return destroy;
+      },
+      get onError() {
+        return currentConfig.onError;
+      },
+    },
+    iframe,
+    host,
+    { skipResize: true }
+  );
+
+  // Close handlers
+  closeBtn.addEventListener("click", destroy);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) destroy();
+  });
+
+  // ESC key closes
+  const escHandler = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      destroy();
+    }
+  };
+  document.addEventListener("keydown", escHandler);
+
+  return {
+    unmount: destroy,
+    update: (options: Parameters<EmbedHandle["update"]>[0]) => {
+      currentConfig = { ...currentConfig, ...options };
+    },
+    destroy,
+    researchId,
+    type: "popup" as const,
+    iframe,
+    container: overlay,
+  };
+}
