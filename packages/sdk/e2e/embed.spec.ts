@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /**
- * E2E tests for @perspective/sdk
+ * E2E tests for @perspective-ai/sdk
  *
  * These tests verify:
  * 1. Script tag auto-init with data attributes

@@ -59,7 +59,7 @@ importers:
 
   packages/sdk-react:
     dependencies:
-      '@perspective/sdk':
+      '@perspective-ai/sdk':
         specifier: workspace:^
         version: link:../sdk
     devDependencies:

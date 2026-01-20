@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { createRef } from "react";
 import { FloatBubble } from "./FloatBubble";
-import type { FloatHandle } from "@perspective/sdk";
+import type { FloatHandle } from "@perspective-ai/sdk";
 
 const mockUnmount = vi.fn();
 const mockOpen = vi.fn();
@@ -10,7 +10,7 @@ const mockClose = vi.fn();
 const mockToggle = vi.fn();
 const mockUpdate = vi.fn();
 
-vi.mock("@perspective/sdk", () => ({
+vi.mock("@perspective-ai/sdk", () => ({
   createFloatBubble: vi.fn(() => ({
     unmount: mockUnmount,
     update: mockUpdate,
@@ -26,7 +26,7 @@ vi.mock("@perspective/sdk", () => ({
   })),
 }));
 
-import { createFloatBubble } from "@perspective/sdk";
+import { createFloatBubble } from "@perspective-ai/sdk";
 const mockCreateFloatBubble = vi.mocked(createFloatBubble);
 
 describe("FloatBubble", () => {

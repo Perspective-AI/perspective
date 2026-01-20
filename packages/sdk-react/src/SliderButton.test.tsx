@@ -6,7 +6,7 @@ import { SliderButton, type SliderButtonHandle } from "./SliderButton";
 const mockDestroy = vi.fn();
 const mockUnmount = vi.fn();
 
-vi.mock("@perspective/sdk", () => ({
+vi.mock("@perspective-ai/sdk", () => ({
   openSlider: vi.fn(() => ({
     unmount: mockUnmount,
     update: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock("@perspective/sdk", () => ({
   })),
 }));
 
-import { openSlider } from "@perspective/sdk";
+import { openSlider } from "@perspective-ai/sdk";
 const mockOpenSlider = vi.mocked(openSlider);
 
 describe("SliderButton", () => {

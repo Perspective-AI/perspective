@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { createRef, StrictMode } from "react";
 import { Widget } from "./Widget";
-import type { EmbedHandle } from "@perspective/sdk";
+import type { EmbedHandle } from "@perspective-ai/sdk";
 
 // Mock the core embed package
-vi.mock("@perspective/sdk", () => ({
+vi.mock("@perspective-ai/sdk", () => ({
   createWidget: vi.fn(() => ({
     unmount: vi.fn(),
     update: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("@perspective/sdk", () => ({
   })),
 }));
 
-import { createWidget } from "@perspective/sdk";
+import { createWidget } from "@perspective-ai/sdk";
 const mockCreateWidget = vi.mocked(createWidget);
 
 describe("Widget", () => {

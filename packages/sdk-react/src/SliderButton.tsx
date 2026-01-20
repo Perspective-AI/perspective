@@ -12,7 +12,7 @@ import {
   openSlider,
   type EmbedConfig,
   type EmbedHandle,
-} from "@perspective/sdk";
+} from "@perspective-ai/sdk";
 import { useStableCallback } from "./hooks/useStableCallback";
 
 /** Handle for programmatic control of slider button */

@@ -4,17 +4,17 @@ Open source packages for [Perspective AI](https://getperspective.ai) - the AI-po
 
 ## Packages
 
-| Package                                        | Description                                 | Version                                                                                                             |
-| ---------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| [@perspective/sdk](./packages/sdk)             | Core embed SDK for vanilla JS and CDN usage | [![npm](https://img.shields.io/npm/v/@perspective/sdk)](https://www.npmjs.com/package/@perspective/sdk)             |
-| [@perspective/sdk-react](./packages/sdk-react) | React components for Perspective embeds     | [![npm](https://img.shields.io/npm/v/@perspective/sdk-react)](https://www.npmjs.com/package/@perspective/sdk-react) |
+| Package                                           | Description                                 | Version                                                                                                                   |
+| ------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [@perspective-ai/sdk](./packages/sdk)             | Core embed SDK for vanilla JS and CDN usage | [![npm](https://img.shields.io/npm/v/@perspective-ai/sdk)](https://www.npmjs.com/package/@perspective-ai/sdk)             |
+| [@perspective-ai/sdk-react](./packages/sdk-react) | React components for Perspective embeds     | [![npm](https://img.shields.io/npm/v/@perspective-ai/sdk-react)](https://www.npmjs.com/package/@perspective-ai/sdk-react) |
 
 ## Documentation
 
 See package READMEs for detailed documentation:
 
-- [@perspective/sdk README](./packages/sdk/README.md)
-- [@perspective/sdk-react README](./packages/sdk-react/README.md)
+- [@perspective-ai/sdk README](./packages/sdk/README.md)
+- [@perspective-ai/sdk-react README](./packages/sdk-react/README.md)
 
 ## Development
 

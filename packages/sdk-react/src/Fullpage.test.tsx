@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { createRef } from "react";
 import { Fullpage } from "./Fullpage";
-import type { EmbedHandle } from "@perspective/sdk";
+import type { EmbedHandle } from "@perspective-ai/sdk";
 
 const mockUnmount = vi.fn();
 const mockUpdate = vi.fn();
 
-vi.mock("@perspective/sdk", () => ({
+vi.mock("@perspective-ai/sdk", () => ({
   createFullpage: vi.fn(() => ({
     unmount: mockUnmount,
     update: mockUpdate,
@@ -19,7 +19,7 @@ vi.mock("@perspective/sdk", () => ({
   })),
 }));
 
-import { createFullpage } from "@perspective/sdk";
+import { createFullpage } from "@perspective-ai/sdk";
 const mockCreateFullpage = vi.mocked(createFullpage);
 
 describe("Fullpage", () => {

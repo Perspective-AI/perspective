@@ -3,7 +3,7 @@ import {
   createWidget,
   type EmbedConfig,
   type EmbedHandle,
-} from "@perspective/sdk";
+} from "@perspective-ai/sdk";
 import { useStableCallback } from "./hooks/useStableCallback";
 
 export interface WidgetProps

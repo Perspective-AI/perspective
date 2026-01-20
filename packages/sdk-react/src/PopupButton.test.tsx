@@ -7,7 +7,7 @@ import { PopupButton, type PopupButtonHandle } from "./PopupButton";
 const mockDestroy = vi.fn();
 const mockUnmount = vi.fn();
 
-vi.mock("@perspective/sdk", () => ({
+vi.mock("@perspective-ai/sdk", () => ({
   openPopup: vi.fn(() => ({
     unmount: mockUnmount,
     update: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock("@perspective/sdk", () => ({
   })),
 }));
 
-import { openPopup } from "@perspective/sdk";
+import { openPopup } from "@perspective-ai/sdk";
 const mockOpenPopup = vi.mocked(openPopup);
 
 describe("PopupButton", () => {

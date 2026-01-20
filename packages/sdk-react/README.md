@@ -1,13 +1,13 @@
-# @perspective/sdk-react
+# @perspective-ai/sdk-react
 
 React components for [Perspective AI](https://getperspective.ai).
 
-> **Not using React?** Use [`@perspective/sdk`](https://www.npmjs.com/package/@perspective/sdk) for vanilla JavaScript.
+> **Not using React?** Use [`@perspective-ai/sdk`](https://www.npmjs.com/package/@perspective-ai/sdk) for vanilla JavaScript.
 
 ## Installation
 
 ```bash
-npm install @perspective/sdk-react
+npm install @perspective-ai/sdk-react
 ```
 
 **Peer Dependencies:** React 18+ or 19+
@@ -15,7 +15,7 @@ npm install @perspective/sdk-react
 ## Quick Start
 
 ```tsx
-import { PopupButton } from "@perspective/sdk-react";
+import { PopupButton } from "@perspective-ai/sdk-react";
 
 function App() {
   return (
@@ -44,7 +44,7 @@ function App() {
 Inline embed that renders in a container.
 
 ```tsx
-import { Widget } from "@perspective/sdk-react";
+import { Widget } from "@perspective-ai/sdk-react";
 
 <Widget
   researchId="your-research-id"
@@ -58,7 +58,7 @@ import { Widget } from "@perspective/sdk-react";
 Button that opens a popup modal when clicked.
 
 ```tsx
-import { PopupButton } from "@perspective/sdk-react";
+import { PopupButton } from "@perspective-ai/sdk-react";
 
 <PopupButton
   researchId="your-research-id"
@@ -84,7 +84,7 @@ const [open, setOpen] = useState(false);
 Button that opens a side panel when clicked.
 
 ```tsx
-import { SliderButton } from "@perspective/sdk-react";
+import { SliderButton } from "@perspective-ai/sdk-react";
 
 <SliderButton researchId="your-research-id">Open Interview</SliderButton>;
 ```
@@ -94,7 +94,7 @@ import { SliderButton } from "@perspective/sdk-react";
 Floating chat bubble in the corner of the screen.
 
 ```tsx
-import { FloatBubble } from "@perspective/sdk-react";
+import { FloatBubble } from "@perspective-ai/sdk-react";
 
 <FloatBubble researchId="your-research-id" />;
 ```
@@ -104,7 +104,7 @@ import { FloatBubble } from "@perspective/sdk-react";
 Full viewport takeover embed.
 
 ```tsx
-import { Fullpage } from "@perspective/sdk-react";
+import { Fullpage } from "@perspective-ai/sdk-react";
 
 <Fullpage researchId="your-research-id" />;
 ```
@@ -114,7 +114,7 @@ import { Fullpage } from "@perspective/sdk-react";
 All components accept props from `EmbedConfig`:
 
 ```typescript
-import type { EmbedConfig } from "@perspective/sdk-react";
+import type { EmbedConfig } from "@perspective-ai/sdk-react";
 
 interface EmbedConfig {
   researchId: string;
@@ -143,7 +143,7 @@ interface EmbedConfig {
 ### Widget
 
 ```typescript
-import type { WidgetProps } from "@perspective/sdk-react";
+import type { WidgetProps } from "@perspective-ai/sdk-react";
 
 interface WidgetProps extends EmbedConfig {
   embedRef?: RefObject<EmbedHandle | null>;
@@ -159,7 +159,7 @@ interface WidgetProps extends EmbedConfig {
 import type {
   PopupButtonProps,
   SliderButtonProps,
-} from "@perspective/sdk-react";
+} from "@perspective-ai/sdk-react";
 
 interface PopupButtonProps extends EmbedConfig {
   children: ReactNode;
@@ -181,7 +181,10 @@ interface SliderButtonProps extends EmbedConfig {
 ### FloatBubble / Fullpage
 
 ```typescript
-import type { FloatBubbleProps, FullpageProps } from "@perspective/sdk-react";
+import type {
+  FloatBubbleProps,
+  FullpageProps,
+} from "@perspective-ai/sdk-react";
 
 interface FloatBubbleProps extends EmbedConfig {
   embedRef?: RefObject<FloatHandle | null>;
@@ -198,7 +201,7 @@ Use `embedRef` to control components:
 
 ```tsx
 import { useRef } from "react";
-import { PopupButton, type PopupButtonHandle } from "@perspective/sdk-react";
+import { PopupButton, type PopupButtonHandle } from "@perspective-ai/sdk-react";
 
 function App() {
   const ref = useRef<PopupButtonHandle>(null);
@@ -262,7 +265,7 @@ interface FloatHandle {
 Sync theme between your app and embedded interviews:
 
 ```tsx
-import { useThemeSync } from "@perspective/sdk-react";
+import { useThemeSync } from "@perspective-ai/sdk-react";
 
 function App() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -291,9 +294,9 @@ import type {
   SliderButtonHandle,
   FloatBubbleProps,
   FullpageProps,
-} from "@perspective/sdk-react";
+} from "@perspective-ai/sdk-react";
 
-// Re-exported from @perspective/sdk
+// Re-exported from @perspective-ai/sdk
 import type {
   EmbedConfig,
   EmbedHandle,
@@ -301,7 +304,7 @@ import type {
   BrandColors,
   ThemeValue,
   EmbedError,
-} from "@perspective/sdk-react";
+} from "@perspective-ai/sdk-react";
 ```
 
 ## SSR Safety

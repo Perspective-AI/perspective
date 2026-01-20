@@ -3,7 +3,7 @@ import {
   createFloatBubble,
   type EmbedConfig,
   type FloatHandle,
-} from "@perspective/sdk";
+} from "@perspective-ai/sdk";
 import { useStableCallback } from "./hooks/useStableCallback";
 
 export interface FloatBubbleProps extends Omit<EmbedConfig, "type"> {

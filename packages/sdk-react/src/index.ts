@@ -4,7 +4,7 @@
  * Perspective Embed SDK - React Components
  *
  * Usage:
- *   import { Widget, PopupButton, SliderButton, FloatBubble } from '@perspective/sdk-react';
+ *   import { Widget, PopupButton, SliderButton, FloatBubble } from '@perspective-ai/sdk-react';
  *
  *   // Inline widget
  *   <Widget researchId="xxx" onReady={() => {}} />
@@ -49,4 +49,4 @@ export type {
   BrandColors,
   ThemeValue,
   EmbedError,
-} from "@perspective/sdk";
+} from "@perspective-ai/sdk";

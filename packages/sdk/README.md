@@ -1,11 +1,11 @@
-# @perspective/sdk
+# @perspective-ai/sdk
 
 Embed SDK for [Perspective AI](https://getperspective.ai).
 
 ## Installation
 
 ```bash
-npm install @perspective/sdk
+npm install @perspective-ai/sdk
 ```
 
 ## Quick Start
@@ -16,7 +16,7 @@ npm install @perspective/sdk
 <button id="feedback-btn">Give Feedback</button>
 
 <script type="module">
-  import { openPopup } from "@perspective/sdk";
+  import { openPopup } from "@perspective-ai/sdk";
 
   document.getElementById("feedback-btn").addEventListener("click", () => {
     openPopup({
@@ -29,7 +29,7 @@ npm install @perspective/sdk
 </script>
 ```
 
-> **React?** Use [`@perspective/sdk-react`](https://www.npmjs.com/package/@perspective/sdk-react) for hooks and components.
+> **React?** Use [`@perspective-ai/sdk-react`](https://www.npmjs.com/package/@perspective-ai/sdk-react) for hooks and components.
 
 ## Embed Types
 
@@ -44,7 +44,7 @@ npm install @perspective/sdk
 ### Widget (Inline Embed)
 
 ```typescript
-import { createWidget } from "@perspective/sdk";
+import { createWidget } from "@perspective-ai/sdk";
 
 const container = document.getElementById("interview-container");
 const handle = createWidget(container, {
@@ -55,7 +55,7 @@ const handle = createWidget(container, {
 ### Popup Modal
 
 ```typescript
-import { openPopup } from "@perspective/sdk";
+import { openPopup } from "@perspective-ai/sdk";
 
 const handle = openPopup({
   researchId: "your-research-id",
@@ -66,7 +66,7 @@ const handle = openPopup({
 ### Slider Panel
 
 ```typescript
-import { openSlider } from "@perspective/sdk";
+import { openSlider } from "@perspective-ai/sdk";
 
 const handle = openSlider({
   researchId: "your-research-id",
@@ -76,7 +76,7 @@ const handle = openSlider({
 ### Float Bubble
 
 ```typescript
-import { createFloatBubble } from "@perspective/sdk";
+import { createFloatBubble } from "@perspective-ai/sdk";
 
 const handle = createFloatBubble({
   researchId: "your-research-id",
@@ -92,7 +92,7 @@ console.log(handle.isOpen); // boolean
 ### Fullpage
 
 ```typescript
-import { createFullpage } from "@perspective/sdk";
+import { createFullpage } from "@perspective-ai/sdk";
 
 const handle = createFullpage({
   researchId: "your-research-id",
@@ -166,7 +166,7 @@ interface FloatHandle extends EmbedHandle {
 Configure SDK-wide defaults before creating embeds:
 
 ```typescript
-import { configure, getConfig } from "@perspective/sdk";
+import { configure, getConfig } from "@perspective-ai/sdk";
 
 // Set global host
 configure({ host: "https://custom-host.example.com" });
@@ -209,10 +209,10 @@ import {
   DATA_ATTRS,
   PARAM_KEYS,
   THEME_VALUES,
-} from "@perspective/sdk";
+} from "@perspective-ai/sdk";
 
 // Or import from the constants submodule
-import { MESSAGE_TYPES } from "@perspective/sdk/constants";
+import { MESSAGE_TYPES } from "@perspective-ai/sdk/constants";
 ```
 
 ### Available Constants
@@ -241,7 +241,7 @@ import type {
   BrandColors,
   ThemeConfig,
   SDKConfig,
-} from "@perspective/sdk";
+} from "@perspective-ai/sdk";
 ```
 
 ## CDN / Script Tag Usage
