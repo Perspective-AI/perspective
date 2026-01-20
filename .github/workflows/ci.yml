@@ -78,10 +78,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('packages/sdk/package.json') }}
 
       - name: Install Playwright
-        run: pnpm --filter @perspective/sdk exec playwright install --with-deps chromium
+        run: pnpm --filter @perspective-ai/sdk exec playwright install --with-deps chromium
 
       - name: Test E2E
         run: pnpm test:e2e
