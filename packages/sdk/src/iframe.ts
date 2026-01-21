@@ -21,6 +21,7 @@ import {
   STORAGE_KEYS,
   SDK_VERSION,
   CURRENT_FEATURES,
+  ERROR_CODES,
 } from "./constants";
 import { normalizeHex } from "./utils";
 
@@ -240,14 +241,26 @@ export function setupMessageListener(
         config.onClose?.();
         break;
 
-      case MESSAGE_TYPES.error:
+      case MESSAGE_TYPES.error: {
         const error = new Error(
           event.data.error
         ) as import("./types").EmbedError;
         error.code =
           (event.data.code as import("./types").ErrorCode) || "UNKNOWN";
+
+        // Always log critical errors to console
+        if (error.code === ERROR_CODES.SDK_OUTDATED) {
+          console.error(
+            "[Perspective] SDK version outdated. Please update @perspective-ai/sdk to the latest version.",
+            error.message
+          );
+        } else {
+          console.error("[Perspective] Embed error:", error.message);
+        }
+
         config.onError?.(error);
         break;
+      }
 
       case MESSAGE_TYPES.redirect:
         const redirectUrl = event.data.url;

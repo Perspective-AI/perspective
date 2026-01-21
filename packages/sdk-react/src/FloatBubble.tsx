@@ -1,10 +1,6 @@
-import { useRef, useEffect, type RefObject } from "react";
-import {
-  createFloatBubble,
-  type EmbedConfig,
-  type FloatHandle,
-} from "@perspective-ai/sdk";
-import { useStableCallback } from "./hooks/useStableCallback";
+import { useEffect, type RefObject } from "react";
+import { type EmbedConfig, type FloatHandle } from "@perspective-ai/sdk";
+import { useFloatBubble } from "./hooks/useFloatBubble";
 
 export interface FloatBubbleProps extends Omit<EmbedConfig, "type"> {
   /** Ref to access the handle for programmatic control */
@@ -13,7 +9,12 @@ export interface FloatBubbleProps extends Omit<EmbedConfig, "type"> {
 
 /**
  * Floating bubble widget that expands into a chat window.
- * Renders a floating button in the corner of the screen.
+ * This is a convenience wrapper around useFloatBubble hook.
+ *
+ * @example
+ * ```tsx
+ * <FloatBubble researchId="abc" onSubmit={handleSubmit} />
+ * ```
  */
 export function FloatBubble({
   researchId,
@@ -28,56 +29,29 @@ export function FloatBubble({
   onError,
   embedRef,
 }: FloatBubbleProps) {
-  const handleRef = useRef<FloatHandle | null>(null);
-
-  // Stable callbacks
-  const stableOnReady = useStableCallback(onReady);
-  const stableOnSubmit = useStableCallback(onSubmit);
-  const stableOnNavigate = useStableCallback(onNavigate);
-  const stableOnClose = useStableCallback(onClose);
-  const stableOnError = useStableCallback(onError);
-
-  useEffect(() => {
-    const handle = createFloatBubble({
-      researchId,
-      params,
-      brand,
-      theme,
-      host,
-      onReady: stableOnReady,
-      onSubmit: stableOnSubmit,
-      onNavigate: stableOnNavigate,
-      onClose: stableOnClose,
-      onError: stableOnError,
-    });
-
-    handleRef.current = handle;
-
-    if (embedRef) {
-      embedRef.current = handle;
-    }
-
-    return () => {
-      handle.unmount();
-      handleRef.current = null;
-      if (embedRef) {
-        embedRef.current = null;
-      }
-    };
-  }, [
+  const { handle } = useFloatBubble({
     researchId,
     params,
     brand,
     theme,
     host,
-    stableOnReady,
-    stableOnSubmit,
-    stableOnNavigate,
-    stableOnClose,
-    stableOnError,
-    embedRef,
-  ]);
+    onReady,
+    onSubmit,
+    onNavigate,
+    onClose,
+    onError,
+  });
 
-  // This component doesn't render anything - the bubble is added to document.body
+  useEffect(() => {
+    if (embedRef) {
+      embedRef.current = handle;
+    }
+    return () => {
+      if (embedRef) {
+        embedRef.current = null;
+      }
+    };
+  }, [embedRef, handle]);
+
   return null;
 }

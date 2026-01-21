@@ -20,7 +20,7 @@
     "test:ssr": "turbo test:ssr",
     "test:types": "attw --pack packages/sdk --ignore-rules=no-resolution && attw --pack packages/sdk-react --ignore-rules=no-resolution",
     "test:e2e": "turbo test:e2e",
-    "test:e2e:ui": "pnpm --filter @perspective-ai/sdk exec playwright test --ui",
+    "test:e2e:ui": "pnpm --filter @perspective/sdk exec playwright test --ui",
     "check": "pnpm lint:check && pnpm format:check && pnpm typecheck",
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",

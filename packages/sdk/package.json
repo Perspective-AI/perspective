@@ -56,10 +56,17 @@
   },
   "keywords": [
     "perspective",
+    "perspective-ai",
     "embed",
+    "sdk",
+    "ai",
+    "llm",
+    "conversational-ai",
     "research",
     "interview",
-    "widget"
+    "voice-agent",
+    "widget",
+    "iframe"
   ],
   "author": "Perspective AI",
   "license": "MIT",

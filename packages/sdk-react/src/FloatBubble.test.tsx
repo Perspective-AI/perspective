@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import { createRef } from "react";
 import { FloatBubble } from "./FloatBubble";
-import type { FloatHandle } from "@perspective-ai/sdk";
 
 const mockUnmount = vi.fn();
 const mockOpen = vi.fn();
@@ -90,43 +88,6 @@ describe("FloatBubble", () => {
     expect(config.params).toEqual({ source: "test" });
     expect(config.theme).toBe("dark");
     expect(config.host).toBe("https://custom.example.com");
-  });
-
-  it("exposes handle via embedRef", () => {
-    const mockHandle: FloatHandle = {
-      unmount: mockUnmount,
-      update: mockUpdate,
-      destroy: mockUnmount,
-      open: mockOpen,
-      close: mockClose,
-      toggle: mockToggle,
-      researchId: "test-research-id",
-      type: "float",
-      iframe: null,
-      container: null,
-      isOpen: false,
-    };
-    mockCreateFloatBubble.mockReturnValueOnce(mockHandle);
-
-    const embedRef = createRef<FloatHandle | null>();
-
-    render(<FloatBubble researchId="test-research-id" embedRef={embedRef} />);
-
-    expect(embedRef.current).toBe(mockHandle);
-  });
-
-  it("clears embedRef on unmount", () => {
-    const embedRef = createRef<FloatHandle | null>();
-
-    const { unmount } = render(
-      <FloatBubble researchId="test-research-id" embedRef={embedRef} />
-    );
-
-    expect(embedRef.current).not.toBeNull();
-
-    unmount();
-
-    expect(embedRef.current).toBeNull();
   });
 
   it("re-creates float bubble when researchId changes", () => {

@@ -1,47 +1,44 @@
 "use client";
 
 /**
- * Perspective Embed SDK - React Components
+ * Perspective Embed SDK - React
  *
- * Usage:
- *   import { Widget, PopupButton, SliderButton, FloatBubble } from '@perspective-ai/sdk-react';
+ * Hooks (for overlays - popup, slider, float bubble):
+ *   import { usePopup, useSlider, useFloatBubble } from '@perspective-ai/sdk-react';
  *
- *   // Inline widget
- *   <Widget researchId="xxx" onReady={() => {}} />
+ *   const { open } = usePopup({ researchId: "xxx" });
+ *   <button onClick={open}>Take Survey</button>
  *
- *   // Popup button
- *   <PopupButton researchId="xxx">Take the interview</PopupButton>
+ * Components (for embeds - widget, fullpage):
+ *   import { Widget, Fullpage, FloatBubble } from '@perspective-ai/sdk-react';
  *
- *   // Slider button
- *   <SliderButton researchId="xxx">Open Interview</SliderButton>
- *
- *   // Floating bubble
- *   <FloatBubble researchId="xxx" />
- *
- *   // Full page
+ *   <Widget researchId="xxx" />
  *   <Fullpage researchId="xxx" />
+ *   <FloatBubble researchId="xxx" />
  */
 
-// Components
-export { Widget, type WidgetProps } from "./Widget";
 export {
-  PopupButton,
-  type PopupButtonProps,
-  type PopupButtonHandle,
-} from "./PopupButton";
+  usePopup,
+  type UsePopupOptions,
+  type UsePopupReturn,
+} from "./hooks/usePopup";
 export {
-  SliderButton,
-  type SliderButtonProps,
-  type SliderButtonHandle,
-} from "./SliderButton";
-export { FloatBubble, type FloatBubbleProps } from "./FloatBubble";
-export { Fullpage, type FullpageProps } from "./Fullpage";
-
-// Hooks
+  useSlider,
+  type UseSliderOptions,
+  type UseSliderReturn,
+} from "./hooks/useSlider";
+export {
+  useFloatBubble,
+  type UseFloatBubbleOptions,
+  type UseFloatBubbleReturn,
+} from "./hooks/useFloatBubble";
 export { useThemeSync } from "./hooks/useThemeSync";
 export { useStableCallback } from "./hooks/useStableCallback";
 
-// Re-export types from core package for convenience
+export { Widget, type WidgetProps } from "./Widget";
+export { Fullpage, type FullpageProps } from "./Fullpage";
+export { FloatBubble, type FloatBubbleProps } from "./FloatBubble";
+
 export type {
   EmbedConfig,
   EmbedHandle,

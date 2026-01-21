@@ -1,6 +1,6 @@
 # @perspective-ai/sdk-react
 
-React components for [Perspective AI](https://getperspective.ai).
+React hooks and components for [Perspective AI](https://getperspective.ai).
 
 > **Not using React?** Use [`@perspective-ai/sdk`](https://www.npmjs.com/package/@perspective-ai/sdk) for vanilla JavaScript.
 
@@ -15,29 +15,120 @@ npm install @perspective-ai/sdk-react
 ## Quick Start
 
 ```tsx
-import { PopupButton } from "@perspective-ai/sdk-react";
+import { usePopup } from "@perspective-ai/sdk-react";
 
 function App() {
+  const { open } = usePopup({
+    researchId: "your-research-id",
+    onSubmit: () => console.log("Interview completed!"),
+  });
+
+  return <button onClick={open}>Give Feedback</button>;
+}
+```
+
+## API Overview
+
+| API              | Type      | Description                            |
+| ---------------- | --------- | -------------------------------------- |
+| `usePopup`       | Hook      | Open popup modal programmatically      |
+| `useSlider`      | Hook      | Open slider panel programmatically     |
+| `useFloatBubble` | Hook      | Floating chat bubble lifecycle         |
+| `Widget`         | Component | Inline embed in a container            |
+| `Fullpage`       | Component | Full viewport takeover                 |
+| `FloatBubble`    | Component | Convenience wrapper for useFloatBubble |
+
+**Mental Model:**
+
+- **Hooks** for overlays (popup, slider, float bubble) - you control the trigger
+- **Components** for embeds (widget, fullpage) - render inline DOM
+
+## Hooks
+
+### usePopup
+
+Open a popup modal with your own trigger element.
+
+```tsx
+import { usePopup } from "@perspective-ai/sdk-react";
+
+function App() {
+  const { open, close, isOpen } = usePopup({
+    researchId: "your-research-id",
+    onSubmit: () => console.log("Done!"),
+  });
+
   return (
-    <PopupButton
-      researchId="your-research-id"
-      onSubmit={() => console.log("Interview completed!")}
-    >
-      Give Feedback
-    </PopupButton>
+    <>
+      <button onClick={open}>Take Survey</button>
+      {isOpen && <span>Survey is open</span>}
+    </>
   );
 }
 ```
 
-## Components
+**Programmatic trigger:**
 
-| Component      | Description                     |
-| -------------- | ------------------------------- |
-| `Widget`       | Inline embed in a container     |
-| `PopupButton`  | Button that opens a popup modal |
-| `SliderButton` | Button that opens a side panel  |
-| `FloatBubble`  | Floating chat bubble in corner  |
-| `Fullpage`     | Full viewport takeover          |
+```tsx
+const { open } = usePopup({ researchId: "xxx" });
+
+useEffect(() => {
+  if (userCompletedCheckout) {
+    open();
+  }
+}, [userCompletedCheckout, open]);
+```
+
+**Controlled mode:**
+
+```tsx
+const [isOpen, setIsOpen] = useState(false);
+
+const popup = usePopup({
+  researchId: "xxx",
+  open: isOpen,
+  onOpenChange: setIsOpen,
+});
+
+// External control
+<button onClick={() => setIsOpen(true)}>Open from anywhere</button>;
+```
+
+### useSlider
+
+Open a slider panel with your own trigger element.
+
+```tsx
+import { useSlider } from "@perspective-ai/sdk-react";
+
+function App() {
+  const { open, close, isOpen } = useSlider({
+    researchId: "your-research-id",
+  });
+
+  return <button onClick={open}>Open Feedback Panel</button>;
+}
+```
+
+### useFloatBubble
+
+Manage a floating chat bubble lifecycle.
+
+```tsx
+import { useFloatBubble } from "@perspective-ai/sdk-react";
+
+function App() {
+  const { open, close, isOpen } = useFloatBubble({
+    researchId: "your-research-id",
+  });
+
+  // Bubble mounts on component mount
+  // Use open/close for programmatic control
+  return null;
+}
+```
+
+## Components
 
 ### Widget
 
@@ -49,54 +140,9 @@ import { Widget } from "@perspective-ai/sdk-react";
 <Widget
   researchId="your-research-id"
   onSubmit={() => console.log("Done!")}
-  className="my-widget" // or style={{ height: 600 }}
+  className="my-widget"
+  style={{ height: 600 }}
 />;
-```
-
-### PopupButton
-
-Button that opens a popup modal when clicked.
-
-```tsx
-import { PopupButton } from "@perspective-ai/sdk-react";
-
-<PopupButton
-  researchId="your-research-id"
-  onSubmit={() => console.log("Done!")}
-  className="btn btn-primary"
->
-  Take Interview
-</PopupButton>;
-```
-
-**Controlled mode:**
-
-```tsx
-const [open, setOpen] = useState(false);
-
-<PopupButton researchId="xxx" open={open} onOpenChange={setOpen}>
-  Take Interview
-</PopupButton>;
-```
-
-### SliderButton
-
-Button that opens a side panel when clicked.
-
-```tsx
-import { SliderButton } from "@perspective-ai/sdk-react";
-
-<SliderButton researchId="your-research-id">Open Interview</SliderButton>;
-```
-
-### FloatBubble
-
-Floating chat bubble in the corner of the screen.
-
-```tsx
-import { FloatBubble } from "@perspective-ai/sdk-react";
-
-<FloatBubble researchId="your-research-id" />;
 ```
 
 ### Fullpage
@@ -109,14 +155,22 @@ import { Fullpage } from "@perspective-ai/sdk-react";
 <Fullpage researchId="your-research-id" />;
 ```
 
-## Props
+### FloatBubble
 
-All components accept props from `EmbedConfig`:
+Convenience wrapper around `useFloatBubble` hook.
+
+```tsx
+import { FloatBubble } from "@perspective-ai/sdk-react";
+
+<FloatBubble researchId="your-research-id" />;
+```
+
+## Hook Options
+
+All hooks accept options from `EmbedConfig`:
 
 ```typescript
-import type { EmbedConfig } from "@perspective-ai/sdk-react";
-
-interface EmbedConfig {
+interface UsePopupOptions {
   researchId: string;
   host?: string;
   theme?: "light" | "dark" | "system";
@@ -137,128 +191,43 @@ interface EmbedConfig {
   onClose?: () => void;
   onNavigate?: (url: string) => void;
   onError?: (error: EmbedError) => void;
-}
-```
 
-### Widget
-
-```typescript
-import type { WidgetProps } from "@perspective-ai/sdk-react";
-
-interface WidgetProps extends EmbedConfig {
-  embedRef?: RefObject<EmbedHandle | null>;
-  className?: string;
-  style?: CSSProperties;
-  // ...other div props
-}
-```
-
-### PopupButton / SliderButton
-
-```typescript
-import type {
-  PopupButtonProps,
-  SliderButtonProps,
-} from "@perspective-ai/sdk-react";
-
-interface PopupButtonProps extends EmbedConfig {
-  children: ReactNode;
-  open?: boolean; // Controlled mode
-  onOpenChange?: (open: boolean) => void;
-  embedRef?: RefObject<PopupButtonHandle | null>;
-  // ...other button props
-}
-
-interface SliderButtonProps extends EmbedConfig {
-  children: ReactNode;
+  // Controlled mode
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  embedRef?: RefObject<SliderButtonHandle | null>;
-  // ...other button props
 }
 ```
 
-### FloatBubble / Fullpage
+## Hook Return Types
 
 ```typescript
-import type {
-  FloatBubbleProps,
-  FullpageProps,
-} from "@perspective-ai/sdk-react";
-
-interface FloatBubbleProps extends EmbedConfig {
-  embedRef?: RefObject<FloatHandle | null>;
+interface UsePopupReturn {
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+  isOpen: boolean;
+  handle: EmbedHandle | null;
 }
 
-interface FullpageProps extends EmbedConfig {
-  embedRef?: RefObject<EmbedHandle | null>;
+interface UseSliderReturn {
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+  isOpen: boolean;
+  handle: EmbedHandle | null;
 }
-```
 
-## Programmatic Control
-
-Use `embedRef` to control components:
-
-```tsx
-import { useRef } from "react";
-import { PopupButton, type PopupButtonHandle } from "@perspective-ai/sdk-react";
-
-function App() {
-  const ref = useRef<PopupButtonHandle>(null);
-
-  return (
-    <>
-      <PopupButton researchId="xxx" embedRef={ref}>
-        Open
-      </PopupButton>
-      <button onClick={() => ref.current?.open()}>Open Programmatically</button>
-      <button onClick={() => ref.current?.close()}>Close</button>
-    </>
-  );
+interface UseFloatBubbleReturn {
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+  unmount: () => void;
+  isOpen: boolean;
+  handle: FloatHandle | null;
 }
 ```
 
-### Handle Types
-
-```typescript
-// Widget, Fullpage
-interface EmbedHandle {
-  unmount(): void;
-  update(options): void;
-  destroy(): void; // deprecated, use unmount
-}
-
-// PopupButton
-interface PopupButtonHandle {
-  open(): void;
-  close(): void;
-  toggle(): void;
-  unmount(): void;
-  readonly isOpen: boolean;
-  readonly researchId: string;
-}
-
-// SliderButton
-interface SliderButtonHandle {
-  open(): void;
-  close(): void;
-  toggle(): void;
-  unmount(): void;
-  readonly isOpen: boolean;
-  readonly researchId: string;
-}
-
-// FloatBubble
-interface FloatHandle {
-  open(): void;
-  close(): void;
-  toggle(): void;
-  unmount(): void;
-  readonly isOpen: boolean;
-}
-```
-
-## Hooks
+## Other Hooks
 
 ### useThemeSync
 
@@ -287,11 +256,15 @@ All types are exported:
 
 ```typescript
 import type {
+  // Hook types
+  UsePopupOptions,
+  UsePopupReturn,
+  UseSliderOptions,
+  UseSliderReturn,
+  UseFloatBubbleOptions,
+  UseFloatBubbleReturn,
+  // Component types
   WidgetProps,
-  PopupButtonProps,
-  PopupButtonHandle,
-  SliderButtonProps,
-  SliderButtonHandle,
   FloatBubbleProps,
   FullpageProps,
 } from "@perspective-ai/sdk-react";
@@ -309,7 +282,7 @@ import type {
 
 ## SSR Safety
 
-All components are SSR-safe and include the `"use client"` directive. Works with Next.js, Remix, and other React frameworks.
+All hooks and components are SSR-safe and include the `"use client"` directive. Works with Next.js, Remix, and other React frameworks.
 
 ## License
 
