@@ -30,26 +30,8 @@ export const CURRENT_FEATURES =
 // URL Parameter Keys
 // ============================================================================
 
+// Embed parameters
 export const PARAM_KEYS = {
-  // User identification
-  email: "email",
-  name: "name",
-
-  // Navigation
-  returnUrl: "returnUrl",
-
-  // Interview behavior
-  voice: "voice",
-  scroll: "scroll",
-  hideProgress: "hideProgress",
-  hideGreeting: "hideGreeting",
-  hideBranding: "hideBranding",
-
-  // Interview mode & auth
-  mode: "mode",
-  invite: "invite",
-
-  // System (internal)
   embed: "embed",
   embedType: "embed_type",
   theme: "theme",
@@ -174,8 +156,6 @@ export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 // ============================================================================
 
 export const PARAM_VALUES = {
-  disabled: "0",
-  enabled: "1",
   true: "true",
   false: "false",
 } as const;
