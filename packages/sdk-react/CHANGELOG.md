@@ -1,5 +1,13 @@
 # @perspective-ai/sdk-react
 
+## 1.0.1
+
+### Patch Changes
+
+- 9e6537d: remove unused constant values
+- Updated dependencies [9e6537d]
+  - @perspective-ai/sdk@1.0.1
+
 ## 1.0.0
 
 ### Major Changes
