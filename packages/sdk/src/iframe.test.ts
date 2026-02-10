@@ -62,6 +62,121 @@ describe("createIframe", () => {
     expect(src.searchParams.get(PARAM_KEYS.theme)).toBe("dark");
   });
 
+  it("forwards parent page search params to iframe", () => {
+    // Simulate parent page URL with search params
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: { ...originalLocation, search: "?ref=pricing-enterprise&foo=bar" },
+      writable: true,
+      configurable: true,
+    });
+
+    const iframe = createIframe(
+      "test-research-id",
+      "widget",
+      "https://getperspective.ai"
+    );
+
+    const src = new URL(iframe.src);
+    expect(src.searchParams.get("ref")).toBe("pricing-enterprise");
+    expect(src.searchParams.get("foo")).toBe("bar");
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("does not forward reserved params from parent URL", () => {
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: {
+        ...originalLocation,
+        search: "?embed=false&theme=dark&ref=test",
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    const iframe = createIframe(
+      "test-research-id",
+      "widget",
+      "https://getperspective.ai"
+    );
+
+    const src = new URL(iframe.src);
+    // Reserved params should be set by SDK, not from parent URL
+    expect(src.searchParams.get(PARAM_KEYS.embed)).toBe("true");
+    // Non-reserved params should be forwarded
+    expect(src.searchParams.get("ref")).toBe("test");
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("custom params override parent URL params", () => {
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: { ...originalLocation, search: "?ref=from-url&source=parent" },
+      writable: true,
+      configurable: true,
+    });
+
+    const iframe = createIframe(
+      "test-research-id",
+      "widget",
+      "https://getperspective.ai",
+      { ref: "from-custom", extra: "value" }
+    );
+
+    const src = new URL(iframe.src);
+    // Custom params should override parent URL params
+    expect(src.searchParams.get("ref")).toBe("from-custom");
+    // Parent-only params should still be forwarded
+    expect(src.searchParams.get("source")).toBe("parent");
+    // Custom-only params should be present
+    expect(src.searchParams.get("extra")).toBe("value");
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it("forwards UTM params from parent URL", () => {
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: {
+        ...originalLocation,
+        search: "?utm_source=google&utm_campaign=summer&ref=pricing",
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    const iframe = createIframe(
+      "test-research-id",
+      "widget",
+      "https://getperspective.ai"
+    );
+
+    const src = new URL(iframe.src);
+    expect(src.searchParams.get("utm_source")).toBe("google");
+    expect(src.searchParams.get("utm_campaign")).toBe("summer");
+    expect(src.searchParams.get("ref")).toBe("pricing");
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
+  });
+
   it("includes brand colors", () => {
     const iframe = createIframe(
       "test-research-id",
