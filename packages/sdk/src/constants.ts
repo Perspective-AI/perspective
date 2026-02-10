@@ -9,7 +9,7 @@
 // ============================================================================
 
 /** SDK version for handshake protocol */
-export const SDK_VERSION = "1.0.0";
+export const SDK_VERSION = "1.1.0";
 
 /** Feature flags as bitset for version negotiation */
 export const FEATURES = {
