@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.1.0
+
+### Minor Changes
+
+- af48387: Forward all parent URL search params to iframe
+
 ## 1.0.1
 
 ### Patch Changes
