@@ -60,36 +60,12 @@ export const BRAND_KEYS = {
 export type BrandKey = (typeof BRAND_KEYS)[keyof typeof BRAND_KEYS];
 
 // ============================================================================
-// UTM Parameters (auto-forwarded from parent URL)
-// ============================================================================
-
-export const UTM_PARAMS = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_term",
-  "utm_content",
-] as const;
-
-export type UtmParam = (typeof UTM_PARAMS)[number];
-
-// ============================================================================
-// Reserved Parameters (cannot be overridden via custom params)
+// Reserved Parameters (cannot be overridden via custom params or parent URL)
 // ============================================================================
 
 export const RESERVED_PARAMS: Set<string> = new Set([
-  PARAM_KEYS.embed,
-  PARAM_KEYS.embedType,
-  PARAM_KEYS.theme,
-  BRAND_KEYS.primary,
-  BRAND_KEYS.secondary,
-  BRAND_KEYS.bg,
-  BRAND_KEYS.text,
-  BRAND_KEYS.darkPrimary,
-  BRAND_KEYS.darkSecondary,
-  BRAND_KEYS.darkBg,
-  BRAND_KEYS.darkText,
-  ...UTM_PARAMS,
+  ...Object.values(PARAM_KEYS),
+  ...Object.values(BRAND_KEYS),
 ]);
 
 // ============================================================================

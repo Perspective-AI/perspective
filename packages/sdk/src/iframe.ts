@@ -11,7 +11,6 @@ import type {
 } from "./types";
 import { hasDom } from "./config";
 import {
-  UTM_PARAMS,
   RESERVED_PARAMS,
   PARAM_KEYS,
   BRAND_KEYS,
@@ -63,16 +62,15 @@ function getOrCreateAnonId(): string {
   }
 }
 
-/** Collect UTM params from current page URL */
-function getUtmParams(): Record<string, string> {
+/** Collect all search params from the parent page URL (excluding reserved SDK params) */
+function getParentSearchParams(): Record<string, string> {
   if (!hasDom()) return {};
 
   const params: Record<string, string> = {};
   const searchParams = new URLSearchParams(window.location.search);
 
-  for (const key of UTM_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
+  for (const [key, value] of searchParams.entries()) {
+    if (!RESERVED_PARAMS.has(key)) {
       params[key] = value;
     }
   }
@@ -111,9 +109,10 @@ function buildIframeUrl(
     url.searchParams.set(PARAM_KEYS.theme, themeOverride || THEME_VALUES.light);
   }
 
-  // Auto-forward UTM params from parent
-  const utmParams = getUtmParams();
-  for (const [key, value] of Object.entries(utmParams)) {
+  // Auto-forward all parent page search params (e.g. ?ref=pricing-enterprise)
+  // These are added first so that explicit customParams can override them
+  const parentParams = getParentSearchParams();
+  for (const [key, value] of Object.entries(parentParams)) {
     url.searchParams.set(key, value);
   }
 
