@@ -126,6 +126,8 @@ export const DATA_ATTRS = {
   brandDark: "data-perspective-brand-dark",
   theme: "data-perspective-theme",
   noStyle: "data-perspective-no-style",
+  autoOpen: "data-perspective-auto-open",
+  showOnce: "data-perspective-show-once",
 } as const;
 
 export type DataAttr = (typeof DATA_ATTRS)[keyof typeof DATA_ATTRS];
@@ -211,4 +213,5 @@ export type ModeValue = (typeof MODE_VALUES)[keyof typeof MODE_VALUES];
 
 export const STORAGE_KEYS = {
   anonId: "perspective-anon-id",
+  triggerShown: "perspective-trigger-shown",
 } as const;

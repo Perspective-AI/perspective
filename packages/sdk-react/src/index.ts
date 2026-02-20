@@ -32,6 +32,11 @@ export {
   type UseFloatBubbleOptions,
   type UseFloatBubbleReturn,
 } from "./hooks/useFloatBubble";
+export {
+  useAutoOpen,
+  type UseAutoOpenOptions,
+  type UseAutoOpenReturn,
+} from "./hooks/useAutoOpen";
 export { useThemeSync } from "./hooks/useThemeSync";
 export { useStableCallback } from "./hooks/useStableCallback";
 
@@ -46,4 +51,7 @@ export type {
   BrandColors,
   ThemeValue,
   EmbedError,
+  TriggerConfig,
+  ShowOnce,
+  AutoOpenConfig,
 } from "@perspective-ai/sdk";

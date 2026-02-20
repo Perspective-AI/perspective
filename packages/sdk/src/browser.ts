@@ -24,6 +24,13 @@ import type {
   ThemeConfig,
 } from "./types";
 import { DATA_ATTRS, THEME_VALUES } from "./constants";
+import {
+  parseTriggerAttr,
+  parseShowOnceAttr,
+  setupTrigger,
+  shouldShow,
+  markShown,
+} from "./triggers";
 import { createWidget } from "./widget";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
@@ -34,6 +41,9 @@ import { resolveIsDark } from "./utils";
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
+
+// Track auto-open trigger cleanups (keyed by researchId)
+const triggerCleanups: Map<string, () => void> = new Map();
 
 // Theme config cache
 const configCache: Map<string, ThemeConfig> = new Map();
@@ -317,6 +327,8 @@ function destroy(researchId: string): void {
 function destroyAll(): void {
   instances.forEach((instance) => instance.unmount());
   instances.clear();
+  triggerCleanups.forEach((cleanup) => cleanup());
+  triggerCleanups.clear();
   styledButtons.clear();
   teardownButtonThemeListener();
 }
@@ -361,9 +373,36 @@ function autoInit(): void {
       el.setAttribute("data-perspective-initialized", "true");
 
       const researchId = el.getAttribute(DATA_ATTRS.popup);
-      if (researchId) {
-        const params = parseParamsAttr(el);
-        const brandConfig = extractBrandConfig(el);
+      if (!researchId) return;
+
+      const params = parseParamsAttr(el);
+      const brandConfig = extractBrandConfig(el);
+      const autoOpenAttr = el.getAttribute(DATA_ATTRS.autoOpen);
+
+      if (autoOpenAttr) {
+        // Auto-open mode: trigger-based, no button styling
+        try {
+          const trigger = parseTriggerAttr(autoOpenAttr);
+          const showOnce = parseShowOnceAttr(
+            el.getAttribute(DATA_ATTRS.showOnce)
+          );
+
+          if (shouldShow(researchId, showOnce)) {
+            // Clean up any existing trigger for this researchId
+            triggerCleanups.get(researchId)?.();
+
+            const cleanup = setupTrigger(trigger, () => {
+              triggerCleanups.delete(researchId);
+              markShown(researchId, showOnce);
+              init({ researchId, type: "popup", params, ...brandConfig });
+            });
+            triggerCleanups.set(researchId, cleanup);
+          }
+        } catch (e) {
+          console.warn("[Perspective]", (e as Error).message);
+        }
+      } else {
+        // Click-to-open mode: styled button
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", (e) => {
           e.preventDefault();
