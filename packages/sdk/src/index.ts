@@ -29,6 +29,15 @@ export { openSlider } from "./slider";
 export { createFloatBubble, createChatBubble } from "./float";
 export { createFullpage } from "./fullpage";
 
+// Auto-open triggers
+export {
+  setupTrigger,
+  parseTriggerAttr,
+  parseShowOnceAttr,
+  shouldShow,
+  markShown,
+} from "./triggers";
+
 // Configuration
 export { configure, getConfig } from "./config";
 
@@ -44,6 +53,10 @@ export type {
   EmbedType,
   ThemeConfig,
   SDKConfig,
+  TriggerType,
+  TriggerConfig,
+  ShowOnce,
+  AutoOpenConfig,
 } from "./types";
 
 // Re-export commonly used constants and types

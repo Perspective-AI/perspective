@@ -23,6 +23,23 @@ export type EmbedType =
   | "fullpage"
   | "chat";
 
+// ============================================================================
+// Auto-open Trigger Types
+// ============================================================================
+
+export type TriggerConfig =
+  | { type: "timeout"; delay: number }
+  | { type: "exit-intent" };
+
+export type TriggerType = TriggerConfig["type"];
+
+export type ShowOnce = "session" | "visitor" | false;
+
+export interface AutoOpenConfig {
+  trigger: TriggerConfig;
+  showOnce?: ShowOnce; // default: "session"
+}
+
 /** Brand colors that can be passed via embed code */
 export interface BrandColors {
   /** Primary accent color (buttons, links, focus states) */
@@ -51,6 +68,8 @@ export interface EmbedConfig {
   theme?: ThemeValue;
   /** Override the default host (defaults to https://getperspective.ai) */
   host?: string;
+  /** Auto-open trigger configuration (popup only) */
+  autoOpen?: AutoOpenConfig;
   /** Callback when embed is ready */
   onReady?: () => void;
   /** Callback when interview is submitted/completed */
