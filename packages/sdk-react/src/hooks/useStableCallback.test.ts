@@ -47,15 +47,29 @@ describe("useStableCallback", () => {
     expect(callback1).toHaveBeenCalledTimes(1); // Still only called once
   });
 
-  it("handles undefined callback", () => {
+  it("returns undefined when callback is undefined", () => {
     const { result } = renderHook(() => useStableCallback(undefined));
+    expect(result.current).toBeUndefined();
+  });
 
-    // Should not throw when called
-    expect(() => {
-      act(() => {
-        result.current("test");
-      });
-    }).not.toThrow();
+  it("transitions between undefined and defined", () => {
+    const callback = vi.fn();
+    const { result, rerender } = renderHook(({ cb }) => useStableCallback(cb), {
+      initialProps: { cb: undefined as (() => void) | undefined },
+    });
+
+    expect(result.current).toBeUndefined();
+
+    rerender({ cb: callback });
+    expect(result.current).toBeDefined();
+    const stableRef = result.current;
+
+    // Remains stable across re-renders with different callback instances
+    rerender({ cb: vi.fn() });
+    expect(result.current).toBe(stableRef);
+
+    rerender({ cb: undefined });
+    expect(result.current).toBeUndefined();
   });
 
   it("passes through all arguments", () => {
