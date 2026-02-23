@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   autoInit,
   init,
@@ -151,6 +151,49 @@ describe("browser entry", () => {
 
       expect(document.querySelector(".perspective-overlay")).toBeFalsy();
       expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    });
+
+    it("resets data-perspective-initialized so autoInit can re-process elements", () => {
+      document.body.innerHTML = `
+        <button data-perspective-popup="res1">Open</button>
+        <button data-perspective-slider="res2">Slide</button>
+      `;
+      autoInit();
+      expect(
+        document
+          .querySelector("[data-perspective-popup]")!
+          .hasAttribute("data-perspective-initialized")
+      ).toBe(true);
+      expect(
+        document
+          .querySelector("[data-perspective-slider]")!
+          .hasAttribute("data-perspective-initialized")
+      ).toBe(true);
+
+      destroyAll();
+
+      expect(
+        document
+          .querySelector("[data-perspective-popup]")!
+          .hasAttribute("data-perspective-initialized")
+      ).toBe(false);
+      expect(
+        document
+          .querySelector("[data-perspective-slider]")!
+          .hasAttribute("data-perspective-initialized")
+      ).toBe(false);
+
+      // autoInit should be able to re-process the elements now
+      const clickSpy = vi.fn();
+      document
+        .querySelector("[data-perspective-popup]")!
+        .addEventListener("click", clickSpy);
+      autoInit();
+      expect(
+        document
+          .querySelector("[data-perspective-popup]")!
+          .hasAttribute("data-perspective-initialized")
+      ).toBe(true);
     });
   });
 

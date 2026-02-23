@@ -27,6 +27,14 @@ import { normalizeHex } from "./utils";
 /** Validate redirect URL - allow https, http localhost, and relative URLs */
 function isAllowedRedirectUrl(url: string): boolean {
   if (!url || typeof url !== "string") return false;
+  // Relative URLs (path, query, hash) are always safe — same origin by definition
+  // Exclude protocol-relative URLs (// prefix) which resolve to an external origin
+  if (
+    (url.startsWith("/") && !url.startsWith("//")) ||
+    url.startsWith("?") ||
+    url.startsWith("#")
+  )
+    return true;
   try {
     const parsed = new URL(url, window.location.origin);
     const protocol = parsed.protocol.toLowerCase();

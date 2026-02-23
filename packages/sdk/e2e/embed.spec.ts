@@ -515,6 +515,154 @@ test.describe("Theme Detection", () => {
   });
 });
 
+test.describe("Auto-Trigger Popup", () => {
+  test("timeout trigger opens popup after specified delay", async ({
+    page,
+  }) => {
+    await page.goto("/auto-trigger.html");
+
+    // Popup should NOT be open immediately
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+
+    // Wait for the 500ms timeout trigger to fire (with buffer)
+    await page.waitForTimeout(700);
+
+    // Popup should now be open
+    const overlay = page.locator(".perspective-overlay");
+    await expect(overlay).toBeVisible();
+
+    const iframe = page.locator(".perspective-modal iframe[data-perspective]");
+    await expect(iframe).toBeVisible();
+
+    const src = await iframe.getAttribute("src");
+    expect(src).toContain("pbbvdh26");
+    expect(src).toContain("embed_type=popup");
+  });
+
+  test("show-once session: popup does not reopen after destroyAll + autoInit", async ({
+    page,
+  }) => {
+    await page.goto("/auto-trigger.html");
+
+    // Wait for the 500ms timeout trigger to fire
+    await page.waitForTimeout(700);
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    // Close popup
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+
+    // sessionStorage should have the show-once marker
+    const key = await page.evaluate(
+      () => sessionStorage.getItem("perspective-trigger-shown:pbbvdh26") ?? null
+    );
+    expect(key).toBe("1");
+
+    // destroyAll + autoInit should NOT reopen (shouldShow returns false)
+    await page.click("#destroy-all-btn");
+    await page.click("#reinit-btn");
+
+    await page.waitForTimeout(700);
+
+    // Popup should NOT reappear
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+  });
+
+  test("destroyAll resets initialized flag so autoInit can re-trigger", async ({
+    page,
+  }) => {
+    await page.goto("/auto-trigger.html");
+
+    // Clear storage so show-once doesn't block
+    await page.click("#clear-session-btn");
+
+    // destroyAll immediately (cancels the 500ms timer before it fires)
+    await page.click("#destroy-all-btn");
+
+    // Verify the initialized flag was cleared
+    const hasFlag = await page.evaluate(
+      () =>
+        document
+          .querySelector("[data-perspective-popup]")
+          ?.hasAttribute("data-perspective-initialized") ?? true
+    );
+    expect(hasFlag).toBe(false);
+
+    // Re-init sets up a fresh 500ms timer
+    await page.click("#reinit-btn");
+
+    await page.waitForTimeout(700);
+
+    // Popup should open from the fresh timer
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+  });
+
+  test("show-once visitor: uses localStorage so popup does not reopen", async ({
+    page,
+  }) => {
+    await page.goto("/auto-trigger-visitor.html");
+
+    // Wait for the 500ms visitor-trigger to fire
+    await page.waitForTimeout(700);
+
+    // Popup should have opened
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    // localStorage should now have the visitor marker
+    const stored = await page.evaluate(
+      () =>
+        localStorage.getItem("perspective-trigger-shown:pbbvdh26-visitor") ??
+        null
+    );
+    expect(stored).toBe("1");
+
+    // destroyAll + autoInit should NOT re-trigger (localStorage marker persists)
+    await page.evaluate(() => {
+      window.Perspective!.destroyAll();
+      window.Perspective!.autoInit();
+    });
+
+    await page.waitForTimeout(700);
+
+    // Popup should NOT have reopened — overlay is gone (was cleaned by destroyAll)
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+
+    // localStorage marker still set
+    const stillStored = await page.evaluate(
+      () =>
+        localStorage.getItem("perspective-trigger-shown:pbbvdh26-visitor") ??
+        null
+    );
+    expect(stillStored).toBe("1");
+  });
+
+  test("exit-intent trigger opens popup on mouse leave", async ({ page }) => {
+    await page.goto("/auto-trigger.html");
+
+    // Popup should NOT be open initially
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+
+    // Simulate mouse leaving the viewport at the top (clientY = 0)
+    await page.mouse.move(400, 10);
+    await page.evaluate(() => {
+      document.dispatchEvent(
+        new MouseEvent("mouseleave", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 400,
+          clientY: 0,
+        })
+      );
+    });
+
+    // Give event handler time to fire
+    await page.waitForTimeout(100);
+
+    // Popup should now be open
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+  });
+});
+
 test.describe("Float Bubble", () => {
   test("clicking bubble opens float window", async ({ page }) => {
     await page.goto("/manual-api.html");
