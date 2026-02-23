@@ -8,8 +8,9 @@
 // SDK Version & Features
 // ============================================================================
 
-/** SDK version for handshake protocol */
-export const SDK_VERSION = "1.1.2";
+/** SDK version for handshake protocol — replaced at build time by tsup define */
+declare const PKG_VERSION: string;
+export const SDK_VERSION = PKG_VERSION;
 
 /** Feature flags as bitset for version negotiation */
 export const FEATURES = {
