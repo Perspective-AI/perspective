@@ -1,4 +1,7 @@
 import { defineConfig } from "tsup";
+import pkg from "./package.json";
+
+const define = { PKG_VERSION: JSON.stringify(pkg.version) };
 
 export default defineConfig([
   // ESM + CJS for NPM (tree-shakeable, no side effects)
@@ -14,6 +17,7 @@ export default defineConfig([
     clean: true,
     splitting: false,
     treeshake: true,
+    define,
   },
   // Browser entry (has side effects: auto-init)
   {
@@ -23,6 +27,7 @@ export default defineConfig([
     sourcemap: true,
     target: "es2020",
     splitting: false,
+    define,
   },
   // IIFE for CDN
   {
@@ -33,5 +38,6 @@ export default defineConfig([
     minify: true,
     sourcemap: true,
     target: ["es2020", "chrome80", "firefox80", "safari14"],
+    define,
   },
 ]);
