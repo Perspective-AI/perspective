@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.1.2
+
+### Patch Changes
+
+- d646215: Add auto-open trigger system for popup embeds with timeout and exit-intent triggers, show-once dedup, and cleanup tracking.
+
 ## 1.1.0
 
 ### Minor Changes
