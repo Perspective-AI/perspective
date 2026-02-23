@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Auto-Trigger Visitor Show-Once Test</title>
+  </head>
+  <body>
+    <h1>Auto-Trigger Visitor Show-Once</h1>
+
+    <!-- Visitor show-once: uses localStorage (persists across sessions) -->
+    <div
+      id="visitor-trigger"
+      data-perspective-popup="pbbvdh26-visitor"
+      data-perspective-auto-open="timeout:500"
+      data-perspective-show-once="visitor"
+      style="display: none"
+    ></div>
+
+    <script src="/sdk/perspective.global.js"></script>
+  </body>
+</html>

@@ -331,6 +331,12 @@ function destroyAll(): void {
   triggerCleanups.clear();
   styledButtons.clear();
   teardownButtonThemeListener();
+  // Reset initialized flags so autoInit can re-process elements cleanly
+  if (hasDom()) {
+    document
+      .querySelectorAll<HTMLElement>("[data-perspective-initialized]")
+      .forEach((el) => el.removeAttribute("data-perspective-initialized"));
+  }
 }
 
 /**

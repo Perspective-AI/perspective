@@ -8,9 +8,8 @@
 // SDK Version & Features
 // ============================================================================
 
-/** SDK version for handshake protocol — replaced at build time by tsup define */
-declare const PKG_VERSION: string;
-export const SDK_VERSION = PKG_VERSION;
+/** SDK version for handshake protocol */
+export const SDK_VERSION = "1.0.0";
 
 /** Feature flags as bitset for version negotiation */
 export const FEATURES = {
@@ -31,8 +30,26 @@ export const CURRENT_FEATURES =
 // URL Parameter Keys
 // ============================================================================
 
-// Embed parameters
 export const PARAM_KEYS = {
+  // User identification
+  email: "email",
+  name: "name",
+
+  // Navigation
+  returnUrl: "returnUrl",
+
+  // Interview behavior
+  voice: "voice",
+  scroll: "scroll",
+  hideProgress: "hideProgress",
+  hideGreeting: "hideGreeting",
+  hideBranding: "hideBranding",
+
+  // Interview mode & auth
+  mode: "mode",
+  invite: "invite",
+
+  // System (internal)
   embed: "embed",
   embedType: "embed_type",
   theme: "theme",
@@ -61,12 +78,35 @@ export const BRAND_KEYS = {
 export type BrandKey = (typeof BRAND_KEYS)[keyof typeof BRAND_KEYS];
 
 // ============================================================================
-// Reserved Parameters (cannot be overridden via custom params or parent URL)
+// UTM Parameters (auto-forwarded from parent URL)
+// ============================================================================
+
+export const UTM_PARAMS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+] as const;
+
+export type UtmParam = (typeof UTM_PARAMS)[number];
+
+// ============================================================================
+// Reserved Parameters (cannot be overridden via custom params)
 // ============================================================================
 
 export const RESERVED_PARAMS: Set<string> = new Set([
-  ...Object.values(PARAM_KEYS),
-  ...Object.values(BRAND_KEYS),
+  PARAM_KEYS.embed,
+  PARAM_KEYS.embedType,
+  PARAM_KEYS.theme,
+  BRAND_KEYS.primary,
+  BRAND_KEYS.secondary,
+  BRAND_KEYS.bg,
+  BRAND_KEYS.text,
+  BRAND_KEYS.darkPrimary,
+  BRAND_KEYS.darkSecondary,
+  BRAND_KEYS.darkBg,
+  BRAND_KEYS.darkText,
 ]);
 
 // ============================================================================
@@ -135,6 +175,8 @@ export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 // ============================================================================
 
 export const PARAM_VALUES = {
+  disabled: "0",
+  enabled: "1",
   true: "true",
   false: "false",
 } as const;

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Auto-Trigger Popup Test</title>
+  </head>
+  <body>
+    <h1>Auto-Trigger Popup</h1>
+
+    <!-- Timeout trigger: opens popup after 500ms -->
+    <div
+      id="timeout-trigger"
+      data-perspective-popup="pbbvdh26"
+      data-perspective-auto-open="timeout:500"
+      data-perspective-show-once="session"
+      style="display: none"
+    ></div>
+
+    <!-- Exit-intent trigger: opens popup when mouse leaves viewport -->
+    <div
+      id="exit-intent-trigger"
+      data-perspective-popup="pbbvdh26-exit"
+      data-perspective-auto-open="exit-intent"
+      data-perspective-show-once="false"
+      style="display: none"
+    ></div>
+
+    <button id="destroy-all-btn" onclick="window.Perspective.destroyAll()">
+      Destroy All
+    </button>
+    <button id="reinit-btn" onclick="window.Perspective.autoInit()">
+      Re-Init
+    </button>
+    <button
+      id="clear-session-btn"
+      onclick="sessionStorage.clear(); localStorage.clear()"
+    >
+      Clear Storage
+    </button>
+
+    <script>
+      window.__testEvents = [];
+      window.__trackEvent = (name, data) => {
+        window.__testEvents.push({ name, data, timestamp: Date.now() });
+      };
+    </script>
+
+    <script src="/sdk/perspective.global.js"></script>
+  </body>
+</html>
