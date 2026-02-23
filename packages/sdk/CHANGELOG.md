@@ -1,5 +1,12 @@
 # @perspective-ai/sdk
 
+## 1.1.3
+
+### Patch Changes
+
+- 077220a: Auto-sync SDK_VERSION constant from package.json at build time via tsup define, removing the need for manual version bumps.
+- a834471: Fix destroyAll not resetting initialized flags (auto-trigger popups would fail to re-open after destroyAll+autoInit), fix relative URLs being incorrectly blocked in redirect security check.
+
 ## 1.1.2
 
 ### Patch Changes
