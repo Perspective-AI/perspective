@@ -1,5 +1,13 @@
 # @perspective-ai/sdk-react
 
+## 1.1.3
+
+### Patch Changes
+
+- Updated dependencies [077220a]
+- Updated dependencies [a834471]
+  - @perspective-ai/sdk@1.1.3
+
 ## 1.1.2
 
 ### Patch Changes
