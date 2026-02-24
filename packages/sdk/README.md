@@ -241,8 +241,65 @@ import type {
   BrandColors,
   ThemeConfig,
   SDKConfig,
+  // Auto-trigger types
+  TriggerConfig,
+  TriggerType,
+  ShowOnce,
+  AutoOpenConfig,
 } from "@perspective-ai/sdk";
 ```
+
+## Auto-Trigger Popups
+
+Open popups automatically based on configurable triggers — no user click required. Ideal for lead capture, engagement prompts, and exit-intent surveys.
+
+### JavaScript API
+
+```typescript
+import {
+  openPopup,
+  setupTrigger,
+  shouldShow,
+  markShown,
+} from "@perspective-ai/sdk";
+import type { TriggerConfig, ShowOnce } from "@perspective-ai/sdk";
+
+const researchId = "your-research-id";
+const showOnce: ShowOnce = "session"; // "session" | "visitor" | false
+
+if (shouldShow(researchId, showOnce)) {
+  const cleanup = setupTrigger({ type: "timeout", delay: 5000 }, () => {
+    markShown(researchId, showOnce);
+    openPopup({ researchId });
+  });
+
+  // Call cleanup() to cancel the pending trigger
+}
+```
+
+### Trigger Types
+
+| Trigger     | Config                             | Description                          |
+| ----------- | ---------------------------------- | ------------------------------------ |
+| Timeout     | `{ type: "timeout", delay: 5000 }` | Open after a delay (ms)              |
+| Exit Intent | `{ type: "exit-intent" }`          | Open when cursor leaves the viewport |
+
+### Show-Once Dedup
+
+| Value       | Storage          | Behavior                                         |
+| ----------- | ---------------- | ------------------------------------------------ |
+| `"session"` | `sessionStorage` | Show once per browser session (default)          |
+| `"visitor"` | `localStorage`   | Show once per visitor (persists across sessions) |
+| `false`     | —                | Always show                                      |
+
+### Functions
+
+| Function           | Signature                                                     | Description                                        |
+| ------------------ | ------------------------------------------------------------- | -------------------------------------------------- |
+| `setupTrigger`     | `(config: TriggerConfig, callback: () => void) => () => void` | Set up a trigger, returns cleanup function         |
+| `shouldShow`       | `(researchId: string, showOnce: ShowOnce) => boolean`         | Check if popup should show (dedup check)           |
+| `markShown`        | `(researchId: string, showOnce: ShowOnce) => void`            | Mark popup as shown for dedup                      |
+| `parseTriggerAttr` | `(value: string) => TriggerConfig`                            | Parse data attribute value (e.g. `"timeout:5000"`) |
 
 ## CDN / Script Tag Usage
 
@@ -273,18 +330,42 @@ For non-module environments, use the browser bundle:
 
 ### Data Attributes Reference
 
-| Attribute                     | Description                                 |
-| ----------------------------- | ------------------------------------------- |
-| `data-perspective-widget`     | Inline widget embed                         |
-| `data-perspective-popup`      | Popup trigger button                        |
-| `data-perspective-slider`     | Slider trigger button                       |
-| `data-perspective-float`      | Floating chat bubble                        |
-| `data-perspective-fullpage`   | Full page embed                             |
-| `data-perspective-params`     | Custom params: `"key1=value1,key2=value2"`  |
-| `data-perspective-theme`      | Theme: `"light"`, `"dark"`, or `"system"`   |
-| `data-perspective-brand`      | Light mode colors: `"primary=#xxx,bg=#yyy"` |
-| `data-perspective-brand-dark` | Dark mode colors                            |
-| `data-perspective-no-style`   | Disable auto-styling on trigger buttons     |
+| Attribute                     | Description                                             |
+| ----------------------------- | ------------------------------------------------------- |
+| `data-perspective-widget`     | Inline widget embed                                     |
+| `data-perspective-popup`      | Popup trigger button                                    |
+| `data-perspective-slider`     | Slider trigger button                                   |
+| `data-perspective-float`      | Floating chat bubble                                    |
+| `data-perspective-fullpage`   | Full page embed                                         |
+| `data-perspective-params`     | Custom params: `"key1=value1,key2=value2"`              |
+| `data-perspective-theme`      | Theme: `"light"`, `"dark"`, or `"system"`               |
+| `data-perspective-brand`      | Light mode colors: `"primary=#xxx,bg=#yyy"`             |
+| `data-perspective-brand-dark` | Dark mode colors                                        |
+| `data-perspective-no-style`   | Disable auto-styling on trigger buttons                 |
+| `data-perspective-auto-open`  | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`  |
+| `data-perspective-show-once`  | Show-once dedup: `"session"`, `"visitor"`, or `"false"` |
+
+### Auto-Trigger (Data Attributes)
+
+```html
+<!-- Auto-open popup after 5 seconds, once per session -->
+<div
+  data-perspective-popup="your-research-id"
+  data-perspective-auto-open="timeout:5000"
+  data-perspective-show-once="session"
+  style="display:none"
+></div>
+
+<!-- Exit-intent popup, show every time -->
+<div
+  data-perspective-popup="your-research-id"
+  data-perspective-auto-open="exit-intent"
+  data-perspective-show-once="false"
+  style="display:none"
+></div>
+```
+
+When `data-perspective-auto-open` is present, the element acts as a hidden config holder — no button styling is applied.
 
 ### Programmatic (Global API)
 

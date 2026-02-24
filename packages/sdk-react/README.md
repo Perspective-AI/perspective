@@ -33,6 +33,7 @@ function App() {
 | ---------------- | --------- | -------------------------------------- |
 | `usePopup`       | Hook      | Open popup modal programmatically      |
 | `useSlider`      | Hook      | Open slider panel programmatically     |
+| `useAutoOpen`    | Hook      | Auto-trigger popup (timeout/exit)      |
 | `useFloatBubble` | Hook      | Floating chat bubble lifecycle         |
 | `Widget`         | Component | Inline embed in a container            |
 | `Fullpage`       | Component | Full viewport takeover                 |
@@ -109,6 +110,53 @@ function App() {
   return <button onClick={open}>Open Feedback Panel</button>;
 }
 ```
+
+### useAutoOpen
+
+Auto-trigger a popup based on a timeout or exit intent — no user click needed.
+
+```tsx
+import { useAutoOpen } from "@perspective-ai/sdk-react";
+
+function FeedbackTrigger() {
+  const { cancel, triggered } = useAutoOpen({
+    researchId: "your-research-id",
+    trigger: { type: "timeout", delay: 5000 },
+    showOnce: "session",
+    onSubmit: () => console.log("Completed!"),
+  });
+
+  // Renders nothing — popup opens automatically after 5s
+  return null;
+}
+```
+
+**Exit intent:**
+
+```tsx
+useAutoOpen({
+  researchId: "your-research-id",
+  trigger: { type: "exit-intent" },
+  showOnce: "visitor",
+});
+```
+
+**Options:**
+
+| Option       | Type            | Default     | Description                                                              |
+| ------------ | --------------- | ----------- | ------------------------------------------------------------------------ |
+| `researchId` | `string`        | —           | Research ID (required)                                                   |
+| `trigger`    | `TriggerConfig` | —           | `{ type: "timeout", delay: ms }` or `{ type: "exit-intent" }` (required) |
+| `showOnce`   | `ShowOnce`      | `"session"` | `"session"`, `"visitor"`, or `false`                                     |
+
+Plus all standard `EmbedConfig` options (`theme`, `params`, `brand`, callbacks).
+
+**Returns:**
+
+| Property    | Type         | Description                   |
+| ----------- | ------------ | ----------------------------- |
+| `cancel`    | `() => void` | Cancel the pending trigger    |
+| `triggered` | `boolean`    | Whether the trigger has fired |
 
 ### useFloatBubble
 
@@ -263,6 +311,8 @@ import type {
   UseSliderReturn,
   UseFloatBubbleOptions,
   UseFloatBubbleReturn,
+  UseAutoOpenOptions,
+  UseAutoOpenReturn,
   // Component types
   WidgetProps,
   FloatBubbleProps,
