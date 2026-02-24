@@ -18,6 +18,7 @@ export const FEATURES = {
   THEME_SYNC: 1 << 1, // 0b0010
   ANON_ID: 1 << 2, // 0b0100
   SCROLLBAR_STYLES: 1 << 3, // 0b1000
+  EMBED_AUTH: 1 << 4, // 0b10000
 } as const;
 
 /** Current SDK feature set */
@@ -25,7 +26,8 @@ export const CURRENT_FEATURES =
   FEATURES.RESIZE |
   FEATURES.THEME_SYNC |
   FEATURES.ANON_ID |
-  FEATURES.SCROLLBAR_STYLES;
+  FEATURES.SCROLLBAR_STYLES |
+  FEATURES.EMBED_AUTH;
 
 // ============================================================================
 // URL Parameter Keys
@@ -112,6 +114,13 @@ export const MESSAGE_TYPES = {
   injectStyles: "perspective:inject-styles",
   themeChange: "perspective:theme-change",
 
+  // Iframe -> SDK (auth)
+  authRequest: "perspective:auth-request",
+  authSignout: "perspective:auth-signout",
+
+  // SDK -> Iframe (auth)
+  authComplete: "perspective:auth-complete",
+
   // Iframe -> SDK (internal)
   requestScrollbarStyles: "perspective:request-scrollbar-styles",
 } as const;
@@ -171,4 +180,5 @@ export type ModeValue = (typeof MODE_VALUES)[keyof typeof MODE_VALUES];
 export const STORAGE_KEYS = {
   anonId: "perspective-anon-id",
   triggerShown: "perspective-trigger-shown",
+  embedAuthToken: "perspective-embed-auth-token",
 } as const;

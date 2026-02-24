@@ -53,6 +53,56 @@ function isAllowedRedirectUrl(url: string): boolean {
   }
 }
 
+/** Decode JWT payload without verification (client-side — server verifies) */
+function decodeTokenExpiry(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]!));
+    return payload.data?.expiresAt ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Get cached embed auth token for a research (returns null if expired) */
+function getCachedAuthToken(researchId: string): string | null {
+  if (!hasDom()) return null;
+  try {
+    const token = localStorage.getItem(
+      `${STORAGE_KEYS.embedAuthToken}:${researchId}`
+    );
+    if (!token) return null;
+    const expiresAt = decodeTokenExpiry(token);
+    if (expiresAt && expiresAt > Date.now()) return token;
+    // Expired — clean up
+    localStorage.removeItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Cache embed auth token for a research */
+function cacheAuthToken(researchId: string, token: string): void {
+  if (!hasDom()) return;
+  try {
+    localStorage.setItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`, token);
+  } catch {
+    // localStorage blocked
+  }
+}
+
+/** Clear cached embed auth token for a research */
+function clearAuthToken(researchId: string): void {
+  if (!hasDom()) return;
+  try {
+    localStorage.removeItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`);
+  } catch {
+    // localStorage blocked
+  }
+}
+
 /** Get or create persistent anonymous ID */
 function getOrCreateAnonId(): string {
   if (!hasDom()) return "";
@@ -215,7 +265,7 @@ export function setupMessageListener(
     if (event.data.researchId !== researchId) return;
 
     switch (event.data.type) {
-      case MESSAGE_TYPES.ready:
+      case MESSAGE_TYPES.ready: {
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
         // Send anon_id for anonymous auth
@@ -230,8 +280,18 @@ export function setupMessageListener(
           features: CURRENT_FEATURES,
           researchId,
         });
+        // Relay cached embed auth token if available
+        const cachedToken = getCachedAuthToken(researchId);
+        if (cachedToken) {
+          sendMessage(iframe, host, {
+            type: MESSAGE_TYPES.authComplete,
+            token: cachedToken,
+            researchId,
+          });
+        }
         config.onReady?.();
         break;
+      }
 
       case MESSAGE_TYPES.resize:
         // Auto-resize iframe height (skip for fixed-container embeds)
@@ -269,7 +329,7 @@ export function setupMessageListener(
         break;
       }
 
-      case MESSAGE_TYPES.redirect:
+      case MESSAGE_TYPES.redirect: {
         const redirectUrl = event.data.url;
         // Security: Only allow http(s) and localhost URLs
         if (!isAllowedRedirectUrl(redirectUrl)) {
@@ -285,6 +345,103 @@ export function setupMessageListener(
           // Fallback: auto-navigate parent page
           window.location.href = redirectUrl;
         }
+        break;
+      }
+
+      case MESSAGE_TYPES.authRequest: {
+        // Iframe requests OAuth — open a new window/tab for auth
+        const authUrl = (event.data as { authUrl?: string }).authUrl;
+        if (!authUrl || typeof authUrl !== "string") return;
+
+        // Open auth window — user completes OAuth on perspective.ai (first-party)
+        // After completion, the callback page redirects with token in hash fragment
+        const returnUrl =
+          window.location.href.split("#")[0] ?? window.location.href;
+        const fullAuthUrl = `${authUrl}&return_url=${encodeURIComponent(returnUrl)}`;
+        const authWindow = window.open(fullAuthUrl, "_blank");
+        const expectedOrigin = new URL(host).origin;
+
+        // Clean up all auth listeners and polling
+        const cleanupAuthListeners = () => {
+          clearInterval(pollPopupClosed);
+          window.removeEventListener("hashchange", onHashChange);
+          window.removeEventListener("message", onPopupMessage);
+        };
+
+        // Listen for hash fragment containing the token (redirect mode)
+        const onHashChange = () => {
+          const hash = window.location.hash;
+          if (!hash.includes("embed-auth-token=")) return;
+
+          const params = new URLSearchParams(hash.slice(1));
+          const token = params.get("embed-auth-token");
+
+          // Clear hash synchronously before any async work
+          window.history.replaceState(
+            null,
+            "",
+            window.location.pathname + window.location.search
+          );
+
+          if (token) {
+            // Cache token and relay to iframe
+            cacheAuthToken(researchId, token);
+            sendMessage(iframe, host, {
+              type: MESSAGE_TYPES.authComplete,
+              token,
+              researchId,
+            });
+            config.onAuth?.({ researchId, token });
+          }
+
+          cleanupAuthListeners();
+        };
+        window.addEventListener("hashchange", onHashChange);
+
+        // Also listen for postMessage from popup (popup mode)
+        const onPopupMessage = (popupEvent: MessageEvent) => {
+          if (
+            popupEvent.source !== authWindow ||
+            popupEvent.data?.type !== "embed-auth-complete" ||
+            popupEvent.origin !== expectedOrigin
+          )
+            return;
+          const token = popupEvent.data?.token;
+          if (token) {
+            cacheAuthToken(researchId, token);
+            sendMessage(iframe, host, {
+              type: MESSAGE_TYPES.authComplete,
+              token,
+              researchId,
+            });
+            config.onAuth?.({ researchId, token });
+          }
+          cleanupAuthListeners();
+        };
+        window.addEventListener("message", onPopupMessage);
+
+        // Clean up listeners if popup is closed without completing auth
+        const pollPopupClosed = setInterval(() => {
+          if (authWindow?.closed) {
+            cleanupAuthListeners();
+          }
+        }, 500);
+        break;
+      }
+
+      case MESSAGE_TYPES.authComplete: {
+        // Iframe relays auth token (e.g. from email verification)
+        const authToken = (event.data as { token?: string }).token;
+        if (authToken) {
+          cacheAuthToken(researchId, authToken);
+          config.onAuth?.({ researchId, token: authToken });
+        }
+        break;
+      }
+
+      case MESSAGE_TYPES.authSignout:
+        // Iframe requests sign-out — clear cached token
+        clearAuthToken(researchId);
         break;
     }
   };
