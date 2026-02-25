@@ -9,6 +9,7 @@ describe("createFloatBubble", () => {
 
   afterEach(() => {
     document.body.innerHTML = "";
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -21,6 +22,59 @@ describe("createFloatBubble", () => {
     expect(handle.type).toBe("float");
     expect(handle.isOpen).toBe(false);
     expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+
+    handle.unmount();
+  });
+
+  it("uses messages icon when channel is text-only", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      channel: "TEXT",
+    });
+
+    const bubble = document.querySelector(
+      ".perspective-float-bubble"
+    ) as HTMLButtonElement;
+
+    expect(bubble.innerHTML).toContain("lucide-messages-square");
+
+    handle.unmount();
+  });
+
+  it("uses microphone icon when channel includes voice", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      channel: ["VOICE", "TEXT"],
+    });
+
+    const bubble = document.querySelector(
+      ".perspective-float-bubble"
+    ) as HTMLButtonElement;
+
+    expect(bubble.innerHTML).not.toContain("lucide-messages-square");
+
+    handle.unmount();
+  });
+
+  it("shows welcome teaser and notification dot after delay", () => {
+    vi.useFakeTimers();
+
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      welcomeMessage: "Have questions? I can help.",
+    });
+
+    expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+    expect(
+      document.querySelector(".perspective-float-notification-dot")
+    ).toBeFalsy();
+
+    vi.advanceTimersByTime(3000);
+
+    expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+    expect(
+      document.querySelector(".perspective-float-notification-dot")
+    ).toBeTruthy();
 
     handle.unmount();
   });

@@ -23,6 +23,8 @@ export type EmbedType =
   | "fullpage"
   | "chat";
 
+export type AIAssistantChannel = "TEXT" | "VOICE";
+
 // ============================================================================
 // Auto-open Trigger Types
 // ============================================================================
@@ -55,6 +57,14 @@ export interface BrandColors {
 export interface EmbedConfig {
   researchId: string;
   type?: EmbedType;
+  /**
+   * Enabled channels for the interview.
+   * `TEXT` uses text-only UX, `VOICE` uses voice UX.
+   * Pass both values in an array to indicate both channels are enabled.
+   */
+  channel?: AIAssistantChannel | AIAssistantChannel[] | null;
+  /** Welcome message shown as a teaser bubble next to the float button. Only used for float-type embeds. */
+  welcomeMessage?: string;
   /** Custom button text for popup/slider triggers */
   buttonText?: string;
   /** Custom params to pass to the interview (for tracking/attribution) */
@@ -102,7 +112,13 @@ export interface EmbedHandle {
     options: Partial<
       Pick<
         EmbedConfig,
-        "onReady" | "onSubmit" | "onNavigate" | "onClose" | "onError"
+        | "onReady"
+        | "onSubmit"
+        | "onNavigate"
+        | "onClose"
+        | "onError"
+        | "channel"
+        | "welcomeMessage"
       >
     >
   ) => void;
@@ -158,6 +174,9 @@ export interface ThemeConfig {
   textColor: string;
   darkPrimaryColor: string;
   darkTextColor: string;
+  allowedChannels?: AIAssistantChannel[] | null;
+  channel?: AIAssistantChannel | AIAssistantChannel[] | null;
+  welcomeMessage?: string;
 }
 
 /** SDK global configuration */

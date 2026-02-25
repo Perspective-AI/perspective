@@ -44,6 +44,7 @@ export { configure, getConfig } from "./config";
 // Types
 export type {
   BrandColors,
+  AIAssistantChannel,
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
