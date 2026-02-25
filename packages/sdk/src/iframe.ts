@@ -444,12 +444,15 @@ export function setupMessageListener(
         };
         window.addEventListener("message", onPopupMessage);
 
-        // Clean up listeners if popup is closed without completing auth
-        const pollPopupClosed = setInterval(() => {
-          if (authWindow?.closed) {
-            cleanupAuthListeners();
-          }
-        }, 500);
+        // Poll for popup close only if popup actually opened (not blocked)
+        // If blocked, hashchange redirect mode is still available as fallback
+        const pollPopupClosed = authWindow
+          ? setInterval(() => {
+              if (authWindow.closed) {
+                cleanupAuthListeners();
+              }
+            }, 500)
+          : undefined;
 
         activeAuthCleanup = cleanupAuthListeners;
         break;

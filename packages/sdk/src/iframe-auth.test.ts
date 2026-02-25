@@ -110,6 +110,132 @@ describe("embed auth message handling", () => {
       // At least 2: the main setupMessageListener handler + the popup handler
       expect(messageCalls.length).toBeGreaterThanOrEqual(2);
     });
+
+    it("relays token from hashchange end-to-end", () => {
+      vi.spyOn(window, "open").mockReturnValue(null);
+      const onAuth = vi.fn();
+
+      const postMessageSpy = vi.fn();
+      Object.defineProperty(iframe, "contentWindow", {
+        value: { postMessage: postMessageSpy },
+        configurable: true,
+      });
+
+      removeListener = setupMessageListener(
+        researchId,
+        { onAuth },
+        iframe,
+        host
+      );
+
+      // Trigger auth request to register hashchange listener
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://getperspective.ai/embed-auth/google",
+      });
+
+      const token = createMockToken(researchId, Date.now() + 86400000);
+
+      // Simulate redirect back with token in hash — save/restore location
+      const origLocation = window.location;
+      Object.defineProperty(window, "location", {
+        value: {
+          ...origLocation,
+          href: origLocation.href,
+          hash: `#embed-auth-token=${token}`,
+          pathname: origLocation.pathname,
+          search: origLocation.search,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      try {
+        window.dispatchEvent(new Event("hashchange"));
+
+        // Token should be cached
+        expect(
+          localStorage.getItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`)
+        ).toBe(token);
+
+        // Token should be relayed to iframe
+        const authMessages = postMessageSpy.mock.calls.filter(
+          (call: unknown[]) =>
+            (call[0] as Record<string, unknown>).type ===
+            MESSAGE_TYPES.authComplete
+        );
+        expect(authMessages.length).toBe(1);
+        expect(authMessages[0]![0]).toMatchObject({
+          type: MESSAGE_TYPES.authComplete,
+          token,
+          researchId,
+        });
+
+        // onAuth callback should fire
+        expect(onAuth).toHaveBeenCalledWith({ researchId, token });
+      } finally {
+        // Restore original location to avoid polluting other tests
+        Object.defineProperty(window, "location", {
+          value: origLocation,
+          writable: true,
+          configurable: true,
+        });
+      }
+    });
+
+    it("relays token from popup postMessage end-to-end", () => {
+      const popupWindow = {} as Window;
+      vi.spyOn(window, "open").mockReturnValue(popupWindow);
+      const onAuth = vi.fn();
+
+      const postMessageSpy = vi.fn();
+      Object.defineProperty(iframe, "contentWindow", {
+        value: { postMessage: postMessageSpy },
+        configurable: true,
+      });
+
+      removeListener = setupMessageListener(
+        researchId,
+        { onAuth },
+        iframe,
+        host
+      );
+
+      // Trigger auth request to register popup message listener
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://getperspective.ai/embed-auth/google",
+      });
+
+      const token = createMockToken(researchId, Date.now() + 86400000);
+
+      // Simulate postMessage from popup
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "embed-auth-complete", token },
+          origin: host,
+          source: popupWindow,
+        })
+      );
+
+      // Token should be cached
+      expect(
+        localStorage.getItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`)
+      ).toBe(token);
+
+      // Token should be relayed to iframe
+      const authMessages = postMessageSpy.mock.calls.filter(
+        (call: unknown[]) =>
+          (call[0] as Record<string, unknown>).type ===
+          MESSAGE_TYPES.authComplete
+      );
+      expect(authMessages.length).toBe(1);
+
+      // onAuth callback should fire
+      expect(onAuth).toHaveBeenCalledWith({ researchId, token });
+    });
   });
 
   describe("perspective:auth-complete (from iframe)", () => {
