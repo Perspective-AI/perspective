@@ -142,9 +142,6 @@ describe("createTeaser", () => {
 
     vi.advanceTimersByTime(100); // Reveal 2 chars
 
-    const textSpan = teaser.element.querySelector(
-      ".perspective-float-teaser-text"
-    ) as HTMLSpanElement;
     teaser.destroy();
 
     // Element should be removed
