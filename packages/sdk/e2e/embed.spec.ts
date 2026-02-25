@@ -127,14 +127,14 @@ test.describe("Script Tag Auto-Init", () => {
     expect(src).toContain("embed_type=slider");
   });
 
-  test("creates float bubble from data-perspective-float attribute", async ({
+  test("creates float bar from data-perspective-float attribute", async ({
     page,
   }) => {
     await page.goto("/script-tag.html");
 
-    // Float bubble is appended to body, not inside the container
-    const floatBubble = page.locator("body > .perspective-float-bubble");
-    await expect(floatBubble).toBeVisible();
+    // Float bar is appended to body, not inside the container
+    const floatBar = page.locator("body > .perspective-float-bar");
+    await expect(floatBar).toBeVisible();
   });
 });
 
@@ -193,7 +193,7 @@ test.describe("Manual API", () => {
     await expect(iframe).toBeVisible();
   });
 
-  test("Perspective.createFloatBubble creates floating bubble", async ({
+  test("Perspective.createFloatBubble creates floating bar", async ({
     page,
   }) => {
     await page.goto("/manual-api.html");
@@ -201,9 +201,9 @@ test.describe("Manual API", () => {
     // Create float bubble
     await page.click("#create-float-btn");
 
-    // Float bubble should be visible (appended to body)
-    const bubble = page.locator("body > .perspective-float-bubble");
-    await expect(bubble).toBeVisible();
+    // Float bar should be visible (appended to body)
+    const bar = page.locator("body > .perspective-float-bar");
+    await expect(bar).toBeVisible();
   });
 
   test("Perspective.destroyAll removes tracked embeds", async ({ page }) => {
@@ -663,30 +663,32 @@ test.describe("Auto-Trigger Popup", () => {
   });
 });
 
-test.describe("Float Bubble", () => {
-  test("clicking bubble opens float window", async ({ page }) => {
+test.describe("Float Bar", () => {
+  test("clicking mic button opens float window", async ({ page }) => {
     await page.goto("/manual-api.html");
 
     // Create float bubble
     await page.click("#create-float-btn");
 
-    // Bubble should be visible
-    const bubble = page.locator("body > .perspective-float-bubble");
-    await expect(bubble).toBeVisible();
+    // Bar should be visible
+    const bar = page.locator("body > .perspective-float-bar");
+    await expect(bar).toBeVisible();
 
     // Initially no float window
     await expect(page.locator(".perspective-float-window")).not.toBeVisible();
 
-    // Click bubble to open
-    await bubble.click();
+    // Click mic button to open
+    await page.locator(".perspective-float-bar-icon").click();
 
-    // Float window should appear
+    // Float window should appear, bar should hide
     await expect(page.locator(".perspective-float-window")).toBeVisible();
+    await expect(bar).not.toBeVisible();
 
-    // Click bubble again to close
-    await bubble.click();
+    // Close float window via close button
+    await page.locator(".perspective-float-window .perspective-close").click();
 
-    // Float window should be closed
+    // Float window should be closed, bar should reappear
     await expect(page.locator(".perspective-float-window")).not.toBeVisible();
+    await expect(bar).toBeVisible();
   });
 });
