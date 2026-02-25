@@ -256,7 +256,7 @@ export function injectStyles(): void {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: box-shadow 0.2s ease;
       --animate-click-draw: click-draw 3s ease-in-out infinite;
       animation: var(--animate-click-draw);
     }
@@ -311,12 +311,12 @@ export function injectStyles(): void {
 
     .perspective-float-teaser {
       position: fixed;
-      right: 88px;
-      bottom: 30px;
+      right: 20px;
+      bottom: 88px;
       z-index: 9996;
       background: var(--perspective-teaser-bg);
       color: var(--perspective-teaser-text);
-      border-radius: 14px 14px 4px 14px;
+      border-radius: 14px 14px 14px 4px;
       border: 1px solid var(--perspective-teaser-border);
       box-shadow: var(--perspective-teaser-shadow);
       max-width: 230px;
@@ -335,11 +335,11 @@ export function injectStyles(): void {
     @keyframes perspective-teaser-in {
       from {
         opacity: 0;
-        transform: translateX(10px) translateY(4px) scale(0.96);
+        transform: translateY(10px) scale(0.96);
       }
       to {
         opacity: 1;
-        transform: translateX(0) translateY(0) scale(1);
+        transform: translateY(0) scale(1);
       }
     }
 

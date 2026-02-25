@@ -409,6 +409,8 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     removeTeaser();
     closeFloat();
     bubble.remove();
+    void audioCtx?.close();
+    audioCtx = null;
   };
 
   maybeStartWelcomeSequence();

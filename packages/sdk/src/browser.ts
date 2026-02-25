@@ -492,7 +492,7 @@ function autoInit(): void {
           instances.get(researchId) === floatHandle
         ) {
           const channels =
-            config.allowedChannels ?? config.channel ?? undefined;
+            config.channel ?? config.allowedChannels ?? undefined;
           floatHandle.update({
             channel: channels,
             welcomeMessage: config.welcomeMessage,

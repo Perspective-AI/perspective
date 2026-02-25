@@ -63,7 +63,7 @@ export interface EmbedConfig {
    * Pass both values in an array to indicate both channels are enabled.
    */
   channel?: AIAssistantChannel | AIAssistantChannel[] | null;
-  /** Welcome message shown in float teaser experiences */
+  /** Welcome message shown as a teaser bubble next to the float button. Only used for float-type embeds. */
   welcomeMessage?: string;
   /** Custom button text for popup/slider triggers */
   buttonText?: string;
