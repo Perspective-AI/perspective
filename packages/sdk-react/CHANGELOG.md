@@ -1,5 +1,14 @@
 # @perspective-ai/sdk-react
 
+## 1.2.0
+
+### Patch Changes
+
+- 73afba3: docs: add auto-trigger popup documentation to READMEs
+- Updated dependencies [73afba3]
+- Updated dependencies [c057395]
+  - @perspective-ai/sdk@1.2.0
+
 ## 1.1.3
 
 ### Patch Changes
