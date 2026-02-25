@@ -278,6 +278,93 @@ describe("embed auth message handling", () => {
     });
   });
 
+  describe("authUrl origin validation", () => {
+    it("blocks auth request with mismatched origin", () => {
+      const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://evil.com/steal-creds",
+      });
+
+      expect(openSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Blocked auth URL"),
+        expect.any(String)
+      );
+    });
+
+    it("blocks auth request with malformed URL", () => {
+      const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "not-a-url",
+      });
+
+      expect(openSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Blocked malformed auth URL"),
+        expect.any(String)
+      );
+    });
+  });
+
+  describe("auth listener cleanup on embed destroy", () => {
+    it("cleans up auth listeners when removeListener is called during active auth", () => {
+      vi.spyOn(window, "open").mockReturnValue(null);
+      const removeEventSpy = vi.spyOn(window, "removeEventListener");
+      const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://getperspective.ai/embed-auth/google",
+      });
+
+      // Destroy the embed while auth is in progress
+      removeListener();
+
+      // Should have removed hashchange and message listeners
+      const removedTypes = removeEventSpy.mock.calls.map((call) => call[0]);
+      expect(removedTypes).toContain("hashchange");
+      expect(removedTypes).toContain("message");
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+
+    it("cleans up previous auth flow when new auth request arrives", () => {
+      vi.spyOn(window, "open").mockReturnValue(null);
+      const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      // First auth request
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://getperspective.ai/embed-auth/google",
+      });
+
+      // Second auth request should clean up the first
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://getperspective.ai/embed-auth/google",
+      });
+
+      // clearInterval should have been called for the first flow's polling
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+  });
+
   describe("token caching isolation", () => {
     it("caches tokens scoped to researchId", () => {
       removeListener = setupMessageListener(researchId, {}, iframe, host);

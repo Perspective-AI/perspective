@@ -65,18 +65,21 @@ function decodeTokenExpiry(token: string): number | null {
   }
 }
 
+function authTokenKey(researchId: string): string {
+  return `${STORAGE_KEYS.embedAuthToken}:${researchId}`;
+}
+
 /** Get cached embed auth token for a research (returns null if expired) */
 function getCachedAuthToken(researchId: string): string | null {
   if (!hasDom()) return null;
   try {
-    const token = localStorage.getItem(
-      `${STORAGE_KEYS.embedAuthToken}:${researchId}`
-    );
+    const key = authTokenKey(researchId);
+    const token = localStorage.getItem(key);
     if (!token) return null;
     const expiresAt = decodeTokenExpiry(token);
     if (expiresAt && expiresAt > Date.now()) return token;
     // Expired — clean up
-    localStorage.removeItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`);
+    localStorage.removeItem(key);
     return null;
   } catch {
     return null;
@@ -87,7 +90,7 @@ function getCachedAuthToken(researchId: string): string | null {
 function cacheAuthToken(researchId: string, token: string): void {
   if (!hasDom()) return;
   try {
-    localStorage.setItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`, token);
+    localStorage.setItem(authTokenKey(researchId), token);
   } catch {
     // localStorage blocked
   }
@@ -97,7 +100,7 @@ function cacheAuthToken(researchId: string, token: string): void {
 function clearAuthToken(researchId: string): void {
   if (!hasDom()) return;
   try {
-    localStorage.removeItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`);
+    localStorage.removeItem(authTokenKey(researchId));
   } catch {
     // localStorage blocked
   }
@@ -254,6 +257,9 @@ export function setupMessageListener(
     return () => {};
   }
 
+  // Track active auth flow cleanup for concurrent request prevention and embed teardown
+  let activeAuthCleanup: (() => void) | null = null;
+
   const handler = (event: MessageEvent<EmbedMessage>) => {
     // Security: Only accept messages from our embed host and from the expected iframe
     if (event.origin !== host) return;
@@ -350,8 +356,28 @@ export function setupMessageListener(
 
       case MESSAGE_TYPES.authRequest: {
         // Iframe requests OAuth — open a new window/tab for auth
-        const authUrl = (event.data as { authUrl?: string }).authUrl;
+        const { authUrl } = event.data;
         if (!authUrl || typeof authUrl !== "string") return;
+
+        const expectedOrigin = new URL(host).origin;
+
+        // Security: ensure authUrl points to the expected host origin
+        try {
+          const parsedAuthUrl = new URL(authUrl);
+          if (parsedAuthUrl.origin !== expectedOrigin) {
+            console.warn(
+              "[Perspective] Blocked auth URL with unexpected origin:",
+              authUrl
+            );
+            return;
+          }
+        } catch {
+          console.warn("[Perspective] Blocked malformed auth URL:", authUrl);
+          return;
+        }
+
+        // Clean up any previous auth flow before starting a new one
+        activeAuthCleanup?.();
 
         // Open auth window — user completes OAuth on perspective.ai (first-party)
         // After completion, the callback page redirects with token in hash fragment
@@ -359,13 +385,24 @@ export function setupMessageListener(
           window.location.href.split("#")[0] ?? window.location.href;
         const fullAuthUrl = `${authUrl}&return_url=${encodeURIComponent(returnUrl)}`;
         const authWindow = window.open(fullAuthUrl, "_blank");
-        const expectedOrigin = new URL(host).origin;
+
+        // Cache token, relay to iframe, and notify host app
+        const relayToken = (token: string) => {
+          cacheAuthToken(researchId, token);
+          sendMessage(iframe, host, {
+            type: MESSAGE_TYPES.authComplete,
+            token,
+            researchId,
+          });
+          config.onAuth?.({ researchId, token });
+        };
 
         // Clean up all auth listeners and polling
         const cleanupAuthListeners = () => {
           clearInterval(pollPopupClosed);
           window.removeEventListener("hashchange", onHashChange);
           window.removeEventListener("message", onPopupMessage);
+          activeAuthCleanup = null;
         };
 
         // Listen for hash fragment containing the token (redirect mode)
@@ -384,14 +421,7 @@ export function setupMessageListener(
           );
 
           if (token) {
-            // Cache token and relay to iframe
-            cacheAuthToken(researchId, token);
-            sendMessage(iframe, host, {
-              type: MESSAGE_TYPES.authComplete,
-              token,
-              researchId,
-            });
-            config.onAuth?.({ researchId, token });
+            relayToken(token);
           }
 
           cleanupAuthListeners();
@@ -408,13 +438,7 @@ export function setupMessageListener(
             return;
           const token = popupEvent.data?.token;
           if (token) {
-            cacheAuthToken(researchId, token);
-            sendMessage(iframe, host, {
-              type: MESSAGE_TYPES.authComplete,
-              token,
-              researchId,
-            });
-            config.onAuth?.({ researchId, token });
+            relayToken(token);
           }
           cleanupAuthListeners();
         };
@@ -426,15 +450,17 @@ export function setupMessageListener(
             cleanupAuthListeners();
           }
         }, 500);
+
+        activeAuthCleanup = cleanupAuthListeners;
         break;
       }
 
       case MESSAGE_TYPES.authComplete: {
         // Iframe relays auth token (e.g. from email verification)
-        const authToken = (event.data as { token?: string }).token;
-        if (authToken) {
-          cacheAuthToken(researchId, authToken);
-          config.onAuth?.({ researchId, token: authToken });
+        const { token } = event.data;
+        if (token) {
+          cacheAuthToken(researchId, token);
+          config.onAuth?.({ researchId, token });
         }
         break;
       }
@@ -447,7 +473,10 @@ export function setupMessageListener(
   };
 
   window.addEventListener("message", handler);
-  return () => window.removeEventListener("message", handler);
+  return () => {
+    window.removeEventListener("message", handler);
+    activeAuthCleanup?.();
+  };
 }
 
 /** Send a message to the embed iframe */
