@@ -5,9 +5,16 @@
  */
 
 export function playChime(audioCtx?: AudioContext): AudioContext | null {
-  if (typeof window === "undefined" || !window.AudioContext) return null;
+  // Match artifact: support webkitAudioContext fallback
+  const AudioCtxClass =
+    typeof window !== "undefined"
+      ? (window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext)
+      : undefined;
+  if (!AudioCtxClass) return null;
 
-  const ctx = audioCtx ?? new AudioContext();
+  const ctx = audioCtx ?? new AudioCtxClass();
   if (ctx.state === "suspended") {
     ctx.resume();
   }

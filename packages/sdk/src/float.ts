@@ -185,6 +185,62 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     timers.length = 0;
   }
 
+  // ── Preload iframe in background ──
+
+  let preloadedIframe: HTMLIFrameElement | null = null;
+  let preloadReady = false;
+  let preloadCleanup: (() => void) | null = null;
+  let preloadUnregister: (() => void) | null = null;
+
+  function preloadIframe() {
+    if (preloadedIframe || isOpen) return;
+
+    preloadedIframe = createIframe(
+      researchId,
+      "float",
+      host,
+      { ...currentConfig.params },
+      currentConfig.brand,
+      currentConfig.theme
+    );
+    // Hide offscreen while loading
+    preloadedIframe.style.cssText =
+      "position:fixed;width:0;height:0;border:none;opacity:0;pointer-events:none;";
+    document.body.appendChild(preloadedIframe);
+
+    preloadCleanup = setupMessageListener(
+      researchId,
+      {
+        get onReady() {
+          return () => {
+            preloadReady = true;
+            currentConfig.onReady?.();
+          };
+        },
+        get onSubmit() {
+          return currentConfig.onSubmit;
+        },
+        get onNavigate() {
+          return currentConfig.onNavigate;
+        },
+        get onClose() {
+          return closeFloat;
+        },
+        get onError() {
+          return currentConfig.onError;
+        },
+      },
+      preloadedIframe,
+      host,
+      { skipResize: true }
+    );
+
+    preloadUnregister = registerIframe(preloadedIframe, host);
+  }
+
+  // Start preloading immediately
+  preloadIframe();
+
   // ── Sequence Logic ──
 
   function startSequence() {
@@ -295,78 +351,108 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     closeBtn.setAttribute("aria-label", "Close chat");
     closeBtn.addEventListener("click", closeFloat);
 
-    // Create loading indicator with theme and brand colors
-    const loading = createLoadingIndicator({
-      theme: currentConfig.theme,
-      brand: currentConfig.brand,
-    });
-    loading.style.borderRadius = "16px";
-
-    // Build params, including initial_message if present
-    const iframeParams = { ...currentConfig.params };
-    if (pendingInitialMessage) {
-      iframeParams.initial_message = pendingInitialMessage;
-    }
-
-    // Create iframe
-    iframe = createIframe(
-      researchId,
-      "float",
-      host,
-      iframeParams,
-      currentConfig.brand,
-      currentConfig.theme
-    );
-    iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.3s ease";
-
     floatWindow.appendChild(closeBtn);
-    floatWindow.appendChild(loading);
-    floatWindow.appendChild(iframe);
-    document.body.appendChild(floatWindow);
 
-    // Set up message listener with loading state handling
-    cleanup = setupMessageListener(
-      researchId,
-      {
-        get onReady() {
-          return () => {
-            loading.style.opacity = "0";
-            iframe!.style.opacity = "1";
-            setTimeout(() => loading.remove(), 300);
-            // Send initial message via postMessage if we have one
-            if (pendingInitialMessage && iframe) {
-              sendMessage(iframe, host, {
-                type: MESSAGE_TYPES.initialMessage,
-                message: pendingInitialMessage,
-              });
-              pendingInitialMessage = null;
-            }
-            currentConfig.onReady?.();
-          };
-        },
-        get onSubmit() {
-          return currentConfig.onSubmit;
-        },
-        get onNavigate() {
-          return currentConfig.onNavigate;
-        },
-        get onClose() {
-          return closeFloat;
-        },
-        get onError() {
-          return currentConfig.onError;
-        },
-      },
-      iframe,
-      host,
-      { skipResize: true }
-    );
+    // Use preloaded iframe if ready, otherwise create fresh
+    if (preloadedIframe && preloadReady) {
+      iframe = preloadedIframe;
+      preloadedIframe = null;
 
-    // Register iframe for theme change notifications
-    if (iframe) {
+      // Move from hidden to visible inside the window
+      iframe.style.cssText = "opacity:1;";
+      floatWindow.appendChild(iframe);
+
+      // Transfer ownership of listeners
+      cleanup = preloadCleanup;
+      unregisterIframe = preloadUnregister;
+      preloadCleanup = null;
+      preloadUnregister = null;
+
+      // Send initial message if present
+      if (pendingInitialMessage && iframe) {
+        sendMessage(iframe, host, {
+          type: MESSAGE_TYPES.initialMessage,
+          message: pendingInitialMessage,
+        });
+        pendingInitialMessage = null;
+      }
+    } else {
+      // Preload not ready — create fresh with loading indicator
+      const loading = createLoadingIndicator({
+        theme: currentConfig.theme,
+        brand: currentConfig.brand,
+      });
+      loading.style.borderRadius = "16px";
+      floatWindow.appendChild(loading);
+
+      // Clean up in-progress preload
+      if (preloadedIframe) {
+        preloadCleanup?.();
+        preloadUnregister?.();
+        preloadedIframe.remove();
+        preloadedIframe = null;
+        preloadCleanup = null;
+        preloadUnregister = null;
+      }
+
+      // Build params, including initial_message if present
+      const iframeParams = { ...currentConfig.params };
+      if (pendingInitialMessage) {
+        iframeParams.initial_message = pendingInitialMessage;
+      }
+
+      iframe = createIframe(
+        researchId,
+        "float",
+        host,
+        iframeParams,
+        currentConfig.brand,
+        currentConfig.theme
+      );
+      iframe.style.opacity = "0";
+      iframe.style.transition = "opacity 0.3s ease";
+      floatWindow.appendChild(iframe);
+
+      cleanup = setupMessageListener(
+        researchId,
+        {
+          get onReady() {
+            return () => {
+              loading.style.opacity = "0";
+              iframe!.style.opacity = "1";
+              setTimeout(() => loading.remove(), 300);
+              if (pendingInitialMessage && iframe) {
+                sendMessage(iframe, host, {
+                  type: MESSAGE_TYPES.initialMessage,
+                  message: pendingInitialMessage,
+                });
+                pendingInitialMessage = null;
+              }
+              currentConfig.onReady?.();
+            };
+          },
+          get onSubmit() {
+            return currentConfig.onSubmit;
+          },
+          get onNavigate() {
+            return currentConfig.onNavigate;
+          },
+          get onClose() {
+            return closeFloat;
+          },
+          get onError() {
+            return currentConfig.onError;
+          },
+        },
+        iframe,
+        host,
+        { skipResize: true }
+      );
+
       unregisterIframe = registerIframe(iframe, host);
     }
+
+    document.body.appendChild(floatWindow);
   };
 
   const closeFloat = () => {
@@ -391,6 +477,13 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   const unmount = () => {
     clearTimers();
     dismissTeaser();
+    // Clean up preloaded iframe if not yet used
+    if (preloadedIframe) {
+      preloadCleanup?.();
+      preloadUnregister?.();
+      preloadedIframe.remove();
+      preloadedIframe = null;
+    }
     closeFloat();
     bar.remove();
   };

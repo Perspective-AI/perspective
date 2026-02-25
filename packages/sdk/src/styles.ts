@@ -233,24 +233,25 @@ export function injectStyles(): void {
     /* Float input bar (replaces circle bubble) */
     .perspective-float-bar {
       position: fixed;
-      bottom: 1.25rem;
-      right: 1.25rem;
+      bottom: 1.5rem;
+      right: 1.5rem;
       z-index: 9996;
       display: flex;
       align-items: center;
+      gap: 0.5rem;
       background: var(--perspective-modal-bg, #fff);
       border: 1px solid var(--perspective-float-border, rgba(124,58,237,0.2));
       border-radius: 1.75rem;
-      box-shadow: var(--perspective-shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
       min-width: 300px;
-      padding: 0.25rem;
+      padding: 0.375rem 0.375rem 0.375rem 0.375rem;
       animation: perspective-bar-in 0.45s cubic-bezier(0.175,0.885,0.32,1.275);
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
     .perspective-float-bar--focused {
       border-color: var(--perspective-float-border-focus, rgba(124,58,237,0.3));
-      box-shadow: var(--perspective-shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06));
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
     }
 
     @keyframes perspective-bar-in {
@@ -271,7 +272,7 @@ export function injectStyles(): void {
       font-size: 0.875rem;
       color: var(--perspective-modal-text, #1a1a1a);
       outline: none;
-      padding: 0.625rem 0.75rem;
+      padding: 0.5rem 0.625rem;
       min-width: 0;
       font-family: inherit;
     }
@@ -285,8 +286,8 @@ export function injectStyles(): void {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 2.25rem;
-      height: 2.25rem;
+      width: 2.125rem;
+      height: 2.125rem;
       border-radius: 50%;
       border: none;
       cursor: pointer;
@@ -297,17 +298,17 @@ export function injectStyles(): void {
     }
 
     .perspective-float-bar-icon:hover {
-      transform: scale(1.05);
+      transform: scale(1.08);
     }
 
     .perspective-float-bar-icon svg {
-      width: 1rem;
-      height: 1rem;
+      width: 0.9375rem;
+      height: 0.9375rem;
     }
 
     .perspective-float-bar-divider {
       width: 1px;
-      height: 1.5rem;
+      height: 1.25rem;
       background: var(--perspective-border, #e5e7eb);
       flex-shrink: 0;
     }
@@ -316,19 +317,19 @@ export function injectStyles(): void {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 2.25rem;
-      height: 2.25rem;
+      width: 2.125rem;
+      height: 2.125rem;
       border-radius: 50%;
       border: none;
       cursor: pointer;
-      background: transparent;
+      background: var(--perspective-close-bg, rgba(0,0,0,0.05));
       color: var(--perspective-float-bg, #7c3aed);
       flex-shrink: 0;
-      transition: background-color 0.15s, color 0.15s;
+      transition: background-color 0.2s, color 0.2s;
     }
 
     .perspective-float-bar-action--has-text {
-      background: var(--perspective-float-bg, #7c3aed);
+      background: linear-gradient(135deg, var(--perspective-float-bg, #7c3aed), var(--perspective-float-bg, #6554c0));
       color: white;
     }
 
@@ -338,15 +339,15 @@ export function injectStyles(): void {
     }
 
     .perspective-float-bar-action svg {
-      width: 1.125rem;
-      height: 1.125rem;
+      width: 0.9375rem;
+      height: 0.9375rem;
     }
 
-    /* Pulse ring animation for sound chime */
+    /* Pulse ring animation for sound chime — matches artifact pingRing */
     .perspective-float-bar-pulse {
       position: absolute;
       inset: 0;
-      border-radius: 2rem;
+      border-radius: inherit;
       border: 2px solid var(--perspective-float-bg, #7c3aed);
       opacity: 0;
       pointer-events: none;
@@ -355,14 +356,14 @@ export function injectStyles(): void {
 
     @keyframes perspective-pulse-ring {
       0% { opacity: 0.6; transform: scale(1); }
-      100% { opacity: 0; transform: scale(1.15, 1.8); }
+      100% { opacity: 0; transform: scale(1.12, 2.2); }
     }
 
     /* Teaser message */
     .perspective-float-teaser {
       position: fixed;
-      bottom: 4.75rem;
-      right: 1.25rem;
+      bottom: 5rem;
+      right: 1.5rem;
       z-index: 9996;
       display: flex;
       align-items: flex-start;
@@ -419,8 +420,8 @@ export function injectStyles(): void {
     .perspective-float-window,
     .perspective-chat-window {
       position: fixed;
-      bottom: 1.25rem;
-      right: 1.25rem;
+      bottom: 1.5rem;
+      right: 1.5rem;
       width: 380px;
       height: calc(100vh - 3.5rem);
       max-height: 600px;
