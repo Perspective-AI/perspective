@@ -241,15 +241,15 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     if (isOpen) return;
 
     const teaserEl = document.createElement("div");
-    teaserEl.className = "perspective-float-teaser";
+    teaserEl.className = cn(
+      "perspective-float-teaser perspective-embed-root",
+      getThemeClass(currentConfig.theme)
+    );
 
     const messageEl = document.createElement("div");
     messageEl.className = "perspective-float-teaser-message";
     const textEl = document.createElement("span");
-    const cursorEl = document.createElement("span");
-    cursorEl.className = "perspective-float-type-cursor";
     messageEl.appendChild(textEl);
-    messageEl.appendChild(cursorEl);
 
     teaserEl.appendChild(messageEl);
     teaserEl.addEventListener("click", openFloat);
@@ -268,7 +268,6 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
           window.clearInterval(teaserTypewriter);
           teaserTypewriter = null;
         }
-        cursorEl.remove();
       }
     }, TYPEWRITER_SPEED_MS);
   };

@@ -16,6 +16,10 @@ const LIGHT_THEME = `
   --perspective-close-hover-bg: rgba(0, 0, 0, 0.2);
   --perspective-close-hover-text: #333333;
   --perspective-border: hsl(240 6% 90%);
+  --perspective-teaser-bg: #fff;
+  --perspective-teaser-text: #1a1a18;
+  --perspective-teaser-border: #f0eef2;
+  --perspective-teaser-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
 `;
 
 const DARK_THEME = `
@@ -27,6 +31,10 @@ const DARK_THEME = `
   --perspective-close-hover-bg: rgba(255, 255, 255, 0.2);
   --perspective-close-hover-text: #ffffff;
   --perspective-border: hsl(217 33% 17%);
+  --perspective-teaser-bg: #1e1e2e;
+  --perspective-teaser-text: #e4e4e7;
+  --perspective-teaser-border: #2e2e3e;
+  --perspective-teaser-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 `;
 
 export function injectStyles(): void {
@@ -303,14 +311,14 @@ export function injectStyles(): void {
 
     .perspective-float-teaser {
       position: fixed;
-      right: 20px;
-      bottom: 88px;
+      right: 88px;
+      bottom: 30px;
       z-index: 9996;
-      background: var(--perspective-modal-bg);
-      color: var(--perspective-modal-text);
+      background: var(--perspective-teaser-bg);
+      color: var(--perspective-teaser-text);
       border-radius: 14px 14px 4px 14px;
-      border: 1px solid var(--perspective-border);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--perspective-teaser-border);
+      box-shadow: var(--perspective-teaser-shadow);
       max-width: 230px;
       padding: 11px 15px 9px;
       line-height: 1.45;
@@ -322,32 +330,16 @@ export function injectStyles(): void {
     .perspective-float-teaser-message {
       font-size: 14px;
       font-weight: 500;
-      min-height: 20px;
-    }
-
-    .perspective-float-type-cursor {
-      display: inline-block;
-      width: 2px;
-      height: 14px;
-      margin-left: 1px;
-      vertical-align: middle;
-      background: var(--perspective-float-bg, #7c3aed);
-      animation: perspective-cursor-blink 0.8s step-end infinite;
-    }
-
-    @keyframes perspective-cursor-blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
     }
 
     @keyframes perspective-teaser-in {
       from {
         opacity: 0;
-        transform: translateY(10px) scale(0.96);
+        transform: translateX(10px) translateY(4px) scale(0.96);
       }
       to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateX(0) translateY(0) scale(1);
       }
     }
 
