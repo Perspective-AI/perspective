@@ -196,11 +196,14 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       timers.push(
         setTimeout(() => {
           if (isOpen) return;
-          audioCtx = playChime(audioCtx ?? undefined) ?? audioCtx;
+          try {
+            audioCtx = playChime(audioCtx ?? undefined) ?? audioCtx;
+          } catch (_) {
+            // Browser autoplay policy may block — silently ignore
+          }
           // Pulse ring animation
           const pulse = document.createElement("div");
           pulse.className = "perspective-float-bar-pulse";
-          bar.style.position = "relative";
           bar.appendChild(pulse);
           setTimeout(() => pulse.remove(), 1000);
         }, seq.soundDelay * 1000)

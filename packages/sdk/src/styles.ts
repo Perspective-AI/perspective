@@ -345,16 +345,17 @@ export function injectStyles(): void {
     /* Pulse ring animation for sound chime */
     .perspective-float-bar-pulse {
       position: absolute;
-      inset: -4px;
+      inset: 0;
       border-radius: 2rem;
       border: 2px solid var(--perspective-float-bg, #7c3aed);
       opacity: 0;
-      animation: perspective-pulse-ring 1s ease-out;
+      pointer-events: none;
+      animation: perspective-pulse-ring 0.8s ease-out forwards;
     }
 
     @keyframes perspective-pulse-ring {
       0% { opacity: 0.6; transform: scale(1); }
-      100% { opacity: 0; transform: scale(1.08); }
+      100% { opacity: 0; transform: scale(1.15, 1.8); }
     }
 
     /* Teaser message */
