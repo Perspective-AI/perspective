@@ -3,7 +3,12 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, FloatHandle, ThemeConfig } from "./types";
+import type {
+  AIAssistantChannel,
+  EmbedConfig,
+  FloatHandle,
+  ThemeConfig,
+} from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
@@ -12,10 +17,78 @@ import {
   ensureGlobalListeners,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
-import { injectStyles, MIC_ICON, CLOSE_ICON } from "./styles";
+import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
 
 type FloatConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
+type ChannelMode = "voice" | "text" | "both";
+
+const SOUND_DELAY_MS = 2000;
+const TEASER_DELAY_MS = 3000;
+const TYPEWRITER_SPEED_MS = 40;
+
+function getChannelMode(
+  channel?: AIAssistantChannel | AIAssistantChannel[] | null
+): ChannelMode {
+  const entries = Array.isArray(channel) ? channel : channel ? [channel] : [];
+  const hasVoice = entries.includes("VOICE");
+  const hasText = entries.includes("TEXT");
+
+  if (hasVoice && hasText) return "both";
+  if (hasText) return "text";
+  return "voice";
+}
+
+function resolveChannel(
+  config: FloatConfig
+): AIAssistantChannel | AIAssistantChannel[] | undefined {
+  return (
+    config.channel ??
+    config._themeConfig?.allowedChannels ??
+    config._themeConfig?.channel ??
+    undefined
+  );
+}
+
+function resolveWelcomeMessage(config: FloatConfig): string | null {
+  const message = config.welcomeMessage ?? config._themeConfig?.welcomeMessage;
+  const trimmed = typeof message === "string" ? message.trim() : "";
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveBubbleIcon(config: FloatConfig): string {
+  return getChannelMode(resolveChannel(config)) === "text"
+    ? MESSAGES_ICON
+    : MIC_ICON;
+}
+
+function createChimeSound(audioCtx: AudioContext): void {
+  const t = audioCtx.currentTime;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(880, t);
+  osc.frequency.setValueAtTime(1175, t + 0.1);
+  gain.gain.setValueAtTime(0.15, t);
+  gain.gain.linearRampToValueAtTime(0.18, t + 0.1);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.65);
+
+  const osc2 = audioCtx.createOscillator();
+  const gain2 = audioCtx.createGain();
+  osc2.type = "sine";
+  osc2.frequency.setValueAtTime(1175, t + 0.15);
+  osc2.frequency.setValueAtTime(1400, t + 0.25);
+  gain2.gain.setValueAtTime(0, t);
+  gain2.gain.setValueAtTime(0.12, t + 0.15);
+  gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+  osc2.connect(gain2).connect(audioCtx.destination);
+  osc2.start(t + 0.15);
+  osc2.stop(t + 0.6);
+}
 
 function createNoOpHandle(researchId: string): FloatHandle {
   return {
@@ -51,7 +124,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     "perspective-float-bubble perspective-embed-root",
     getThemeClass(config.theme)
   );
-  bubble.innerHTML = MIC_ICON;
+  bubble.innerHTML = resolveBubbleIcon(config);
   bubble.setAttribute("aria-label", "Open chat");
   bubble.setAttribute("data-perspective", "float-bubble");
 
@@ -81,13 +154,172 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   let cleanup: (() => void) | null = null;
   let unregisterIframe: (() => void) | null = null;
   let isOpen = false;
+  let teaser: HTMLElement | null = null;
+  let teaserTypewriter: number | null = null;
+  let notificationDot: HTMLElement | null = null;
+  let audioCtx: AudioContext | null = null;
+  let welcomeSequenceStarted = false;
+  let welcomeDismissed = false;
+  let welcomeTimers: number[] = [];
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
 
+  const setBubbleClosedState = () => {
+    bubble.innerHTML = resolveBubbleIcon(currentConfig);
+    bubble.setAttribute("aria-label", "Open chat");
+    bubble.classList.remove("perspective-float-bubble-open");
+  };
+
+  const setBubbleOpenState = () => {
+    bubble.innerHTML = CLOSE_ICON;
+    bubble.setAttribute("aria-label", "Close chat");
+    bubble.classList.add("perspective-float-bubble-open");
+  };
+
+  const clearWelcomeTimers = () => {
+    for (const timer of welcomeTimers) {
+      window.clearTimeout(timer);
+    }
+    welcomeTimers = [];
+
+    if (teaserTypewriter !== null) {
+      window.clearInterval(teaserTypewriter);
+      teaserTypewriter = null;
+    }
+  };
+
+  const removeNotificationDot = () => {
+    notificationDot?.remove();
+    notificationDot = null;
+  };
+
+  const removeTeaser = () => {
+    if (teaserTypewriter !== null) {
+      window.clearInterval(teaserTypewriter);
+      teaserTypewriter = null;
+    }
+    teaser?.remove();
+    teaser = null;
+    removeNotificationDot();
+  };
+
+  const showNotificationDot = () => {
+    if (notificationDot || isOpen) return;
+    notificationDot = document.createElement("span");
+    notificationDot.className = "perspective-float-notification-dot";
+    bubble.appendChild(notificationDot);
+  };
+
+  const playChime = () => {
+    try {
+      const AudioContextCtor =
+        window.AudioContext ||
+        (
+          window as Window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+
+      if (!AudioContextCtor) return;
+
+      if (!audioCtx) {
+        audioCtx = new AudioContextCtor();
+      }
+
+      if (audioCtx.state === "suspended") {
+        void audioCtx.resume();
+      }
+      createChimeSound(audioCtx);
+    } catch {
+      // Browser may block autoplayed audio until user gesture.
+    }
+  };
+
+  const renderTeaser = (message: string) => {
+    removeTeaser();
+    if (isOpen) return;
+
+    const teaserEl = document.createElement("div");
+    teaserEl.className = cn(
+      "perspective-float-teaser perspective-embed-root",
+      getThemeClass(currentConfig.theme)
+    );
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "perspective-float-teaser-close";
+    closeBtn.innerHTML = CLOSE_ICON;
+    closeBtn.setAttribute("aria-label", "Dismiss message");
+    closeBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      welcomeDismissed = true;
+      removeTeaser();
+    });
+
+    const messageEl = document.createElement("div");
+    messageEl.className = "perspective-float-teaser-message";
+    const textEl = document.createElement("span");
+    const cursorEl = document.createElement("span");
+    cursorEl.className = "perspective-float-type-cursor";
+    messageEl.appendChild(textEl);
+    messageEl.appendChild(cursorEl);
+
+    const cta = document.createElement("div");
+    cta.className = "perspective-float-teaser-cta";
+    cta.textContent = "Click to chat →";
+
+    teaserEl.appendChild(closeBtn);
+    teaserEl.appendChild(messageEl);
+    teaserEl.appendChild(cta);
+    teaserEl.addEventListener("click", openFloat);
+
+    document.body.appendChild(teaserEl);
+    teaser = teaserEl;
+    showNotificationDot();
+
+    let charIndex = 0;
+    teaserTypewriter = window.setInterval(() => {
+      charIndex += 1;
+      textEl.textContent = message.slice(0, charIndex);
+
+      if (charIndex >= message.length) {
+        if (teaserTypewriter !== null) {
+          window.clearInterval(teaserTypewriter);
+          teaserTypewriter = null;
+        }
+        cursorEl.remove();
+      }
+    }, TYPEWRITER_SPEED_MS);
+  };
+
+  const maybeStartWelcomeSequence = () => {
+    if (welcomeSequenceStarted || welcomeDismissed || isOpen) return;
+    const welcomeMessage = resolveWelcomeMessage(currentConfig);
+    if (!welcomeMessage) return;
+
+    welcomeSequenceStarted = true;
+
+    const soundTimer = window.setTimeout(() => {
+      if (isOpen || welcomeDismissed) return;
+      playChime();
+    }, SOUND_DELAY_MS);
+
+    const teaserTimer = window.setTimeout(() => {
+      if (isOpen || welcomeDismissed) return;
+      const nextMessage = resolveWelcomeMessage(currentConfig);
+      if (!nextMessage) return;
+      renderTeaser(nextMessage);
+    }, TEASER_DELAY_MS);
+
+    welcomeTimers.push(soundTimer, teaserTimer);
+  };
+
   const openFloat = () => {
     if (isOpen) return;
     isOpen = true;
+    clearWelcomeTimers();
+    removeTeaser();
 
     // Create float window
     floatWindow = document.createElement("div");
@@ -163,8 +395,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     }
 
     // Update bubble icon to close
-    bubble.innerHTML = CLOSE_ICON;
-    bubble.setAttribute("aria-label", "Close chat");
+    setBubbleOpenState();
   };
 
   const closeFloat = () => {
@@ -180,8 +411,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     unregisterIframe = null;
 
     // Restore bubble icon
-    bubble.innerHTML = MIC_ICON;
-    bubble.setAttribute("aria-label", "Open chat");
+    setBubbleClosedState();
 
     currentConfig.onClose?.();
   };
@@ -196,14 +426,28 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   });
 
   const unmount = () => {
+    clearWelcomeTimers();
+    removeTeaser();
     closeFloat();
     bubble.remove();
   };
+
+  maybeStartWelcomeSequence();
 
   return {
     unmount,
     update: (options: Parameters<FloatHandle["update"]>[0]) => {
       currentConfig = { ...currentConfig, ...options };
+      if (!isOpen) {
+        setBubbleClosedState();
+      }
+
+      if (resolveWelcomeMessage(currentConfig)) {
+        maybeStartWelcomeSequence();
+      } else {
+        clearWelcomeTimers();
+        removeTeaser();
+      }
     },
     destroy: unmount,
     open: openFloat,

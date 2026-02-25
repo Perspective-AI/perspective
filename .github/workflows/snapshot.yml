@@ -1,0 +1,124 @@
+name: Snapshot Release
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  snapshot:
+    name: Publish Snapshot
+    runs-on: ubuntu-latest
+    # Only run on non-close events from the same repo (not forks)
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check for changesets
+        id: changesets
+        run: |
+          if ls .changeset/*.md 1>/dev/null 2>&1; then
+            # Exclude the README.md that changesets always has
+            count=$(ls .changeset/*.md | grep -v README.md | wc -l | tr -d ' ')
+            if [ "$count" -gt "0" ]; then
+              echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "has_changesets=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "has_changesets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Version snapshot
+        if: steps.changesets.outputs.has_changesets == 'true'
+        run: pnpm changeset version --snapshot "pr-${{ github.event.pull_request.number }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        if: steps.changesets.outputs.has_changesets == 'true'
+        run: pnpm build
+
+      - name: Publish snapshot
+        if: steps.changesets.outputs.has_changesets == 'true'
+        id: publish
+        run: |
+          pnpm changeset publish --tag "pr-${{ github.event.pull_request.number }}" --no-git-tag 2>&1 | tee /tmp/publish-output.txt
+          # Extract published versions
+          sdk_version=$(grep -o '@perspective-ai/sdk@[^ ]*' /tmp/publish-output.txt | head -1 | sed 's/@perspective-ai\/sdk@//')
+          react_version=$(grep -o '@perspective-ai/sdk-react@[^ ]*' /tmp/publish-output.txt | head -1 | sed 's/@perspective-ai\/sdk-react@//')
+          echo "sdk_version=$sdk_version" >> "$GITHUB_OUTPUT"
+          echo "react_version=$react_version" >> "$GITHUB_OUTPUT"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Comment on PR
+        if: steps.changesets.outputs.has_changesets == 'true' && steps.publish.outputs.sdk_version
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: snapshot-release
+          message: |
+            ### 📦 Snapshot Release
+
+            Published snapshot packages for this PR:
+
+            ```sh
+            pnpm add @perspective-ai/sdk@${{ steps.publish.outputs.sdk_version }}
+            pnpm add @perspective-ai/sdk-react@${{ steps.publish.outputs.react_version }}
+            ```
+
+            Or use the npm tag (always points to the latest snapshot from this PR):
+
+            ```sh
+            pnpm add @perspective-ai/sdk@pr-${{ github.event.pull_request.number }}
+            pnpm add @perspective-ai/sdk-react@pr-${{ github.event.pull_request.number }}
+            ```
+
+      - name: Restore package.json files
+        if: always()
+        run: git checkout -- .
+
+  cleanup:
+    name: Cleanup Snapshot Tags
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed' || github.event.pull_request.merged == true
+
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Remove dist-tags
+        continue-on-error: true
+        run: |
+          tag="pr-${{ github.event.pull_request.number }}"
+          npm dist-tag rm @perspective-ai/sdk "$tag" || true
+          npm dist-tag rm @perspective-ai/sdk-react "$tag" || true
+          echo "Removed dist-tag: $tag"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

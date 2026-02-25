@@ -46,7 +46,11 @@ const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 const triggerCleanups: Map<string, () => void> = new Map();
 
 // Theme config cache
-const configCache: Map<string, ThemeConfig> = new Map();
+type EmbedApiConfig = ThemeConfig & {
+  allowedChannels?: ThemeConfig["allowedChannels"];
+  welcomeMessage?: string;
+};
+const configCache: Map<string, EmbedApiConfig> = new Map();
 
 type ButtonStyleConfig = {
   themeConfig: ThemeConfig;
@@ -66,7 +70,7 @@ const DEFAULT_THEME: ThemeConfig = {
 /**
  * Fetch theme config from API (cached)
  */
-async function fetchConfig(researchId: string): Promise<ThemeConfig> {
+async function fetchConfig(researchId: string): Promise<EmbedApiConfig> {
   if (configCache.has(researchId)) {
     return configCache.get(researchId)!;
   }
@@ -75,7 +79,7 @@ async function fetchConfig(researchId: string): Promise<ThemeConfig> {
     const host = getHost();
     const res = await fetch(`${host}/api/v1/embed/config/${researchId}`);
     if (!res.ok) return DEFAULT_THEME;
-    const config = await res.json();
+    const config = (await res.json()) as EmbedApiConfig;
     configCache.set(researchId, config);
     return config;
   } catch {
@@ -452,7 +456,7 @@ function autoInit(): void {
     if (researchId && !instances.has(researchId)) {
       const params = parseParamsAttr(floatEl);
       const brandConfig = extractBrandConfig(floatEl);
-      init({
+      const floatHandle = init({
         researchId,
         type: "float",
         params,
@@ -481,6 +485,18 @@ function autoInit(): void {
           );
           bubble.style.backgroundColor = bg;
           bubble.style.boxShadow = `0 4px 12px ${bg}66`;
+        }
+
+        if (
+          floatHandle.type === "float" &&
+          instances.get(researchId) === floatHandle
+        ) {
+          const channels =
+            config.allowedChannels ?? config.channel ?? undefined;
+          floatHandle.update({
+            channel: channels,
+            welcomeMessage: config.welcomeMessage,
+          });
         }
       });
     }

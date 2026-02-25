@@ -21,6 +21,9 @@ describe("browser entry", () => {
   afterEach(() => {
     destroyAll();
     document.body.innerHTML = "";
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe("exports", () => {
@@ -384,6 +387,43 @@ describe("browser entry", () => {
       autoInit();
 
       expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+    });
+
+    it("uses fetched channel and welcomeMessage for float bubble", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            primaryColor: "#7c3aed",
+            textColor: "#ffffff",
+            darkPrimaryColor: "#a78bfa",
+            darkTextColor: "#ffffff",
+            allowedChannels: ["TEXT"],
+            welcomeMessage: "Need help?",
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <div data-perspective-float="test-float-config"></div>
+      `;
+
+      autoInit();
+
+      // flush: fetch() resolve → .json() resolve → .then() callback
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.innerHTML).toContain("lucide-messages-square");
+
+      vi.advanceTimersByTime(3000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
     });
 
     it("parses params from data-perspective-params", () => {

@@ -234,10 +234,10 @@ export function injectStyles(): void {
     .perspective-float-bubble,
     .perspective-chat-bubble {
       position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      width: 3.75rem;
-      height: 3.75rem;
+      bottom: 20px;
+      right: 20px;
+      width: 58px;
+      height: 58px;
       border-radius: 50%;
       background: var(--perspective-float-bg, var(--perspective-chat-bg, #7629C8));
       color: white;
@@ -249,12 +249,18 @@ export function injectStyles(): void {
       align-items: center;
       justify-content: center;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      --animate-click-draw: click-draw 3s ease-in-out infinite;
+      animation: var(--animate-click-draw);
     }
 
     .perspective-float-bubble:hover,
     .perspective-chat-bubble:hover {
-      transform: scale(1.05);
       box-shadow: var(--perspective-float-shadow-hover, var(--perspective-chat-shadow-hover, 0 6px 16px rgba(118, 41, 200, 0.5)));
+    }
+
+    .perspective-float-bubble.perspective-float-bubble-open,
+    .perspective-chat-bubble.perspective-float-bubble-open {
+      animation: none;
     }
 
     .perspective-float-bubble:focus-visible,
@@ -268,6 +274,118 @@ export function injectStyles(): void {
       width: 1.75rem;
       height: 1.75rem;
       stroke-width: 2;
+    }
+
+    @keyframes click-draw {
+      0%,
+      35%,
+      65%,
+      100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    .perspective-float-notification-dot {
+      position: absolute;
+      top: -1px;
+      right: -1px;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #ff5252;
+      border: 2px solid #fff;
+      pointer-events: none;
+      animation: perspective-slide-up 0.25s ease-out;
+    }
+
+    .perspective-float-teaser {
+      position: fixed;
+      right: 88px;
+      bottom: 26px;
+      z-index: 9996;
+      background: var(--perspective-modal-bg);
+      color: var(--perspective-modal-text);
+      border-radius: 14px 14px 4px 14px;
+      border: 1px solid color-mix(in srgb, var(--perspective-border) 35%, transparent);
+      box-shadow: var(--perspective-shadow-lg);
+      max-width: min(260px, calc(100vw - 108px));
+      padding: 11px 15px 9px;
+      line-height: 1.45;
+      cursor: pointer;
+      animation: perspective-teaser-in 0.35s ease-out;
+      user-select: none;
+    }
+
+    .perspective-float-teaser-message {
+      font-size: 14px;
+      font-weight: 500;
+      min-height: 20px;
+    }
+
+    .perspective-float-teaser-cta {
+      font-size: 11px;
+      margin-top: 7px;
+      font-weight: 600;
+      opacity: 0.8;
+      color: var(--perspective-float-bg, #7c3aed);
+    }
+
+    .perspective-float-teaser-close {
+      position: absolute;
+      top: -7px;
+      right: -7px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid var(--perspective-border);
+      background: var(--perspective-modal-bg);
+      color: var(--perspective-close-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--perspective-shadow-sm);
+      padding: 0;
+    }
+
+    .perspective-float-teaser-close:hover {
+      color: var(--perspective-close-hover-text);
+      background: var(--perspective-close-hover-bg);
+    }
+
+    .perspective-float-teaser-close svg {
+      width: 10px;
+      height: 10px;
+      stroke-width: 2;
+    }
+
+    .perspective-float-type-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 14px;
+      margin-left: 1px;
+      vertical-align: middle;
+      background: var(--perspective-float-bg, #7c3aed);
+      animation: perspective-cursor-blink 0.8s step-end infinite;
+    }
+
+    @keyframes perspective-cursor-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    @keyframes perspective-teaser-in {
+      from {
+        opacity: 0;
+        transform: translateX(10px) translateY(4px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0) translateY(0) scale(1);
+      }
     }
 
     /* Float window (and legacy chat-window alias) */
@@ -350,8 +468,8 @@ export function injectStyles(): void {
 
       .perspective-float-bubble,
       .perspective-chat-bubble {
-        bottom: 1rem;
-        right: 1rem;
+        bottom: 20px;
+        right: 20px;
       }
     }
 
@@ -366,16 +484,8 @@ export function injectStyles(): void {
 
       .perspective-float-bubble,
       .perspective-chat-bubble {
-        bottom: 0.75rem;
-        right: 0.75rem;
-        width: 3.5rem;
-        height: 3.5rem;
-      }
-
-      .perspective-float-bubble svg,
-      .perspective-chat-bubble svg {
-        width: 1.5rem;
-        height: 1.5rem;
+        bottom: 20px;
+        right: 20px;
       }
     }
   `;
@@ -385,6 +495,11 @@ export function injectStyles(): void {
 
 export const MIC_ICON = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
   <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+</svg>`;
+
+export const MESSAGES_ICON = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square-icon lucide-messages-square">
+  <path d="M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+  <path d="M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1"/>
 </svg>`;
 
 /** @deprecated Use MIC_ICON instead */
