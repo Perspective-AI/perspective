@@ -303,15 +303,15 @@ export function injectStyles(): void {
 
     .perspective-float-teaser {
       position: fixed;
-      right: 88px;
-      bottom: 26px;
+      right: 20px;
+      bottom: 88px;
       z-index: 9996;
       background: var(--perspective-modal-bg);
       color: var(--perspective-modal-text);
       border-radius: 14px 14px 4px 14px;
-      border: 1px solid color-mix(in srgb, var(--perspective-border) 35%, transparent);
-      box-shadow: var(--perspective-shadow-lg);
-      max-width: min(260px, calc(100vw - 108px));
+      border: 1px solid var(--perspective-border);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      max-width: 230px;
       padding: 11px 15px 9px;
       line-height: 1.45;
       cursor: pointer;
@@ -323,43 +323,6 @@ export function injectStyles(): void {
       font-size: 14px;
       font-weight: 500;
       min-height: 20px;
-    }
-
-    .perspective-float-teaser-cta {
-      font-size: 11px;
-      margin-top: 7px;
-      font-weight: 600;
-      opacity: 0.8;
-      color: var(--perspective-float-bg, #7c3aed);
-    }
-
-    .perspective-float-teaser-close {
-      position: absolute;
-      top: -7px;
-      right: -7px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 1px solid var(--perspective-border);
-      background: var(--perspective-modal-bg);
-      color: var(--perspective-close-text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: var(--perspective-shadow-sm);
-      padding: 0;
-    }
-
-    .perspective-float-teaser-close:hover {
-      color: var(--perspective-close-hover-text);
-      background: var(--perspective-close-hover-bg);
-    }
-
-    .perspective-float-teaser-close svg {
-      width: 10px;
-      height: 10px;
-      stroke-width: 2;
     }
 
     .perspective-float-type-cursor {
@@ -380,11 +343,11 @@ export function injectStyles(): void {
     @keyframes perspective-teaser-in {
       from {
         opacity: 0;
-        transform: translateX(10px) translateY(4px) scale(0.96);
+        transform: translateY(10px) scale(0.96);
       }
       to {
         opacity: 1;
-        transform: translateX(0) translateY(0) scale(1);
+        transform: translateY(0) scale(1);
       }
     }
 

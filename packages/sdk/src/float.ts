@@ -241,21 +241,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     if (isOpen) return;
 
     const teaserEl = document.createElement("div");
-    teaserEl.className = cn(
-      "perspective-float-teaser perspective-embed-root",
-      getThemeClass(currentConfig.theme)
-    );
-
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "perspective-float-teaser-close";
-    closeBtn.innerHTML = CLOSE_ICON;
-    closeBtn.setAttribute("aria-label", "Dismiss message");
-    closeBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      welcomeDismissed = true;
-      removeTeaser();
-    });
+    teaserEl.className = "perspective-float-teaser";
 
     const messageEl = document.createElement("div");
     messageEl.className = "perspective-float-teaser-message";
@@ -265,13 +251,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     messageEl.appendChild(textEl);
     messageEl.appendChild(cursorEl);
 
-    const cta = document.createElement("div");
-    cta.className = "perspective-float-teaser-cta";
-    cta.textContent = "Click to chat →";
-
-    teaserEl.appendChild(closeBtn);
     teaserEl.appendChild(messageEl);
-    teaserEl.appendChild(cta);
     teaserEl.addEventListener("click", openFloat);
 
     document.body.appendChild(teaserEl);
