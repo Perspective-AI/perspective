@@ -52,6 +52,24 @@ export interface BrandColors {
   text?: string;
 }
 
+/** Float bar sequence configuration */
+export interface FloatSequenceConfig {
+  /** Icon shown in the bar and dialog header. Default: "chat" */
+  icon?: "chat" | "mic" | "keyboard";
+  /** Teaser message text shown above the bar. Default: "Have a question? I'm here to help." */
+  teaserText?: string;
+  /** Delay (seconds) before playing sound chime. 0 = disabled. Default: 2 */
+  soundDelay?: number;
+  /** Delay (seconds) before showing teaser. 0 = disabled. Default: 3 */
+  teaserDelay?: number;
+  /** Delay (seconds) before auto-opening dialog. 0 = disabled. Default: 20 */
+  autoOpenDelay?: number;
+  /** Typewriter speed for teaser (ms per char). Default: 40 */
+  typingSpeed?: number;
+  /** Placeholder text for the input bar. Default: "Ask me anything..." */
+  placeholder?: string;
+}
+
 export interface EmbedConfig {
   researchId: string;
   type?: EmbedType;
@@ -70,6 +88,8 @@ export interface EmbedConfig {
   host?: string;
   /** Auto-open trigger configuration (popup only) */
   autoOpen?: AutoOpenConfig;
+  /** Float bar sequence configuration (float embeds only) */
+  sequence?: FloatSequenceConfig;
   /** Callback when embed is ready */
   onReady?: () => void;
   /** Callback when interview is submitted/completed */

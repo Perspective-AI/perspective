@@ -57,13 +57,13 @@ describe("browser entry", () => {
 
     it("creates float bubble", () => {
       const handle = init({ researchId: "test", type: "float" });
-      expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+      expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
       handle.unmount();
     });
 
     it("handles legacy chat type as float", () => {
       const handle = init({ researchId: "test", type: "chat" });
-      expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+      expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
       handle.unmount();
     });
 
@@ -373,7 +373,7 @@ describe("browser entry", () => {
 
       autoInit();
 
-      expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+      expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
     });
 
     it("initializes float from legacy data-perspective-chat", () => {
@@ -383,7 +383,7 @@ describe("browser entry", () => {
 
       autoInit();
 
-      expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+      expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
     });
 
     it("parses params from data-perspective-params", () => {

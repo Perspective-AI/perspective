@@ -48,6 +48,7 @@ export type {
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
+  FloatSequenceConfig,
   BrandColors,
   ThemeValue,
   EmbedError,

@@ -29,6 +29,9 @@ export { openSlider } from "./slider";
 export { createFloatBubble, createChatBubble } from "./float";
 export { createFullpage } from "./fullpage";
 
+// Audio utility
+export { playChime } from "./audio";
+
 // Auto-open triggers
 export {
   setupTrigger,
@@ -47,6 +50,7 @@ export type {
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
+  FloatSequenceConfig,
   ModalHandle,
   EmbedInstance,
   EmbedError,

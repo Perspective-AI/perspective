@@ -452,35 +452,53 @@ function autoInit(): void {
     if (researchId && !instances.has(researchId)) {
       const params = parseParamsAttr(floatEl);
       const brandConfig = extractBrandConfig(floatEl);
+
+      // Parse float sequence attributes
+      const sequence: import("./types").FloatSequenceConfig = {};
+      const teaserText = floatEl.getAttribute(DATA_ATTRS.teaser);
+      if (teaserText) sequence.teaserText = teaserText;
+      const soundDelay = floatEl.getAttribute(DATA_ATTRS.soundDelay);
+      if (soundDelay) sequence.soundDelay = Number(soundDelay);
+      const teaserDelay = floatEl.getAttribute(DATA_ATTRS.teaserDelay);
+      if (teaserDelay) sequence.teaserDelay = Number(teaserDelay);
+      const autoOpenDelay = floatEl.getAttribute(DATA_ATTRS.autoOpenDelay);
+      if (autoOpenDelay) sequence.autoOpenDelay = Number(autoOpenDelay);
+      const iconAttr = floatEl.getAttribute(DATA_ATTRS.icon);
+      if (
+        iconAttr === "chat" ||
+        iconAttr === "mic" ||
+        iconAttr === "keyboard"
+      ) {
+        sequence.icon = iconAttr;
+      }
+      const placeholder = floatEl.getAttribute(DATA_ATTRS.placeholder);
+      if (placeholder) sequence.placeholder = placeholder;
+
       init({
         researchId,
         type: "float",
         params,
         ...brandConfig,
+        sequence: Object.keys(sequence).length > 0 ? sequence : undefined,
         _themeConfig: DEFAULT_THEME,
       } as EmbedConfig & { _themeConfig: ThemeConfig });
 
       fetchConfig(researchId).then((config) => {
-        // Update bubble color with fetched theme
-        const bubble = document.querySelector<HTMLElement>(
-          '[data-perspective="float-bubble"]'
+        // Update bar color with fetched theme
+        const barEl = document.querySelector<HTMLElement>(
+          '[data-perspective="float-bar"]'
         );
-        if (bubble && !floatEl.hasAttribute(DATA_ATTRS.noStyle)) {
+        if (barEl && !floatEl.hasAttribute(DATA_ATTRS.noStyle)) {
           const isDark = resolveIsDark(brandConfig.theme);
           const bg = isDark
             ? (brandConfig.brand?.dark?.primary ?? config.darkPrimaryColor)
             : (brandConfig.brand?.light?.primary ?? config.primaryColor);
-          bubble.style.setProperty("--perspective-float-bg", bg);
-          bubble.style.setProperty(
-            "--perspective-float-shadow",
-            `0 4px 12px ${bg}66`
+          barEl.style.setProperty("--perspective-float-bg", bg);
+          barEl.style.setProperty("--perspective-float-border", `${bg}33`);
+          barEl.style.setProperty(
+            "--perspective-float-border-focus",
+            `${bg}4d`
           );
-          bubble.style.setProperty(
-            "--perspective-float-shadow-hover",
-            `0 6px 16px ${bg}80`
-          );
-          bubble.style.backgroundColor = bg;
-          bubble.style.boxShadow = `0 4px 12px ${bg}66`;
         }
       });
     }

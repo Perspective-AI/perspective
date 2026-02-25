@@ -87,6 +87,13 @@ export const DATA_ATTRS = {
   noStyle: "data-perspective-no-style",
   autoOpen: "data-perspective-auto-open",
   showOnce: "data-perspective-show-once",
+  // Float sequence attributes
+  teaser: "data-perspective-teaser",
+  soundDelay: "data-perspective-sound-delay",
+  teaserDelay: "data-perspective-teaser-delay",
+  autoOpenDelay: "data-perspective-auto-open-delay",
+  icon: "data-perspective-icon",
+  placeholder: "data-perspective-placeholder",
 } as const;
 
 export type DataAttr = (typeof DATA_ATTRS)[keyof typeof DATA_ATTRS];
@@ -111,6 +118,9 @@ export const MESSAGE_TYPES = {
   anonId: "perspective:anon-id",
   injectStyles: "perspective:inject-styles",
   themeChange: "perspective:theme-change",
+
+  // SDK -> Iframe (float bar)
+  initialMessage: "perspective:initial-message",
 
   // Iframe -> SDK (internal)
   requestScrollbarStyles: "perspective:request-scrollbar-styles",

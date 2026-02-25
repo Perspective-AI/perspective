@@ -12,7 +12,7 @@ describe("createFloatBubble", () => {
     vi.restoreAllMocks();
   });
 
-  it("creates float bubble", () => {
+  it("creates float bar", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
@@ -20,7 +20,7 @@ describe("createFloatBubble", () => {
     expect(handle.researchId).toBe("test-research-id");
     expect(handle.type).toBe("float");
     expect(handle.isOpen).toBe(false);
-    expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+    expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
 
     handle.unmount();
   });
@@ -42,7 +42,7 @@ describe("createFloatBubble", () => {
     expect(() => handle.toggle()).not.toThrow();
   });
 
-  it("open() opens float window", () => {
+  it("open() opens float window and hides bar", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
@@ -54,11 +54,14 @@ describe("createFloatBubble", () => {
 
     expect(handle.isOpen).toBe(true);
     expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+    // Bar should be hidden
+    const bar = document.querySelector<HTMLElement>(".perspective-float-bar");
+    expect(bar?.style.display).toBe("none");
 
     handle.unmount();
   });
 
-  it("close() closes float window", () => {
+  it("close() closes float window and shows bar", () => {
     const onClose = vi.fn();
     const handle = createFloatBubble({
       researchId: "test-research-id",
@@ -74,6 +77,9 @@ describe("createFloatBubble", () => {
     expect(handle.isOpen).toBe(false);
     expect(document.querySelector(".perspective-float-window")).toBeFalsy();
     expect(onClose).toHaveBeenCalled();
+    // Bar should be visible again
+    const bar = document.querySelector<HTMLElement>(".perspective-float-bar");
+    expect(bar?.style.display).toBe("flex");
   });
 
   it("toggle() toggles float window", () => {
@@ -88,27 +94,6 @@ describe("createFloatBubble", () => {
     expect(document.querySelector(".perspective-float-window")).toBeTruthy();
 
     handle.toggle();
-    expect(handle.isOpen).toBe(false);
-    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
-
-    handle.unmount();
-  });
-
-  it("clicking bubble toggles float window", () => {
-    const handle = createFloatBubble({
-      researchId: "test-research-id",
-    });
-
-    const bubble = document.querySelector(
-      ".perspective-float-bubble"
-    ) as HTMLButtonElement;
-    expect(bubble).toBeTruthy();
-
-    bubble.click();
-    expect(handle.isOpen).toBe(true);
-    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
-
-    bubble.click();
     expect(handle.isOpen).toBe(false);
     expect(document.querySelector(".perspective-float-window")).toBeFalsy();
 
@@ -136,18 +121,18 @@ describe("createFloatBubble", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("unmount removes bubble and window", () => {
+  it("unmount removes bar and window", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
 
     handle.open();
-    expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+    expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
     expect(document.querySelector(".perspective-float-window")).toBeTruthy();
 
     handle.unmount();
 
-    expect(document.querySelector(".perspective-float-bubble")).toBeFalsy();
+    expect(document.querySelector(".perspective-float-bar")).toBeFalsy();
     expect(document.querySelector(".perspective-float-window")).toBeFalsy();
   });
 
@@ -156,11 +141,11 @@ describe("createFloatBubble", () => {
       researchId: "test-research-id",
     });
 
-    expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+    expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
 
     handle.destroy();
 
-    expect(document.querySelector(".perspective-float-bubble")).toBeFalsy();
+    expect(document.querySelector(".perspective-float-bar")).toBeFalsy();
   });
 
   it("open when already open is no-op", () => {
@@ -219,6 +204,98 @@ describe("createFloatBubble", () => {
     });
 
     expect(() => handle.update({ onSubmit: onSubmit2 })).not.toThrow();
+
+    handle.unmount();
+  });
+
+  it("renders input bar with input field", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    const bar = document.querySelector(".perspective-float-bar");
+    expect(bar).toBeTruthy();
+
+    const inputEl = bar?.querySelector("input");
+    expect(inputEl).toBeTruthy();
+    expect(inputEl?.placeholder).toBe("Ask me anything...");
+
+    handle.unmount();
+  });
+
+  it("renders with custom placeholder", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      sequence: { placeholder: "Type your question..." },
+    });
+
+    const inputEl = document.querySelector(
+      ".perspective-float-bar input"
+    ) as HTMLInputElement;
+    expect(inputEl?.placeholder).toBe("Type your question...");
+
+    handle.unmount();
+  });
+
+  it("renders mic button and action button", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    expect(document.querySelector(".perspective-float-bar-icon")).toBeTruthy();
+    expect(
+      document.querySelector(".perspective-float-bar-action")
+    ).toBeTruthy();
+    expect(
+      document.querySelector(".perspective-float-bar-divider")
+    ).toBeTruthy();
+
+    handle.unmount();
+  });
+
+  it("mic button click opens dialog", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    const micBtn = document.querySelector(
+      ".perspective-float-bar-icon"
+    ) as HTMLButtonElement;
+    micBtn.click();
+
+    expect(handle.isOpen).toBe(true);
+    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+
+    handle.unmount();
+  });
+
+  it("action button click opens dialog when no text", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    const actionBtn = document.querySelector(
+      ".perspective-float-bar-action"
+    ) as HTMLButtonElement;
+    actionBtn.click();
+
+    expect(handle.isOpen).toBe(true);
+
+    handle.unmount();
+  });
+
+  it("disables sequence timers with 0 delays", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      sequence: {
+        soundDelay: 0,
+        teaserDelay: 0,
+        autoOpenDelay: 0,
+      },
+    });
+
+    // Should not auto-open
+    expect(handle.isOpen).toBe(false);
 
     handle.unmount();
   });
@@ -319,13 +396,13 @@ describe("createChatBubble", () => {
     expect(createChatBubble).toBe(createFloatBubble);
   });
 
-  it("creates float bubble", () => {
+  it("creates float bar", () => {
     const handle = createChatBubble({
       researchId: "test-research-id",
     });
 
     expect(handle.type).toBe("float");
-    expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+    expect(document.querySelector(".perspective-float-bar")).toBeTruthy();
 
     handle.unmount();
   });
