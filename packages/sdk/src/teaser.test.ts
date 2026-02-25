@@ -145,8 +145,6 @@ describe("createTeaser", () => {
     const textSpan = teaser.element.querySelector(
       ".perspective-float-teaser-text"
     ) as HTMLSpanElement;
-    const textBeforeDestroy = textSpan.textContent;
-
     teaser.destroy();
 
     // Element should be removed

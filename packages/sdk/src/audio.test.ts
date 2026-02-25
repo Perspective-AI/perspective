@@ -46,7 +46,6 @@ describe("playChime", () => {
       createGain: vi.fn(() => mockGain),
     };
 
-    // @ts-expect-error - Partial mock
     window.AudioContext = function () {
       return mockCtx;
     } as unknown as typeof AudioContext;
