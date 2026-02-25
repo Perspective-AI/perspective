@@ -316,7 +316,7 @@ export function injectStyles(): void {
       z-index: 9996;
       background: var(--perspective-teaser-bg);
       color: var(--perspective-teaser-text);
-      border-radius: 14px 14px 14px 4px;
+      border-radius: 14px 14px 4px 14px;
       border: 1px solid var(--perspective-teaser-border);
       box-shadow: var(--perspective-teaser-shadow);
       max-width: 230px;

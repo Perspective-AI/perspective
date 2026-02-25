@@ -26,6 +26,7 @@ type ChannelMode = "voice" | "text" | "both";
 const SOUND_DELAY_MS = 2000;
 const TEASER_DELAY_MS = 3000;
 const TYPEWRITER_SPEED_MS = 40;
+const DEFAULT_WELCOME_MESSAGE = "Have a question? I'm here to help.";
 
 function getChannelMode(
   channel?: AIAssistantChannel | AIAssistantChannel[] | null
@@ -50,10 +51,10 @@ function resolveChannel(
   );
 }
 
-function resolveWelcomeMessage(config: FloatConfig): string | null {
+function resolveWelcomeMessage(config: FloatConfig): string {
   const message = config.welcomeMessage ?? config._themeConfig?.welcomeMessage;
   const trimmed = typeof message === "string" ? message.trim() : "";
-  return trimmed.length > 0 ? trimmed : null;
+  return trimmed.length > 0 ? trimmed : DEFAULT_WELCOME_MESSAGE;
 }
 
 function resolveBubbleIcon(config: FloatConfig): string {
@@ -274,8 +275,6 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
 
   const maybeStartWelcomeSequence = () => {
     if (welcomeSequenceStarted || welcomeDismissed || isOpen) return;
-    const welcomeMessage = resolveWelcomeMessage(currentConfig);
-    if (!welcomeMessage) return;
 
     welcomeSequenceStarted = true;
 
@@ -286,9 +285,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
 
     const teaserTimer = window.setTimeout(() => {
       if (isOpen || welcomeDismissed) return;
-      const nextMessage = resolveWelcomeMessage(currentConfig);
-      if (!nextMessage) return;
-      renderTeaser(nextMessage);
+      renderTeaser(resolveWelcomeMessage(currentConfig));
     }, TEASER_DELAY_MS);
 
     welcomeTimers.push(soundTimer, teaserTimer);
@@ -423,12 +420,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
         setBubbleClosedState();
       }
 
-      if (resolveWelcomeMessage(currentConfig)) {
-        maybeStartWelcomeSequence();
-      } else {
-        clearWelcomeTimers();
-        removeTeaser();
-      }
+      maybeStartWelcomeSequence();
     },
     destroy: unmount,
     open: openFloat,
