@@ -302,16 +302,8 @@ export function setupMessageListener(
     if (typeof event.data?.type !== "string") return;
     if (!event.data.type.startsWith("perspective:")) return;
     if (event.data.researchId !== researchId) {
-      console.info("[perspective-sdk] researchId mismatch, dropping:", {
-        expected: researchId,
-        got: event.data.researchId,
-        type: event.data.type,
-      });
       return;
     }
-    console.info("[perspective-sdk] message:", event.data.type, {
-      researchId: event.data.researchId,
-    });
 
     switch (event.data.type) {
       case MESSAGE_TYPES.ready: {
@@ -335,10 +327,6 @@ export function setupMessageListener(
         // on tab close. The iframe's storeToken() writes it back to Layer 1
         // for fast sync access during this tab session.
         const cachedToken = getCachedAuthToken(researchId);
-        console.info("[perspective-sdk] on ready: cached token?", {
-          researchId,
-          found: !!cachedToken,
-        });
         if (cachedToken) {
           sendMessage(iframe, host, {
             type: MESSAGE_TYPES.authComplete,
@@ -451,10 +439,6 @@ export function setupMessageListener(
         // Token handling: cache in Layer 2 (parent localStorage for persistence),
         // relay to iframe (which stores in Layer 1), and notify host app
         const relayToken = (token: string) => {
-          console.info("[perspective-sdk] OAuth relayToken:", {
-            researchId,
-            key: `${STORAGE_KEYS.embedAuthToken}:${researchId}`,
-          });
           cacheAuthToken(researchId, token);
           sendMessage(iframe, host, {
             type: MESSAGE_TYPES.authComplete,
@@ -511,16 +495,8 @@ export function setupMessageListener(
         // first-party localStorage. This is what makes auth survive tab
         // close on Safari — iframe localStorage is ephemeral there.
         const { token } = event.data;
-        console.info("[perspective-sdk] authComplete from iframe:", {
-          hasToken: !!token,
-          researchId,
-        });
         if (token) {
           cacheAuthToken(researchId, token);
-          console.info(
-            "[perspective-sdk] cached token in parent localStorage:",
-            { key: `${STORAGE_KEYS.embedAuthToken}:${researchId}` }
-          );
           config.onAuth?.({ researchId, token });
         }
         break;
