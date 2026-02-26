@@ -54,17 +54,32 @@ function isAllowedRedirectUrl(url: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Embed Auth Token Caching
+// Embed Auth Token Caching (Parent-side — Layer 2 of 2)
 //
-// Tokens are JWTs scoped to a specific research, minted by the Perspective
-// server after OAuth/email auth. They're cached in the PARENT page's
-// first-party localStorage (not the iframe's) because:
-//   1. Safari blocks/partitions third-party iframe localStorage
-//   2. The parent page is first-party → localStorage is reliable
-//   3. On next page load, the cached token is relayed back to the iframe
-//      via postMessage (see perspective:ready handler below)
-// This is the "session persistence" layer — there are no cookies for
-// cross-origin embeds.
+// Why two layers? Safari (and any browser following WebKit's Intelligent
+// Tracking Prevention) makes third-party iframe localStorage "partitioned
+// and ephemeral" — it works within a tab session but is wiped when the
+// user closes the tab or quits the browser.
+// Ref: https://webkit.org/tracking-prevention/#intelligenttrackingprevention
+//   "Third-party LocalStorage and IndexedDB are partitioned per
+//    first-party website and also made ephemeral."
+//
+// Chrome and Firefox persist cross-origin iframe localStorage across
+// sessions, so Layer 1 alone would suffice there. Layer 2 exists
+// specifically for Safari and similar browsers.
+//
+// Layer 1 (iframe — useEmbedAuth.ts): Stores token in iframe's own
+//   localStorage. Fast synchronous restore on re-render. Works across
+//   sessions in Chrome/Firefox. Ephemeral on Safari (lost on tab close).
+//
+// Layer 2 (parent — this code): Caches token in the PARENT page's
+//   first-party localStorage, which persists on all browsers. On iframe
+//   load, relays any cached token via postMessage (perspective:auth-complete
+//   in the perspective:ready handler). The iframe's storeToken() writes it
+//   back to Layer 1, repopulating the ephemeral cache for this tab session.
+//
+// Direct iframe embeds (without SDK) only have Layer 1. On Safari, auth
+// won't survive tab close — inherent limitation without the SDK.
 // ---------------------------------------------------------------------------
 
 /** Decode JWT payload without verification (client-side — server verifies) */
@@ -83,7 +98,9 @@ function authTokenKey(researchId: string): string {
   return `${STORAGE_KEYS.embedAuthToken}:${researchId}`;
 }
 
-/** Get cached embed auth token for a research (returns null if expired) */
+/** Get cached embed auth token from parent's first-party localStorage (Layer 2).
+ * Called on iframe ready to relay token back — critical for Safari where
+ * iframe localStorage (Layer 1) is wiped on tab close. */
 function getCachedAuthToken(researchId: string): string | null {
   if (!hasDom()) return null;
   try {
@@ -100,7 +117,8 @@ function getCachedAuthToken(researchId: string): string | null {
   }
 }
 
-/** Cache embed auth token for a research */
+/** Cache embed auth token in parent's first-party localStorage (Layer 2).
+ * Survives tab close and browser restart on all browsers including Safari. */
 function cacheAuthToken(researchId: string, token: string): void {
   if (!hasDom()) return;
   try {
@@ -310,9 +328,11 @@ export function setupMessageListener(
           features: CURRENT_FEATURES,
           researchId,
         });
-        // Session persistence: on iframe load, relay any cached (non-expired)
-        // token so the user doesn't have to re-authenticate on page navigation.
-        // This is the only path for restoring auth state — there are no cookies.
+        // Layer 2 → Layer 1 relay: on iframe load, send any cached token from
+        // parent's first-party localStorage back to the iframe. On Safari this
+        // is the only restore path — iframe localStorage (Layer 1) was wiped
+        // on tab close. The iframe's storeToken() writes it back to Layer 1
+        // for fast sync access during this tab session.
         const cachedToken = getCachedAuthToken(researchId);
         console.info("[perspective-sdk] on ready: cached token?", {
           researchId,
@@ -387,15 +407,8 @@ export function setupMessageListener(
       case MESSAGE_TYPES.authRequest: {
         // The iframe can't do OAuth itself (cross-origin context, third-party
         // cookie blocking). So the iframe asks the SDK to open auth in a
-        // first-party window (popup or new tab) where cookies work normally.
-        //
-        // Two token delivery paths back to the SDK:
-        //   1. postMessage (popup mode, desktop) — callback page sends token
-        //      via window.opener.postMessage, SDK receives via onPopupMessage
-        //   2. Hash fragment (redirect mode, mobile/blocked popups) — callback
-        //      redirects to parent URL with #embed-auth-token=xxx, SDK picks
-        //      it up via hashchange listener
-        // Both paths converge in relayToken() which caches + relays to iframe.
+        // first-party popup where cookies work normally. After auth, the
+        // callback page sends the token back via window.opener.postMessage.
         const { authUrl } = event.data;
         if (!authUrl || typeof authUrl !== "string") return;
 
@@ -419,15 +432,8 @@ export function setupMessageListener(
         // Clean up any previous auth flow before starting a new one
         activeAuthCleanup?.();
 
-        // Open auth window — user completes OAuth on perspective.ai (first-party)
-        // After completion, token comes back via postMessage (popup) or hash fragment (redirect fallback)
-        const returnUrl =
-          window.location.href.split("#")[0] ?? window.location.href;
-        const fullAuthUrl = `${authUrl}&return_url=${encodeURIComponent(returnUrl)}`;
-
-        // Try popup with features (centered, sized) — browsers show this as a
-        // proper popup window rather than a new tab. Falls back to new tab if
-        // popups are blocked; hashchange redirect mode still works in that case.
+        // Open auth popup — user completes OAuth on perspective.ai (first-party)
+        const fullAuthUrl = `${authUrl}&return_url=${encodeURIComponent(window.location.href)}`;
         const width = 500;
         const height = 700;
         const left =
@@ -443,8 +449,8 @@ export function setupMessageListener(
           popupFeatures
         );
 
-        // Single codepath for token handling: cache in parent's first-party
-        // localStorage, relay to iframe for auth state, and notify host app
+        // Token handling: cache in Layer 2 (parent localStorage for persistence),
+        // relay to iframe (which stores in Layer 1), and notify host app
         const relayToken = (token: string) => {
           console.info("[perspective-sdk] OAuth relayToken:", {
             researchId,
@@ -459,39 +465,14 @@ export function setupMessageListener(
           config.onAuth?.({ researchId, token });
         };
 
-        // Prevents stale listeners if user starts a new auth flow or closes
-        // the popup — ensures only one auth flow is active at a time
+        // Ensures only one auth flow is active at a time
         const cleanupAuthListeners = () => {
           clearInterval(pollPopupClosed);
-          window.removeEventListener("hashchange", onHashChange);
           window.removeEventListener("message", onPopupMessage);
           activeAuthCleanup = null;
         };
 
-        // Listen for hash fragment containing the token (redirect mode)
-        const onHashChange = () => {
-          const hash = window.location.hash;
-          if (!hash.includes("embed-auth-token=")) return;
-
-          const params = new URLSearchParams(hash.slice(1));
-          const token = params.get("embed-auth-token");
-
-          // Clear hash synchronously before any async work
-          window.history.replaceState(
-            null,
-            "",
-            window.location.pathname + window.location.search
-          );
-
-          if (token) {
-            relayToken(token);
-          }
-
-          cleanupAuthListeners();
-        };
-        window.addEventListener("hashchange", onHashChange);
-
-        // Also listen for postMessage from popup (popup mode)
+        // Listen for postMessage from popup with the auth token
         const onPopupMessage = (popupEvent: MessageEvent) => {
           if (
             popupEvent.source !== authWindow ||
@@ -507,8 +488,7 @@ export function setupMessageListener(
         };
         window.addEventListener("message", onPopupMessage);
 
-        // Poll for popup close only if popup actually opened (not blocked)
-        // If blocked, hashchange redirect mode is still available as fallback
+        // Poll for popup close (user closed without completing auth)
         const pollPopupClosed = authWindow
           ? setInterval(() => {
               if (authWindow.closed) {
@@ -522,10 +502,10 @@ export function setupMessageListener(
       }
 
       case MESSAGE_TYPES.authComplete: {
-        // Iframe completed auth internally (e.g. email verification in mobile
-        // direct iframe fallback) and sends token to SDK for caching in
-        // first-party localStorage. This ensures the token persists even if
-        // iframe localStorage is blocked (Safari third-party storage).
+        // Layer 1 → Layer 2: iframe completed auth (OAuth popup or email
+        // verification) and sends token to SDK for caching in parent's
+        // first-party localStorage. This is what makes auth survive tab
+        // close on Safari — iframe localStorage is ephemeral there.
         const { token } = event.data;
         console.info("[perspective-sdk] authComplete from iframe:", {
           hasToken: !!token,

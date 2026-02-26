@@ -75,23 +75,6 @@ describe("embed auth message handling", () => {
       expect(openSpy).not.toHaveBeenCalled();
     });
 
-    it("listens for hashchange after opening auth window", () => {
-      vi.spyOn(window, "open").mockReturnValue(null);
-      const addEventSpy = vi.spyOn(window, "addEventListener");
-      removeListener = setupMessageListener(researchId, {}, iframe, host);
-
-      dispatchFromIframe({
-        type: MESSAGE_TYPES.authRequest,
-        provider: "google",
-        authUrl: "https://getperspective.ai/embed-auth/google",
-      });
-
-      const hashChangeCalls = addEventSpy.mock.calls.filter(
-        (call) => call[0] === "hashchange"
-      );
-      expect(hashChangeCalls.length).toBeGreaterThan(0);
-    });
-
     it("listens for postMessage from popup after opening auth window", () => {
       vi.spyOn(window, "open").mockReturnValue(null);
       const addEventSpy = vi.spyOn(window, "addEventListener");
@@ -109,79 +92,6 @@ describe("embed auth message handling", () => {
       );
       // At least 2: the main setupMessageListener handler + the popup handler
       expect(messageCalls.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it("relays token from hashchange end-to-end", () => {
-      vi.spyOn(window, "open").mockReturnValue(null);
-      const onAuth = vi.fn();
-
-      const postMessageSpy = vi.fn();
-      Object.defineProperty(iframe, "contentWindow", {
-        value: { postMessage: postMessageSpy },
-        configurable: true,
-      });
-
-      removeListener = setupMessageListener(
-        researchId,
-        { onAuth },
-        iframe,
-        host
-      );
-
-      // Trigger auth request to register hashchange listener
-      dispatchFromIframe({
-        type: MESSAGE_TYPES.authRequest,
-        provider: "google",
-        authUrl: "https://getperspective.ai/embed-auth/google",
-      });
-
-      const token = createMockToken(researchId, Date.now() + 86400000);
-
-      // Simulate redirect back with token in hash — save/restore location
-      const origLocation = window.location;
-      Object.defineProperty(window, "location", {
-        value: {
-          ...origLocation,
-          href: origLocation.href,
-          hash: `#embed-auth-token=${token}`,
-          pathname: origLocation.pathname,
-          search: origLocation.search,
-        },
-        writable: true,
-        configurable: true,
-      });
-
-      try {
-        window.dispatchEvent(new Event("hashchange"));
-
-        // Token should be cached
-        expect(
-          localStorage.getItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`)
-        ).toBe(token);
-
-        // Token should be relayed to iframe
-        const authMessages = postMessageSpy.mock.calls.filter(
-          (call: unknown[]) =>
-            (call[0] as Record<string, unknown>).type ===
-            MESSAGE_TYPES.authComplete
-        );
-        expect(authMessages.length).toBe(1);
-        expect(authMessages[0]![0]).toMatchObject({
-          type: MESSAGE_TYPES.authComplete,
-          token,
-          researchId,
-        });
-
-        // onAuth callback should fire
-        expect(onAuth).toHaveBeenCalledWith({ researchId, token });
-      } finally {
-        // Restore original location to avoid polluting other tests
-        Object.defineProperty(window, "location", {
-          value: origLocation,
-          writable: true,
-          configurable: true,
-        });
-      }
     });
 
     it("relays token from popup postMessage end-to-end", () => {
@@ -459,9 +369,8 @@ describe("embed auth message handling", () => {
       // Destroy the embed while auth is in progress
       removeListener();
 
-      // Should have removed hashchange and message listeners
+      // Should have removed message listener
       const removedTypes = removeEventSpy.mock.calls.map((call) => call[0]);
-      expect(removedTypes).toContain("hashchange");
       expect(removedTypes).toContain("message");
       expect(clearIntervalSpy).toHaveBeenCalled();
     });
