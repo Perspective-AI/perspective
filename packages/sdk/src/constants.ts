@@ -120,6 +120,7 @@ export const MESSAGE_TYPES = {
 
   // SDK -> Iframe (auth)
   authComplete: "perspective:auth-complete",
+  authCancelled: "perspective:auth-cancelled",
 
   // Popup -> SDK (auth callback from popup/tab opened by SDK)
   popupAuthComplete: "perspective:popup-auth-complete",

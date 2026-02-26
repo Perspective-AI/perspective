@@ -487,11 +487,16 @@ export function setupMessageListener(
         };
         window.addEventListener("message", onPopupMessage);
 
-        // Poll for popup close (user closed without completing auth)
+        // Poll for popup close — if user closes without completing auth,
+        // notify the iframe so it can reset loading state
         const pollPopupClosed = authWindow
           ? setInterval(() => {
               if (authWindow.closed) {
                 cleanupAuthListeners();
+                sendMessage(iframe, host, {
+                  type: MESSAGE_TYPES.authCancelled,
+                  researchId,
+                });
               }
             }, 500)
           : undefined;
