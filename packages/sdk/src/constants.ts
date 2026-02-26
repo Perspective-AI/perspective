@@ -121,6 +121,9 @@ export const MESSAGE_TYPES = {
   // SDK -> Iframe (auth)
   authComplete: "perspective:auth-complete",
 
+  // Popup -> SDK (auth callback from popup/tab opened by SDK)
+  popupAuthComplete: "perspective:popup-auth-complete",
+
   // Iframe -> SDK (internal)
   requestScrollbarStyles: "perspective:request-scrollbar-styles",
 } as const;

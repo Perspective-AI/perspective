@@ -214,7 +214,7 @@ describe("embed auth message handling", () => {
       // Simulate postMessage from popup
       window.dispatchEvent(
         new MessageEvent("message", {
-          data: { type: "embed-auth-complete", token },
+          data: { type: "perspective:popup-auth-complete", token },
           origin: host,
           source: popupWindow,
         })
