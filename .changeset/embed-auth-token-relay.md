@@ -1,8 +1,13 @@
 ---
-"@perspective-ai/sdk": patch
-"@perspective-ai/sdk-react": patch
+"@perspective-ai/sdk": minor
+"@perspective-ai/sdk-react": minor
 ---
 
-feat: add embed auth token relay for cross-origin authentication
+feat: add embed auth for cross-origin iframe authentication
 
-Adds postMessage-based authentication flow for embedded interviews in cross-origin iframes where third-party cookies are blocked. The SDK now handles `perspective:auth-request` from the iframe (opens auth window), relays tokens via `perspective:auth-complete`, caches tokens in parent localStorage, and clears them on `perspective:auth-signout`. New `onAuth` callback in `EmbedConfig` for custom token handling.
+- Popup auth flow: SDK handles `perspective:auth-request` from iframe, opens OAuth popup, relays token back via `perspective:auth-complete`
+- Two-layer token caching: parent localStorage (Layer 2) persists auth across tab close on Safari where iframe localStorage is ephemeral
+- Popup-blocked fallback: falls back to new tab when popup is blocked by browser
+- Feature negotiation: `FEATURES.EMBED_AUTH` bitmask in `perspective:init` handshake for graceful degradation with old SDK versions
+- Fix base64url JWT decode (replace `-`/`_` with `+`/`/` before `atob`)
+- New `onAuth` callback in `EmbedConfig` for custom token handling
