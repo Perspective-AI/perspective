@@ -33,7 +33,8 @@ describe("embed auth message handling", () => {
 
   describe("perspective:auth-request", () => {
     it("opens a new window with the auth URL", () => {
-      const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+      const mockPopup = { closed: false } as Window;
+      const openSpy = vi.spyOn(window, "open").mockReturnValue(mockPopup);
       removeListener = setupMessageListener(researchId, {}, iframe, host);
 
       dispatchFromIframe({
@@ -48,6 +49,27 @@ describe("embed auth message handling", () => {
         "https://getperspective.ai/embed-auth/google?research_id=test"
       );
       expect(openUrl).toContain("return_url=");
+    });
+
+    it("falls back to new tab when popup is blocked", () => {
+      const mockTab = { closed: false } as Window;
+      const openSpy = vi
+        .spyOn(window, "open")
+        .mockReturnValueOnce(null) // popup blocked
+        .mockReturnValueOnce(mockTab); // fallback tab
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://getperspective.ai/embed-auth/google?research_id=test",
+      });
+
+      expect(openSpy).toHaveBeenCalledTimes(2);
+      // First call: popup with features
+      expect(openSpy.mock.calls[0]![2]).toContain("width=");
+      // Second call: fallback to new tab
+      expect(openSpy.mock.calls[1]![1]).toBe("_blank");
     });
 
     it("ignores auth request without authUrl", () => {

@@ -87,7 +87,8 @@ function decodeTokenExpiry(token: string): number | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]!));
+    const base64 = parts[1]!.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
     return payload.data?.expiresAt ?? null;
   } catch {
     return null;
@@ -443,11 +444,9 @@ export function setupMessageListener(
           (window.screen.height - height) / 2 +
           (window.screenTop ?? window.screenY ?? 0);
         const popupFeatures = `width=${width},height=${height},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes`;
-        const authWindow = window.open(
-          fullAuthUrl,
-          "perspective-auth",
-          popupFeatures
-        );
+        const authWindow =
+          window.open(fullAuthUrl, "perspective-auth", popupFeatures) ??
+          window.open(fullAuthUrl, "_blank"); // Popup blocked — fall back to new tab
 
         // Token handling: cache in Layer 2 (parent localStorage for persistence),
         // relay to iframe (which stores in Layer 1), and notify host app
