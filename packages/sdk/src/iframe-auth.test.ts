@@ -170,57 +170,6 @@ describe("embed auth message handling", () => {
     });
   });
 
-  describe("perspective:auth-complete (from iframe)", () => {
-    it("caches token in localStorage", () => {
-      removeListener = setupMessageListener(researchId, {}, iframe, host);
-
-      const token = createMockToken(researchId, Date.now() + 86400000);
-      dispatchFromIframe({
-        type: MESSAGE_TYPES.authComplete,
-        token,
-      });
-
-      const cached = localStorage.getItem(
-        `${STORAGE_KEYS.embedAuthToken}:${researchId}`
-      );
-      expect(cached).toBe(token);
-    });
-
-    it("calls onAuth callback with token", () => {
-      const onAuth = vi.fn();
-      removeListener = setupMessageListener(
-        researchId,
-        { onAuth },
-        iframe,
-        host
-      );
-
-      const token = createMockToken(researchId, Date.now() + 86400000);
-      dispatchFromIframe({
-        type: MESSAGE_TYPES.authComplete,
-        token,
-      });
-
-      expect(onAuth).toHaveBeenCalledWith({ researchId, token });
-    });
-
-    it("ignores auth-complete without token", () => {
-      const onAuth = vi.fn();
-      removeListener = setupMessageListener(
-        researchId,
-        { onAuth },
-        iframe,
-        host
-      );
-
-      dispatchFromIframe({
-        type: MESSAGE_TYPES.authComplete,
-      });
-
-      expect(onAuth).not.toHaveBeenCalled();
-    });
-  });
-
   describe("perspective:auth-signout", () => {
     it("clears cached token from localStorage", () => {
       const storageKey = `${STORAGE_KEYS.embedAuthToken}:${researchId}`;
@@ -334,6 +283,30 @@ describe("embed auth message handling", () => {
       );
       expect(authMessages.length).toBe(0);
     });
+
+    it("fires onAuth when restoring cached token on ready", () => {
+      const storageKey = `${STORAGE_KEYS.embedAuthToken}:${researchId}`;
+      const token = createMockToken(researchId, Date.now() + 86400000);
+      localStorage.setItem(storageKey, token);
+
+      const postMessageSpy = vi.fn();
+      Object.defineProperty(iframe, "contentWindow", {
+        value: { postMessage: postMessageSpy },
+        configurable: true,
+      });
+
+      const onAuth = vi.fn();
+      removeListener = setupMessageListener(
+        researchId,
+        { onAuth },
+        iframe,
+        host
+      );
+
+      dispatchFromIframe({ type: MESSAGE_TYPES.ready });
+
+      expect(onAuth).toHaveBeenCalledWith({ researchId, token });
+    });
   });
 
   describe("authUrl origin validation", () => {
@@ -423,26 +396,6 @@ describe("embed auth message handling", () => {
   });
 
   describe("token caching isolation", () => {
-    it("caches tokens scoped to researchId", () => {
-      removeListener = setupMessageListener(researchId, {}, iframe, host);
-
-      const token = createMockToken(researchId, Date.now() + 86400000);
-      dispatchFromIframe({
-        type: MESSAGE_TYPES.authComplete,
-        token,
-      });
-
-      // Correct key should have the token
-      expect(
-        localStorage.getItem(`${STORAGE_KEYS.embedAuthToken}:${researchId}`)
-      ).toBe(token);
-
-      // Different researchId key should be empty
-      expect(
-        localStorage.getItem(`${STORAGE_KEYS.embedAuthToken}:other-research`)
-      ).toBeNull();
-    });
-
     it("signout only clears token for the specific researchId", () => {
       const otherKey = `${STORAGE_KEYS.embedAuthToken}:other-research`;
       localStorage.setItem(otherKey, "other-token");

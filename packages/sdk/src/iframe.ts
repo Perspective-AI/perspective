@@ -333,6 +333,7 @@ export function setupMessageListener(
             token: cachedToken,
             researchId,
           });
+          config.onAuth?.({ researchId, token: cachedToken });
         }
         config.onReady?.();
         break;
@@ -486,19 +487,6 @@ export function setupMessageListener(
           : undefined;
 
         activeAuthCleanup = cleanupAuthListeners;
-        break;
-      }
-
-      case MESSAGE_TYPES.authComplete: {
-        // Layer 1 → Layer 2: iframe completed auth (OAuth popup or email
-        // verification) and sends token to SDK for caching in parent's
-        // first-party localStorage. This is what makes auth survive tab
-        // close on Safari — iframe localStorage is ephemeral there.
-        const { token } = event.data;
-        if (token) {
-          cacheAuthToken(researchId, token);
-          config.onAuth?.({ researchId, token });
-        }
         break;
       }
 
