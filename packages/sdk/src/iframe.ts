@@ -53,6 +53,92 @@ function isAllowedRedirectUrl(url: string): boolean {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Embed Auth Token Caching (Parent-side — Layer 2 of 2)
+//
+// Why two layers? Safari (and any browser following WebKit's Intelligent
+// Tracking Prevention) makes third-party iframe localStorage "partitioned
+// and ephemeral" — it works within a tab session but is wiped when the
+// user closes the tab or quits the browser.
+// Ref: https://webkit.org/tracking-prevention/#intelligenttrackingprevention
+//   "Third-party LocalStorage and IndexedDB are partitioned per
+//    first-party website and also made ephemeral."
+//
+// Chrome and Firefox persist cross-origin iframe localStorage across
+// sessions, so Layer 1 alone would suffice there. Layer 2 exists
+// specifically for Safari and similar browsers.
+//
+// Layer 1 (iframe — useEmbedAuth.ts): Stores token in iframe's own
+//   localStorage. Fast synchronous restore on re-render. Works across
+//   sessions in Chrome/Firefox. Ephemeral on Safari (lost on tab close).
+//
+// Layer 2 (parent — this code): Caches token in the PARENT page's
+//   first-party localStorage, which persists on all browsers. On iframe
+//   load, relays any cached token via postMessage (perspective:auth-complete
+//   in the perspective:ready handler). The iframe's storeToken() writes it
+//   back to Layer 1, repopulating the ephemeral cache for this tab session.
+//
+// Direct iframe embeds (without SDK) only have Layer 1. On Safari, auth
+// won't survive tab close — inherent limitation without the SDK.
+// ---------------------------------------------------------------------------
+
+/** Decode JWT payload without verification (client-side — server verifies) */
+function decodeTokenExpiry(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64 = parts[1]!.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
+    return payload.data?.expiresAt ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function authTokenKey(researchId: string): string {
+  return `${STORAGE_KEYS.embedAuthToken}:${researchId}`;
+}
+
+/** Get cached embed auth token from parent's first-party localStorage (Layer 2).
+ * Called on iframe ready to relay token back — critical for Safari where
+ * iframe localStorage (Layer 1) is wiped on tab close. */
+function getCachedAuthToken(researchId: string): string | null {
+  if (!hasDom()) return null;
+  try {
+    const key = authTokenKey(researchId);
+    const token = localStorage.getItem(key);
+    if (!token) return null;
+    const expiresAt = decodeTokenExpiry(token);
+    if (expiresAt && expiresAt > Date.now()) return token;
+    // Expired — clean up
+    localStorage.removeItem(key);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Cache embed auth token in parent's first-party localStorage (Layer 2).
+ * Survives tab close and browser restart on all browsers including Safari. */
+function cacheAuthToken(researchId: string, token: string): void {
+  if (!hasDom()) return;
+  try {
+    localStorage.setItem(authTokenKey(researchId), token);
+  } catch {
+    // localStorage blocked
+  }
+}
+
+/** Clear cached embed auth token for a research */
+function clearAuthToken(researchId: string): void {
+  if (!hasDom()) return;
+  try {
+    localStorage.removeItem(authTokenKey(researchId));
+  } catch {
+    // localStorage blocked
+  }
+}
+
 /** Get or create persistent anonymous ID */
 function getOrCreateAnonId(): string {
   if (!hasDom()) return "";
@@ -204,6 +290,9 @@ export function setupMessageListener(
     return () => {};
   }
 
+  // Track active auth flow cleanup for concurrent request prevention and embed teardown
+  let activeAuthCleanup: (() => void) | null = null;
+
   const handler = (event: MessageEvent<EmbedMessage>) => {
     // Security: Only accept messages from our embed host and from the expected iframe
     if (event.origin !== host) return;
@@ -212,10 +301,12 @@ export function setupMessageListener(
     // Only process messages from our embed
     if (typeof event.data?.type !== "string") return;
     if (!event.data.type.startsWith("perspective:")) return;
-    if (event.data.researchId !== researchId) return;
+    if (event.data.researchId !== researchId) {
+      return;
+    }
 
     switch (event.data.type) {
-      case MESSAGE_TYPES.ready:
+      case MESSAGE_TYPES.ready: {
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
         // Send anon_id for anonymous auth
@@ -230,8 +321,23 @@ export function setupMessageListener(
           features: CURRENT_FEATURES,
           researchId,
         });
+        // Layer 2 → Layer 1 relay: on iframe load, send any cached token from
+        // parent's first-party localStorage back to the iframe. On Safari this
+        // is the only restore path — iframe localStorage (Layer 1) was wiped
+        // on tab close. The iframe's storeToken() writes it back to Layer 1
+        // for fast sync access during this tab session.
+        const cachedToken = getCachedAuthToken(researchId);
+        if (cachedToken) {
+          sendMessage(iframe, host, {
+            type: MESSAGE_TYPES.authComplete,
+            token: cachedToken,
+            researchId,
+          });
+          config.onAuth?.({ researchId, token: cachedToken });
+        }
         config.onReady?.();
         break;
+      }
 
       case MESSAGE_TYPES.resize:
         // Auto-resize iframe height (skip for fixed-container embeds)
@@ -269,7 +375,7 @@ export function setupMessageListener(
         break;
       }
 
-      case MESSAGE_TYPES.redirect:
+      case MESSAGE_TYPES.redirect: {
         const redirectUrl = event.data.url;
         // Security: Only allow http(s) and localhost URLs
         if (!isAllowedRedirectUrl(redirectUrl)) {
@@ -286,11 +392,117 @@ export function setupMessageListener(
           window.location.href = redirectUrl;
         }
         break;
+      }
+
+      case MESSAGE_TYPES.authRequest: {
+        // The iframe can't do OAuth itself (cross-origin context, third-party
+        // cookie blocking). So the iframe asks the SDK to open auth in a
+        // first-party popup where cookies work normally. After auth, the
+        // callback page sends the token back via window.opener.postMessage.
+        const { authUrl } = event.data;
+        if (!authUrl || typeof authUrl !== "string") return;
+
+        const expectedOrigin = new URL(host).origin;
+
+        // Security: ensure authUrl points to the expected host origin
+        try {
+          const parsedAuthUrl = new URL(authUrl);
+          if (parsedAuthUrl.origin !== expectedOrigin) {
+            console.warn(
+              "[Perspective] Blocked auth URL with unexpected origin:",
+              authUrl
+            );
+            return;
+          }
+        } catch {
+          console.warn("[Perspective] Blocked malformed auth URL:", authUrl);
+          return;
+        }
+
+        // Clean up any previous auth flow before starting a new one
+        activeAuthCleanup?.();
+
+        // Open auth popup — user completes OAuth on perspective.ai (first-party)
+        const fullAuthUrl = `${authUrl}&return_url=${encodeURIComponent(window.location.href)}`;
+        const width = 500;
+        const height = 700;
+        const left =
+          (window.screen.width - width) / 2 +
+          (window.screenLeft ?? window.screenX ?? 0);
+        const top =
+          (window.screen.height - height) / 2 +
+          (window.screenTop ?? window.screenY ?? 0);
+        const popupFeatures = `width=${width},height=${height},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no,scrollbars=yes`;
+        const authWindow =
+          window.open(fullAuthUrl, "perspective-auth", popupFeatures) ??
+          window.open(fullAuthUrl, "_blank"); // Popup blocked — fall back to new tab
+
+        // Token handling: cache in Layer 2 (parent localStorage for persistence),
+        // relay to iframe (which stores in Layer 1), and notify host app
+        const relayToken = (token: string) => {
+          cacheAuthToken(researchId, token);
+          sendMessage(iframe, host, {
+            type: MESSAGE_TYPES.authComplete,
+            token,
+            researchId,
+          });
+          config.onAuth?.({ researchId, token });
+        };
+
+        // Ensures only one auth flow is active at a time
+        const cleanupAuthListeners = () => {
+          clearInterval(pollPopupClosed);
+          window.removeEventListener("message", onPopupMessage);
+          activeAuthCleanup = null;
+        };
+
+        // Listen for postMessage from popup with the auth token
+        const onPopupMessage = (popupEvent: MessageEvent) => {
+          if (
+            popupEvent.source !== authWindow ||
+            popupEvent.data?.type !== MESSAGE_TYPES.popupAuthComplete ||
+            popupEvent.origin !== expectedOrigin
+          )
+            return;
+          const token = popupEvent.data?.token;
+          if (token) {
+            relayToken(token);
+          }
+          cleanupAuthListeners();
+        };
+        window.addEventListener("message", onPopupMessage);
+
+        // Poll for popup close — if user closes without completing auth,
+        // notify the iframe so it can reset loading state
+        const pollPopupClosed = authWindow
+          ? setInterval(() => {
+              if (authWindow.closed) {
+                cleanupAuthListeners();
+                sendMessage(iframe, host, {
+                  type: MESSAGE_TYPES.authCancelled,
+                  researchId,
+                });
+              }
+            }, 500)
+          : undefined;
+
+        activeAuthCleanup = cleanupAuthListeners;
+        break;
+      }
+
+      case MESSAGE_TYPES.authSignout:
+        // User signed out in iframe — clear cached token so the next visit
+        // requires re-authentication (no stale session)
+        clearAuthToken(researchId);
+        break;
     }
   };
 
   window.addEventListener("message", handler);
-  return () => window.removeEventListener("message", handler);
+  return () => {
+    window.removeEventListener("message", handler);
+    activeAuthCleanup?.();
+  };
 }
 
 /** Send a message to the embed iframe */

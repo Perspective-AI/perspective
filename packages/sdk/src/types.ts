@@ -90,6 +90,8 @@ export interface EmbedConfig {
   onClose?: () => void;
   /** Callback on any error */
   onError?: (error: EmbedError) => void;
+  /** Callback when embed auth completes (token available for custom storage) */
+  onAuth?: (data: { researchId: string; token: string }) => void;
 }
 
 /** Embed error with code for programmatic handling */
@@ -117,6 +119,7 @@ export interface EmbedHandle {
         | "onNavigate"
         | "onClose"
         | "onError"
+        | "onAuth"
         | "channel"
         | "welcomeMessage"
       >
@@ -166,7 +169,19 @@ export type EmbedMessage =
       error: string;
       code?: string;
     }
-  | { type: "perspective:redirect"; researchId: string; url: string };
+  | { type: "perspective:redirect"; researchId: string; url: string }
+  | {
+      type: "perspective:auth-request";
+      researchId: string;
+      provider: string;
+      authUrl: string;
+    }
+  | { type: "perspective:auth-signout"; researchId: string }
+  | {
+      type: "perspective:auth-complete";
+      researchId: string;
+      token: string;
+    };
 
 /** Theme configuration from API */
 export interface ThemeConfig {
