@@ -22,6 +22,11 @@ vi.mock("@perspective-ai/sdk", () => ({
     container: null,
     isOpen: false,
   })),
+  destroyPreloadedByType: vi.fn(),
+}));
+
+vi.mock("./hooks/usePreloadIframe", () => ({
+  usePreloadIframe: vi.fn(),
 }));
 
 import { createFloatBubble } from "@perspective-ai/sdk";

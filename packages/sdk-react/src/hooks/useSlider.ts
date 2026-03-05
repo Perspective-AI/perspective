@@ -4,6 +4,7 @@ import {
   type EmbedConfig,
   type EmbedHandle,
 } from "@perspective-ai/sdk";
+import { usePreloadIframe } from "./usePreloadIframe";
 import { useStableCallback } from "./useStableCallback";
 
 /** Options for useSlider hook */
@@ -151,6 +152,8 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
       openFn();
     }
   }, [isOpen, openFn, closeFn]);
+
+  usePreloadIframe("slider", researchId, host, handleRef, params, brand, theme);
 
   useEffect(() => {
     if (!isControlled) return;

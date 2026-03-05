@@ -18,6 +18,10 @@ vi.mock("@perspective-ai/sdk", () => ({
   })),
 }));
 
+vi.mock("./usePreloadIframe", () => ({
+  usePreloadIframe: vi.fn(),
+}));
+
 import { openSlider } from "@perspective-ai/sdk";
 const mockOpenSlider = vi.mocked(openSlider);
 

@@ -1,9 +1,11 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import {
   createFloatBubble,
+  destroyPreloadedByType,
   type EmbedConfig,
   type FloatHandle,
 } from "@perspective-ai/sdk";
+import { usePreloadIframe } from "./usePreloadIframe";
 import { useStableCallback } from "./useStableCallback";
 
 /** Options for useFloatBubble hook */
@@ -84,6 +86,8 @@ export function useFloatBubble(
 
   const stableOnClose = useStableCallback(handleClose);
 
+  usePreloadIframe("float", researchId, host, handleRef, params, brand, theme);
+
   useEffect(() => {
     const newHandle = createFloatBubble({
       researchId,
@@ -104,6 +108,10 @@ export function useFloatBubble(
     return () => {
       if (handleRef.current === newHandle) {
         newHandle.unmount();
+        // Destroy any unclaimed preloaded iframe (preload is only claimed on
+        // openFloat, so if the user never opened the chat window, the hidden
+        // preloaded iframe would leak without this cleanup)
+        destroyPreloadedByType(researchId, "float");
         handleRef.current = null;
         setHandle(null);
       }

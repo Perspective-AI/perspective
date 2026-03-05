@@ -4,6 +4,7 @@ import {
   type EmbedConfig,
   type EmbedHandle,
 } from "@perspective-ai/sdk";
+import { usePreloadIframe } from "./usePreloadIframe";
 import { useStableCallback } from "./useStableCallback";
 
 /** Options for usePopup hook */
@@ -160,6 +161,8 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
       openFn();
     }
   }, [isOpen, openFn, closeFn]);
+
+  usePreloadIframe("popup", researchId, host, handleRef, params, brand, theme);
 
   useEffect(() => {
     if (!isControlled) return;

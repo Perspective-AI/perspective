@@ -65,7 +65,7 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
   closeBtn.setAttribute("aria-label", "Close");
 
   // Reuse preloaded iframe or create new one
-  const claimed = claimPreloadedIframe(researchId);
+  const claimed = claimPreloadedIframe(researchId, "slider");
   const iframe =
     claimed?.iframe ??
     createIframe(

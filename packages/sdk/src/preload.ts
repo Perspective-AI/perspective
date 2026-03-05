@@ -18,15 +18,21 @@ const PRELOAD_ATTR = "data-perspective-preload";
 type PreloadState = {
   iframe: HTMLIFrameElement;
   researchId: string;
+  type: EmbedType;
   cleanup: () => void;
   ready: boolean;
 };
 
-let preloaded: PreloadState | null = null;
+function preloadKey(researchId: string, type: EmbedType): string {
+  return `${researchId}:${type}`;
+}
+
+const preloaded = new Map<string, PreloadState>();
 
 /**
  * Preload an iframe in a hidden state for a button-triggered embed.
- * Only one preloaded iframe at a time — subsequent calls replace the previous.
+ * Multiple preloaded iframes can coexist, keyed by researchId + type.
+ * Re-preloading the same researchId + type replaces the previous one.
  */
 export function preloadIframe(
   researchId: string,
@@ -38,7 +44,8 @@ export function preloadIframe(
 ): void {
   if (!hasDom()) return;
 
-  destroyPreloaded();
+  const key = preloadKey(researchId, type);
+  destroyPreloadedEntry(key);
 
   ensureGlobalListeners();
 
@@ -63,6 +70,7 @@ export function preloadIframe(
   const state: PreloadState = {
     iframe,
     researchId,
+    type,
     ready: false,
     cleanup: () => {},
   };
@@ -84,7 +92,7 @@ export function preloadIframe(
     msgCleanup();
     unregister();
   };
-  preloaded = state;
+  preloaded.set(key, state);
 
   getTimer(researchId).mark("iframe:preloadStarted");
 }
@@ -97,34 +105,53 @@ export type ClaimedPreload = {
 
 /**
  * Claim a preloaded iframe for use. Returns the iframe and its ready state
- * if available for the given researchId, or null. Caller is responsible for
- * moving it into the target container, re-setting up message listeners, and
- * replaying onReady/onAuth if wasReady is true.
+ * if available for the given researchId + type, or null. Caller is responsible
+ * for moving it into the target container, re-setting up message listeners,
+ * and replaying onReady/onAuth if wasReady is true.
  */
 export function claimPreloadedIframe(
-  researchId: string
+  researchId: string,
+  type: EmbedType
 ): ClaimedPreload | null {
-  if (!preloaded || preloaded.researchId !== researchId) {
-    return null;
-  }
+  const key = preloadKey(researchId, type);
+  const state = preloaded.get(key);
+  if (!state) return null;
+  return claimState(key, state);
+}
 
-  const { iframe, cleanup, ready } = preloaded;
+function claimState(key: string, state: PreloadState): ClaimedPreload {
+  const { iframe, cleanup, ready, researchId } = state;
   iframe.removeAttribute(PRELOAD_ATTR);
 
   // Clean up preload-phase listeners — caller will set up their own
   cleanup();
-  preloaded = null;
+  preloaded.delete(key);
 
   getTimer(researchId).mark("iframe:preloadClaimed");
   return { iframe, wasReady: ready };
 }
 
-/** Destroy any preloaded iframe */
+/** Destroy a specific preloaded iframe by researchId + type */
+export function destroyPreloadedByType(
+  researchId: string,
+  type: EmbedType
+): void {
+  destroyPreloadedEntry(preloadKey(researchId, type));
+}
+
+/** Destroy all preloaded iframes */
 export function destroyPreloaded(): void {
-  if (preloaded) {
-    preloaded.cleanup();
-    preloaded.iframe.remove();
-    removeTimer(preloaded.researchId);
-    preloaded = null;
+  for (const [key] of preloaded) {
+    destroyPreloadedEntry(key);
+  }
+}
+
+function destroyPreloadedEntry(key: string): void {
+  const state = preloaded.get(key);
+  if (state) {
+    state.cleanup();
+    state.iframe.remove();
+    removeTimer(state.researchId);
+    preloaded.delete(key);
   }
 }

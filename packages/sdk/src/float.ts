@@ -15,7 +15,9 @@ import {
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  getCachedAuthToken,
 } from "./iframe";
+import { claimPreloadedIframe } from "./preload";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
@@ -311,27 +313,42 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     closeBtn.setAttribute("aria-label", "Close chat");
     closeBtn.addEventListener("click", closeFloat);
 
-    // Create loading indicator with theme and brand colors
-    const loading = createLoadingIndicator({
-      theme: currentConfig.theme,
-      brand: currentConfig.brand,
-    });
-    loading.style.borderRadius = "16px";
+    // Reuse preloaded iframe or create new one
+    const claimed = claimPreloadedIframe(researchId, "float");
+    iframe =
+      claimed?.iframe ??
+      createIframe(
+        researchId,
+        "float",
+        host,
+        currentConfig.params,
+        currentConfig.brand,
+        currentConfig.theme
+      );
 
-    // Create iframe (hidden initially)
-    iframe = createIframe(
-      researchId,
-      "float",
-      host,
-      currentConfig.params,
-      currentConfig.brand,
-      currentConfig.theme
-    );
-    iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.3s ease";
+    // Show loading indicator unless preloaded iframe is already ready
+    let loading: HTMLElement | null = null;
+    if (!claimed?.wasReady) {
+      loading = createLoadingIndicator({
+        theme: currentConfig.theme,
+        brand: currentConfig.brand,
+      });
+      loading.style.borderRadius = "16px";
+    }
+
+    // Claimed iframes need cssText reset to clear preload positioning styles
+    if (claimed) iframe.style.cssText = "border:none;";
+    if (claimed?.wasReady) {
+      iframe.style.opacity = "1";
+    } else {
+      iframe.style.opacity = "0";
+      iframe.style.transition = "opacity 0.3s ease";
+    }
 
     floatWindow.appendChild(closeBtn);
-    floatWindow.appendChild(loading);
+    if (loading) {
+      floatWindow.appendChild(loading);
+    }
     floatWindow.appendChild(iframe);
     document.body.appendChild(floatWindow);
 
@@ -341,9 +358,11 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       {
         get onReady() {
           return () => {
-            loading.style.opacity = "0";
-            iframe!.style.opacity = "1";
-            setTimeout(() => loading.remove(), 300);
+            if (loading) {
+              loading.style.opacity = "0";
+              iframe!.style.opacity = "1";
+              setTimeout(() => loading!.remove(), 300);
+            }
             currentConfig.onReady?.();
           };
         },
@@ -364,6 +383,15 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       host,
       { skipResize: true }
     );
+
+    // Preloaded iframe already fired perspective:ready — replay consumer callbacks
+    if (claimed?.wasReady) {
+      currentConfig.onReady?.();
+      const cachedToken = getCachedAuthToken(researchId);
+      if (cachedToken) {
+        currentConfig.onAuth?.({ researchId, token: cachedToken });
+      }
+    }
 
     // Register iframe for theme change notifications
     if (iframe) {
