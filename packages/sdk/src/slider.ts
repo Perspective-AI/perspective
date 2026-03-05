@@ -13,6 +13,7 @@ import {
   getCachedAuthToken,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
+import { removeTimer } from "./timing";
 import { claimPreloadedIframe } from "./preload";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { cn, getThemeClass } from "./utils";
@@ -142,6 +143,7 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
     slider.remove();
     backdrop.remove();
     document.removeEventListener("keydown", escHandler);
+    removeTimer(researchId);
     if (wasOpen) currentConfig.onClose?.();
   };
 

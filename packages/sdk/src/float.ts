@@ -18,6 +18,7 @@ import {
   getCachedAuthToken,
 } from "./iframe";
 import { claimPreloadedIframe } from "./preload";
+import { removeTimer } from "./timing";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
@@ -436,6 +437,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     bubble.remove();
     void audioCtx?.close();
     audioCtx = null;
+    removeTimer(researchId);
   };
 
   maybeStartWelcomeSequence();
