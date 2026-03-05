@@ -258,6 +258,7 @@ function init(config: EmbedConfig): EmbedHandle | FloatHandle {
   // Reuse hidden popup/slider instead of recreating
   const existing = instances.get(researchId);
   if (existing && isToggleable(existing) && !existing.isOpen) {
+    existing.update(config);
     existing.show();
     return existing;
   }

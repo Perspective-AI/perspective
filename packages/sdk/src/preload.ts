@@ -11,7 +11,7 @@ import {
   registerIframe,
   ensureGlobalListeners,
 } from "./iframe";
-import { getTimer } from "./timing";
+import { getTimer, removeTimer } from "./timing";
 
 const PRELOAD_ATTR = "data-perspective-preload";
 
@@ -104,6 +104,7 @@ export function destroyPreloaded(): void {
   if (preloaded) {
     preloaded.cleanup();
     preloaded.iframe.remove();
+    removeTimer(preloaded.researchId);
     preloaded = null;
   }
 }

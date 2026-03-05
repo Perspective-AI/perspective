@@ -16,19 +16,18 @@ export function injectResourceHints(host: string): void {
     return;
   }
 
-  if (document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) {
-    return;
+  if (!document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) {
+    const preconnect = document.createElement("link");
+    preconnect.rel = "preconnect";
+    preconnect.href = origin;
+    preconnect.crossOrigin = "";
+    document.head.appendChild(preconnect);
   }
 
-  const preconnect = document.createElement("link");
-  preconnect.rel = "preconnect";
-  preconnect.href = origin;
-  preconnect.crossOrigin = "";
-
-  const dnsPrefetch = document.createElement("link");
-  dnsPrefetch.rel = "dns-prefetch";
-  dnsPrefetch.href = origin;
-
-  document.head.appendChild(preconnect);
-  document.head.appendChild(dnsPrefetch);
+  if (!document.querySelector(`link[rel="dns-prefetch"][href="${origin}"]`)) {
+    const dnsPrefetch = document.createElement("link");
+    dnsPrefetch.rel = "dns-prefetch";
+    dnsPrefetch.href = origin;
+    document.head.appendChild(dnsPrefetch);
+  }
 }
