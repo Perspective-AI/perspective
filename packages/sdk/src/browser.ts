@@ -46,7 +46,7 @@ import { preloadIframe, destroyPreloaded } from "./preload";
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 
-function isToggleable(
+export function isToggleable(
   handle: EmbedHandle | FloatHandle
 ): handle is ToggleableHandle {
   return "show" in handle && "hide" in handle;
@@ -255,9 +255,14 @@ function init(config: EmbedConfig): EmbedHandle | FloatHandle {
   // Normalize legacy "chat" type to "float"
   const type = config.type === "chat" ? "float" : (config.type ?? "widget");
 
-  // Reuse hidden popup/slider instead of recreating
+  // Reuse hidden popup/slider instead of recreating (must match type)
   const existing = instances.get(researchId);
-  if (existing && isToggleable(existing) && !existing.isOpen) {
+  if (
+    existing &&
+    isToggleable(existing) &&
+    !existing.isOpen &&
+    existing.type === type
+  ) {
     existing.update(config);
     existing.show();
     return existing;
@@ -555,7 +560,9 @@ function autoInit(): void {
       const preloadBrand = extractBrandConfig(preloadTarget);
       const preloadHost = getHost();
 
-      const doPreload = () =>
+      const doPreload = () => {
+        // Re-check: user may have clicked before idle callback fired
+        if (instances.has(preloadResearchId)) return;
         preloadIframe(
           preloadResearchId,
           preloadType,
@@ -564,6 +571,7 @@ function autoInit(): void {
           preloadBrand.brand,
           preloadBrand.theme
         );
+      };
 
       if (firstButtonEmbed) {
         // Button embeds: defer to idle time

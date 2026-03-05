@@ -39,9 +39,10 @@ describe("preloadIframe", () => {
   it("claimPreloadedIframe returns the iframe and clears state", () => {
     preloadIframe("test-research", "popup", "https://getperspective.ai");
 
-    const iframe = claimPreloadedIframe("test-research");
-    expect(iframe).not.toBeNull();
-    expect(iframe?.getAttribute("data-perspective-preload")).toBeNull();
+    const claimed = claimPreloadedIframe("test-research");
+    expect(claimed).not.toBeNull();
+    expect(claimed?.iframe.getAttribute("data-perspective-preload")).toBeNull();
+    expect(claimed?.wasReady).toBe(false);
 
     const again = claimPreloadedIframe("test-research");
     expect(again).toBeNull();
@@ -58,5 +59,27 @@ describe("preloadIframe", () => {
     expect(
       document.querySelector("iframe[data-perspective-preload]")
     ).toBeNull();
+  });
+
+  it("wasReady is true after perspective:ready fires during preload", () => {
+    const host = "https://getperspective.ai";
+    preloadIframe("test-research", "popup", host);
+
+    const iframe = document.querySelector(
+      "iframe[data-perspective-preload]"
+    ) as HTMLIFrameElement;
+
+    // Simulate perspective:ready from iframe
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: "perspective:ready", researchId: "test-research" },
+        origin: host,
+        source: iframe.contentWindow,
+      })
+    );
+
+    const claimed = claimPreloadedIframe("test-research");
+    expect(claimed).not.toBeNull();
+    expect(claimed?.wasReady).toBe(true);
   });
 });

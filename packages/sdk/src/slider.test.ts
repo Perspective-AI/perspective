@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { openSlider } from "./slider";
+import { preloadIframe, destroyPreloaded } from "./preload";
 import * as config from "./config";
 
 describe("openSlider", () => {
@@ -300,6 +301,87 @@ describe("openSlider", () => {
       handle.unmount();
 
       expect(() => handle.update({ onSubmit: vi.fn() })).not.toThrow();
+    });
+  });
+
+  describe("preloaded iframe callback replay", () => {
+    const host = "https://getperspective.ai";
+    const researchId = "test-research-id";
+
+    afterEach(() => {
+      destroyPreloaded();
+    });
+
+    const simulateReady = (iframe: HTMLIFrameElement) => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:ready", researchId },
+          origin: host,
+          source: iframe.contentWindow,
+        })
+      );
+    };
+
+    it("fires onReady immediately when claiming a ready preloaded iframe", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "slider", host);
+
+      const preloadedIframe = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+
+      simulateReady(preloadedIframe);
+
+      const handle = openSlider({ researchId, host, onReady });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+      expect(handle.iframe).toBe(preloadedIframe);
+
+      handle.destroy();
+    });
+
+    it("does not fire onReady immediately if preloaded iframe was not ready", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "slider", host);
+
+      const handle = openSlider({ researchId, host, onReady });
+
+      expect(onReady).not.toHaveBeenCalled();
+
+      simulateReady(handle.iframe!);
+      expect(onReady).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+    });
+
+    it("does not show loading indicator for ready preloaded iframe", () => {
+      preloadIframe(researchId, "slider", host);
+
+      const preloadedIframe = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+      simulateReady(preloadedIframe);
+
+      const handle = openSlider({ researchId, host });
+
+      expect(document.querySelector(".perspective-loading")).toBeFalsy();
+
+      handle.destroy();
+    });
+
+    it("shows loading indicator for claimed-but-not-ready preloaded iframe", () => {
+      preloadIframe(researchId, "slider", host);
+
+      // Don't simulate ready — claimed before ready
+
+      const handle = openSlider({ researchId, host });
+
+      // Loading indicator should be present (iframe not ready yet)
+      expect(document.querySelector(".perspective-loading")).toBeTruthy();
+
+      handle.destroy();
     });
   });
 });

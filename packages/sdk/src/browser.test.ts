@@ -11,6 +11,7 @@ import {
   createFloatBubble,
   createChatBubble,
   createFullpage,
+  isToggleable,
 } from "./browser";
 
 describe("browser entry", () => {
@@ -197,6 +198,172 @@ describe("browser entry", () => {
           .querySelector("[data-perspective-popup]")!
           .hasAttribute("data-perspective-initialized")
       ).toBe(true);
+    });
+  });
+
+  describe("hide-on-close and reuse", () => {
+    const host = "https://getperspective.ai";
+
+    it("reuses hidden popup on second init() call instead of recreating", () => {
+      const handle1 = init({ researchId: "test", type: "popup", host });
+      const iframe1 = handle1.iframe;
+
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+
+      // Close (hide) the popup
+      const closeBtn = document.querySelector(
+        ".perspective-close"
+      ) as HTMLElement;
+      closeBtn.click();
+
+      // Overlay hidden but still in DOM
+      const overlay = document.querySelector(
+        ".perspective-overlay"
+      ) as HTMLElement;
+      expect(overlay.style.display).toBe("none");
+
+      // Re-open via init() — should reuse the hidden instance
+      const handle2 = init({ researchId: "test", type: "popup", host });
+
+      // Same handle returned (same iframe, no recreation)
+      expect(handle2).toBe(handle1);
+      expect(handle2.iframe).toBe(iframe1);
+
+      // Overlay visible again
+      expect(overlay.style.display).toBe("");
+
+      handle2.unmount();
+    });
+
+    it("reuses hidden slider on second init() call", () => {
+      const handle1 = init({ researchId: "test", type: "slider", host });
+      const iframe1 = handle1.iframe;
+
+      // Close (hide)
+      const closeBtn = document.querySelector(
+        ".perspective-slider .perspective-close"
+      ) as HTMLElement;
+      closeBtn.click();
+
+      const slider = document.querySelector(
+        ".perspective-slider"
+      ) as HTMLElement;
+      expect(slider.style.display).toBe("none");
+
+      // Re-open
+      const handle2 = init({ researchId: "test", type: "slider", host });
+      expect(handle2).toBe(handle1);
+      expect(handle2.iframe).toBe(iframe1);
+      expect(slider.style.display).toBe("");
+
+      handle2.unmount();
+    });
+
+    it("updates config when reusing hidden instance", () => {
+      const onSubmit1 = vi.fn();
+      const onSubmit2 = vi.fn();
+
+      const handle = init({
+        researchId: "test",
+        type: "popup",
+        host,
+        onSubmit: onSubmit1,
+      });
+
+      // Close
+      expect(isToggleable(handle)).toBe(true);
+      if (isToggleable(handle)) handle.hide();
+
+      // Reopen with different callback
+      init({
+        researchId: "test",
+        type: "popup",
+        host,
+        onSubmit: onSubmit2,
+      });
+
+      // Send submit message — should use new callback
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "perspective:submit",
+            researchId: "test",
+          },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      expect(onSubmit2).toHaveBeenCalledTimes(1);
+      expect(onSubmit1).not.toHaveBeenCalled();
+
+      handle.unmount();
+    });
+
+    it("destroy() fully removes and allows fresh creation", () => {
+      const handle1 = init({ researchId: "test", type: "popup", host });
+      const iframe1 = handle1.iframe;
+
+      // Full destroy (not hide)
+      destroy("test");
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+
+      // New init creates a fresh instance
+      const handle2 = init({ researchId: "test", type: "popup", host });
+      expect(handle2).not.toBe(handle1);
+      expect(handle2.iframe).not.toBe(iframe1);
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+
+      handle2.unmount();
+    });
+
+    it("does not reuse hidden popup when type changes to slider", () => {
+      const handle1 = init({ researchId: "test", type: "popup", host });
+
+      // Hide popup
+      expect(isToggleable(handle1)).toBe(true);
+      if (isToggleable(handle1)) handle1.hide();
+
+      // Init with different type — should NOT reuse the hidden popup
+      const handle2 = init({ researchId: "test", type: "slider", host });
+      expect(handle2).not.toBe(handle1);
+      expect(handle2.type).toBe("slider");
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+
+      handle2.unmount();
+    });
+
+    it("destroyAll() fully cleans up hidden instances", () => {
+      init({ researchId: "test1", type: "popup", host });
+      init({ researchId: "test2", type: "slider", host });
+
+      // Hide both
+      (
+        document.querySelector(
+          ".perspective-overlay .perspective-close"
+        ) as HTMLElement
+      ).click();
+      (
+        document.querySelector(
+          ".perspective-slider .perspective-close"
+        ) as HTMLElement
+      ).click();
+
+      // Both hidden but in DOM
+      expect(
+        (document.querySelector(".perspective-overlay") as HTMLElement).style
+          .display
+      ).toBe("none");
+      expect(
+        (document.querySelector(".perspective-slider") as HTMLElement).style
+          .display
+      ).toBe("none");
+
+      destroyAll();
+
+      // Both fully removed
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+      expect(document.querySelector(".perspective-slider")).toBeFalsy();
     });
   });
 

@@ -103,7 +103,7 @@ function authTokenKey(researchId: string): string {
 /** Get cached embed auth token from parent's first-party localStorage (Layer 2).
  * Called on iframe ready to relay token back — critical for Safari where
  * iframe localStorage (Layer 1) is wiped on tab close. */
-function getCachedAuthToken(researchId: string): string | null {
+export function getCachedAuthToken(researchId: string): string | null {
   if (!hasDom()) return null;
   try {
     const key = authTokenKey(researchId);

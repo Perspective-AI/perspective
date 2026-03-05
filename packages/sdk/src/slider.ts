@@ -10,6 +10,7 @@ import {
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  getCachedAuthToken,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { claimPreloadedIframe } from "./preload";
@@ -64,9 +65,9 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
   closeBtn.setAttribute("aria-label", "Close");
 
   // Reuse preloaded iframe or create new one
-  const preloaded = claimPreloadedIframe(researchId);
+  const claimed = claimPreloadedIframe(researchId);
   const iframe =
-    preloaded ??
+    claimed?.iframe ??
     createIframe(
       researchId,
       "slider",
@@ -76,20 +77,21 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
       config.theme
     );
 
-  // Only show loading indicator if no preloaded iframe
+  // Show loading indicator unless preloaded iframe is already ready
   let loading: HTMLElement | null = null;
-  if (!preloaded) {
+  if (!claimed?.wasReady) {
     loading = createLoadingIndicator({
       theme: config.theme,
       brand: config.brand,
     });
   }
 
-  // Style iframe
-  if (preloaded) {
+  // Style iframe — show immediately only if preloaded and ready
+  if (claimed?.wasReady) {
     iframe.style.cssText = "border:none;";
     iframe.style.opacity = "1";
   } else {
+    if (claimed) iframe.style.cssText = "border:none;";
     iframe.style.opacity = "0";
     iframe.style.transition = "opacity 0.3s ease";
   }
@@ -174,6 +176,15 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
     host,
     { skipResize: true }
   );
+
+  // Preloaded iframe already fired perspective:ready — replay consumer callbacks
+  if (claimed?.wasReady) {
+    currentConfig.onReady?.();
+    const cachedToken = getCachedAuthToken(researchId);
+    if (cachedToken) {
+      currentConfig.onAuth?.({ researchId, token: cachedToken });
+    }
+  }
 
   // Close handlers
   closeBtn.addEventListener("click", hide);

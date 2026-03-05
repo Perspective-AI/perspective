@@ -19,6 +19,7 @@ type PreloadState = {
   iframe: HTMLIFrameElement;
   researchId: string;
   cleanup: () => void;
+  ready: boolean;
 };
 
 let preloaded: PreloadState | null = null;
@@ -57,38 +58,57 @@ export function preloadIframe(
   iframe.style.pointerEvents = "none";
   iframe.style.overflow = "hidden";
 
-  // Set up message listener so perspective:ready is handled during preload
-  const msgCleanup = setupMessageListener(researchId, {}, iframe, host, {
-    skipResize: true,
-  });
+  // Set up message listener so perspective:ready is handled during preload.
+  // Track ready state so callers know if callbacks need replaying after claim.
+  const state: PreloadState = {
+    iframe,
+    researchId,
+    ready: false,
+    cleanup: () => {},
+  };
+  const msgCleanup = setupMessageListener(
+    researchId,
+    {
+      onReady: () => {
+        state.ready = true;
+      },
+    },
+    iframe,
+    host,
+    { skipResize: true }
+  );
   const unregister = registerIframe(iframe, host);
 
   document.body.appendChild(iframe);
-  preloaded = {
-    iframe,
-    researchId,
-    cleanup: () => {
-      msgCleanup();
-      unregister();
-    },
+  state.cleanup = () => {
+    msgCleanup();
+    unregister();
   };
+  preloaded = state;
 
   getTimer(researchId).mark("iframe:preloadStarted");
 }
 
+export type ClaimedPreload = {
+  iframe: HTMLIFrameElement;
+  /** Whether perspective:ready already fired during preload */
+  wasReady: boolean;
+};
+
 /**
- * Claim a preloaded iframe for use. Returns the iframe if available for the
- * given researchId, or null. Caller is responsible for moving it into the
- * target container and re-setting up message listeners.
+ * Claim a preloaded iframe for use. Returns the iframe and its ready state
+ * if available for the given researchId, or null. Caller is responsible for
+ * moving it into the target container, re-setting up message listeners, and
+ * replaying onReady/onAuth if wasReady is true.
  */
 export function claimPreloadedIframe(
   researchId: string
-): HTMLIFrameElement | null {
+): ClaimedPreload | null {
   if (!preloaded || preloaded.researchId !== researchId) {
     return null;
   }
 
-  const { iframe, cleanup } = preloaded;
+  const { iframe, cleanup, ready } = preloaded;
   iframe.removeAttribute(PRELOAD_ATTR);
 
   // Clean up preload-phase listeners — caller will set up their own
@@ -96,7 +116,7 @@ export function claimPreloadedIframe(
   preloaded = null;
 
   getTimer(researchId).mark("iframe:preloadClaimed");
-  return iframe;
+  return { iframe, wasReady: ready };
 }
 
 /** Destroy any preloaded iframe */
