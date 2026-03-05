@@ -3,7 +3,7 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle } from "./types";
+import type { EmbedConfig, EmbedHandle, ToggleableHandle } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
@@ -12,14 +12,18 @@ import {
   ensureGlobalListeners,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
+import { claimPreloadedIframe } from "./preload";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { cn, getThemeClass } from "./utils";
 
-function createNoOpHandle(researchId: string): EmbedHandle {
+function createNoOpHandle(researchId: string): ToggleableHandle {
   return {
     unmount: () => {},
     update: () => {},
     destroy: () => {},
+    show: () => {},
+    hide: () => {},
+    isOpen: false,
     researchId,
     type: "slider",
     iframe: null,
@@ -27,7 +31,7 @@ function createNoOpHandle(researchId: string): EmbedHandle {
   };
 }
 
-export function openSlider(config: EmbedConfig): EmbedHandle {
+export function openSlider(config: EmbedConfig): ToggleableHandle {
   const { researchId } = config;
 
   // SSR safety: return no-op handle
@@ -59,26 +63,41 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
   closeBtn.innerHTML = CLOSE_ICON;
   closeBtn.setAttribute("aria-label", "Close");
 
-  // Create loading indicator with theme and brand colors
-  const loading = createLoadingIndicator({
-    theme: config.theme,
-    brand: config.brand,
-  });
+  // Reuse preloaded iframe or create new one
+  const preloaded = claimPreloadedIframe(researchId);
+  const iframe =
+    preloaded ??
+    createIframe(
+      researchId,
+      "slider",
+      host,
+      config.params,
+      config.brand,
+      config.theme
+    );
 
-  // Create iframe (hidden initially)
-  const iframe = createIframe(
-    researchId,
-    "slider",
-    host,
-    config.params,
-    config.brand,
-    config.theme
-  );
-  iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
+  // Only show loading indicator if no preloaded iframe
+  let loading: HTMLElement | null = null;
+  if (!preloaded) {
+    loading = createLoadingIndicator({
+      theme: config.theme,
+      brand: config.brand,
+    });
+  }
+
+  // Style iframe
+  if (preloaded) {
+    iframe.style.cssText = "border:none;";
+    iframe.style.opacity = "1";
+  } else {
+    iframe.style.opacity = "0";
+    iframe.style.transition = "opacity 0.3s ease";
+  }
 
   slider.appendChild(closeBtn);
-  slider.appendChild(loading);
+  if (loading) {
+    slider.appendChild(loading);
+  }
   slider.appendChild(iframe);
   document.body.appendChild(backdrop);
   document.body.appendChild(slider);
@@ -91,15 +110,37 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
 
-  const destroy = () => {
+  // ESC key handler (added/removed on show/hide)
+  const escHandler = (e: KeyboardEvent) => {
+    if (e.key === "Escape") hide();
+  };
+
+  const hide = () => {
     if (!isOpen) return;
+    isOpen = false;
+    slider.style.display = "none";
+    backdrop.style.display = "none";
+    document.removeEventListener("keydown", escHandler);
+    currentConfig.onClose?.();
+  };
+
+  const show = () => {
+    if (isOpen) return;
+    isOpen = true;
+    slider.style.display = "";
+    backdrop.style.display = "";
+    document.addEventListener("keydown", escHandler);
+  };
+
+  const fullDestroy = () => {
+    const wasOpen = isOpen;
     isOpen = false;
     messageCleanup?.();
     unregisterIframe();
     slider.remove();
     backdrop.remove();
     document.removeEventListener("keydown", escHandler);
-    currentConfig.onClose?.();
+    if (wasOpen) currentConfig.onClose?.();
   };
 
   // Set up message listener with loading state handling
@@ -108,9 +149,11 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
     {
       get onReady() {
         return () => {
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
+          if (loading) {
+            loading.style.opacity = "0";
+            iframe.style.opacity = "1";
+            setTimeout(() => loading!.remove(), 300);
+          }
           currentConfig.onReady?.();
         };
       },
@@ -121,7 +164,7 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
         return currentConfig.onNavigate;
       },
       get onClose() {
-        return destroy;
+        return hide;
       },
       get onError() {
         return currentConfig.onError;
@@ -133,23 +176,22 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
   );
 
   // Close handlers
-  closeBtn.addEventListener("click", destroy);
-  backdrop.addEventListener("click", destroy);
+  closeBtn.addEventListener("click", hide);
+  backdrop.addEventListener("click", hide);
 
-  // ESC key closes
-  const escHandler = (e: KeyboardEvent) => {
-    if (e.key === "Escape") {
-      destroy();
-    }
-  };
   document.addEventListener("keydown", escHandler);
 
   return {
-    unmount: destroy,
+    unmount: fullDestroy,
     update: (options: Parameters<EmbedHandle["update"]>[0]) => {
       currentConfig = { ...currentConfig, ...options };
     },
-    destroy,
+    destroy: fullDestroy,
+    show,
+    hide,
+    get isOpen() {
+      return isOpen;
+    },
     researchId,
     type: "slider" as const,
     iframe,

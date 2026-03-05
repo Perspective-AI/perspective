@@ -72,21 +72,9 @@ describe("openPopup", () => {
     expect(document.querySelector(".perspective-overlay")).toBeFalsy();
   });
 
-  it("calls onClose callback when destroyed", () => {
+  it("close button click hides popup and fires onClose", () => {
     const onClose = vi.fn();
     const handle = openPopup({
-      researchId: "test-research-id",
-      onClose,
-    });
-
-    handle.destroy();
-
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it("close button click closes popup", () => {
-    const onClose = vi.fn();
-    openPopup({
       researchId: "test-research-id",
       onClose,
     });
@@ -97,12 +85,20 @@ describe("openPopup", () => {
     closeBtn.click();
 
     expect(onClose).toHaveBeenCalled();
-    expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    // Overlay stays in DOM but is hidden
+    const overlay = document.querySelector(
+      ".perspective-overlay"
+    ) as HTMLElement;
+    expect(overlay).toBeTruthy();
+    expect(overlay.style.display).toBe("none");
+    expect(handle.isOpen).toBe(false);
+
+    handle.destroy();
   });
 
-  it("clicking overlay background closes popup", () => {
+  it("clicking overlay background hides popup", () => {
     const onClose = vi.fn();
-    openPopup({
+    const handle = openPopup({
       researchId: "test-research-id",
       onClose,
     });
@@ -113,7 +109,9 @@ describe("openPopup", () => {
     overlay.click();
 
     expect(onClose).toHaveBeenCalled();
-    expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    expect(overlay.style.display).toBe("none");
+
+    handle.destroy();
   });
 
   it("clicking modal does not close popup", () => {
@@ -133,9 +131,9 @@ describe("openPopup", () => {
     (document.querySelector(".perspective-close") as HTMLElement).click();
   });
 
-  it("ESC key closes popup", () => {
+  it("ESC key hides popup", () => {
     const onClose = vi.fn();
-    openPopup({
+    const handle = openPopup({
       researchId: "test-research-id",
       onClose,
     });
@@ -143,20 +141,40 @@ describe("openPopup", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
     expect(onClose).toHaveBeenCalled();
-    expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    const overlay = document.querySelector(
+      ".perspective-overlay"
+    ) as HTMLElement;
+    expect(overlay.style.display).toBe("none");
+
+    handle.destroy();
   });
 
-  it("unmount removes overlay", () => {
-    const onClose = vi.fn();
+  it("unmount removes overlay from DOM", () => {
     const handle = openPopup({
       researchId: "test-research-id",
-      onClose,
     });
 
     handle.unmount();
 
-    expect(onClose).toHaveBeenCalled();
     expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+  });
+
+  it("show() restores hidden popup", () => {
+    const handle = openPopup({
+      researchId: "test-research-id",
+    });
+
+    handle.hide();
+    expect(handle.isOpen).toBe(false);
+
+    handle.show();
+    expect(handle.isOpen).toBe(true);
+    const overlay = document.querySelector(
+      ".perspective-overlay"
+    ) as HTMLElement;
+    expect(overlay.style.display).toBe("");
+
+    handle.destroy();
   });
 
   it("update modifies config", () => {
@@ -274,7 +292,7 @@ describe("openPopup", () => {
 
       const iframe = handle.iframe!;
 
-      // Destroy calls onClose once
+      // fullDestroy fires onClose once (was open), then tears down listeners
       handle.destroy();
       expect(onClose).toHaveBeenCalledTimes(1);
 
@@ -283,7 +301,6 @@ describe("openPopup", () => {
       sendMessage(iframe, "perspective:close");
 
       expect(onSubmit).not.toHaveBeenCalled();
-      // onClose should still be called only once (from destroy)
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
@@ -327,18 +344,20 @@ describe("openPopup", () => {
     });
   });
 
-  it("destroy is idempotent", () => {
+  it("hide is idempotent", () => {
     const onClose = vi.fn();
     const handle = openPopup({
       researchId: "test-research-id",
       onClose,
     });
 
-    handle.destroy();
-    handle.destroy();
-    handle.destroy();
+    handle.hide();
+    handle.hide();
+    handle.hide();
 
     // onClose only called once
     expect(onClose).toHaveBeenCalledTimes(1);
+
+    handle.destroy();
   });
 });

@@ -137,6 +137,13 @@ export interface EmbedHandle {
   readonly container: HTMLElement | null;
 }
 
+/** Internal handle for popup/slider with hide/show lifecycle (not exported to consumers) */
+export interface ToggleableHandle extends EmbedHandle {
+  show: () => void;
+  hide: () => void;
+  readonly isOpen: boolean;
+}
+
 /** Handle for float bubble with open/close control (persistent UI element) */
 export interface FloatHandle extends Omit<EmbedHandle, "type"> {
   open: () => void;

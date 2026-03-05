@@ -76,9 +76,9 @@ describe("openSlider", () => {
     expect(document.querySelector(".perspective-slider")).toBeFalsy();
   });
 
-  it("closes on close button click", () => {
+  it("close button hides slider and fires onClose", () => {
     const onClose = vi.fn();
-    openSlider({
+    const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
@@ -90,13 +90,17 @@ describe("openSlider", () => {
 
     closeBtn.click();
 
-    expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    const slider = document.querySelector(".perspective-slider") as HTMLElement;
+    expect(slider.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
+    expect(handle.isOpen).toBe(false);
+
+    handle.destroy();
   });
 
-  it("closes on backdrop click", () => {
+  it("backdrop click hides slider", () => {
     const onClose = vi.fn();
-    openSlider({
+    const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
@@ -108,13 +112,15 @@ describe("openSlider", () => {
 
     backdrop.click();
 
-    expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    expect(backdrop.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
+
+    handle.destroy();
   });
 
-  it("closes on Escape key", () => {
+  it("ESC key hides slider", () => {
     const onClose = vi.fn();
-    openSlider({
+    const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
@@ -123,22 +129,43 @@ describe("openSlider", () => {
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
-    expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    const slider = document.querySelector(".perspective-slider") as HTMLElement;
+    expect(slider.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
+
+    handle.destroy();
   });
 
-  it("only closes once on multiple triggers", () => {
+  it("hide is idempotent", () => {
     const onClose = vi.fn();
     const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
 
-    handle.unmount();
-    handle.unmount();
-    handle.unmount();
+    handle.hide();
+    handle.hide();
+    handle.hide();
 
     expect(onClose).toHaveBeenCalledTimes(1);
+
+    handle.destroy();
+  });
+
+  it("show() restores hidden slider", () => {
+    const handle = openSlider({
+      researchId: "test-research-id",
+    });
+
+    handle.hide();
+    expect(handle.isOpen).toBe(false);
+
+    handle.show();
+    expect(handle.isOpen).toBe(true);
+    const slider = document.querySelector(".perspective-slider") as HTMLElement;
+    expect(slider.style.display).toBe("");
+
+    handle.destroy();
   });
 
   it("applies theme class", () => {
@@ -253,6 +280,7 @@ describe("openSlider", () => {
 
       const iframe = handle.iframe!;
 
+      // fullDestroy fires onClose once (was open), then tears down listeners
       handle.unmount();
       expect(onClose).toHaveBeenCalledTimes(1);
 

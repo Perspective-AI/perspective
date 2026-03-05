@@ -23,6 +23,7 @@ import {
   ERROR_CODES,
 } from "./constants";
 import { normalizeHex } from "./utils";
+import { getTimer } from "./timing";
 
 /** Validate redirect URL - allow https, http localhost, and relative URLs */
 function isAllowedRedirectUrl(url: string): boolean {
@@ -276,6 +277,16 @@ export function createIframe(
   iframe.setAttribute("data-perspective", "true");
   iframe.style.cssText = "border:none;";
 
+  iframe.addEventListener(
+    "load",
+    () => {
+      getTimer(researchId).mark("iframe:loaded");
+    },
+    { once: true }
+  );
+
+  getTimer(researchId).mark("iframe:created");
+
   return iframe;
 }
 
@@ -307,6 +318,8 @@ export function setupMessageListener(
 
     switch (event.data.type) {
       case MESSAGE_TYPES.ready: {
+        getTimer(researchId).mark("perspective:ready");
+        getTimer(researchId).log();
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
         // Send anon_id for anonymous auth
