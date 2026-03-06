@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   preloadIframe,
+  ensurePreloadedIframe,
   claimPreloadedIframe,
   destroyPreloaded,
   destroyPreloadedByType,
@@ -35,6 +36,21 @@ describe("preloadIframe", () => {
       "iframe[data-perspective-preload]"
     );
     expect(iframes.length).toBe(1);
+  });
+
+  it("ensurePreloadedIframe keeps the existing iframe for same researchId + type", () => {
+    preloadIframe("research-1", "popup", "https://getperspective.ai");
+    const firstIframe = document.querySelector(
+      "iframe[data-perspective-preload]"
+    ) as HTMLIFrameElement;
+
+    ensurePreloadedIframe("research-1", "popup", "https://getperspective.ai");
+
+    const iframes = document.querySelectorAll(
+      "iframe[data-perspective-preload]"
+    );
+    expect(iframes.length).toBe(1);
+    expect(iframes[0]).toBe(firstIframe);
   });
 
   it("allows multiple preloaded iframes for different types", () => {

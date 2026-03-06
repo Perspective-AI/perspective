@@ -28,6 +28,41 @@ describe("createFloatBubble", () => {
     handle.unmount();
   });
 
+  it("preloads a hidden float iframe when the bubble is created", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    const preloadIframe = document.querySelector(
+      "iframe[data-perspective-preload='test-research-id']"
+    ) as HTMLIFrameElement | null;
+
+    expect(preloadIframe).toBeTruthy();
+    expect(preloadIframe?.style.opacity).toBe("0");
+
+    handle.unmount();
+  });
+
+  it("does not replace an existing preloaded float iframe", () => {
+    preloadIframe("test-research-id", "float", "https://getperspective.ai");
+    const existingPreload = document.querySelector(
+      "iframe[data-perspective-preload='test-research-id']"
+    );
+
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      host: "https://getperspective.ai",
+    });
+
+    expect(
+      document.querySelector(
+        "iframe[data-perspective-preload='test-research-id']"
+      )
+    ).toBe(existingPreload);
+
+    handle.unmount();
+  });
+
   it("uses messages icon when channel is text-only", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
@@ -98,16 +133,12 @@ describe("createFloatBubble", () => {
     expect(() => handle.toggle()).not.toThrow();
   });
 
-  it("eagerly creates float window hidden on mount", () => {
+  it("does not create float window until opened", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
 
-    const floatWindow = document.querySelector(
-      ".perspective-float-window"
-    ) as HTMLElement;
-    expect(floatWindow).toBeTruthy();
-    expect(floatWindow.style.display).toBe("none");
+    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
     expect(handle.isOpen).toBe(false);
 
     handle.unmount();
@@ -154,12 +185,12 @@ describe("createFloatBubble", () => {
       researchId: "test-research-id",
     });
 
-    const floatWindow = document.querySelector(
-      ".perspective-float-window"
-    ) as HTMLElement;
     expect(handle.isOpen).toBe(false);
 
     handle.toggle();
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
     expect(handle.isOpen).toBe(true);
     expect(floatWindow.style.display).toBe("");
 
@@ -178,12 +209,12 @@ describe("createFloatBubble", () => {
     const bubble = document.querySelector(
       ".perspective-float-bubble"
     ) as HTMLButtonElement;
-    const floatWindow = document.querySelector(
-      ".perspective-float-window"
-    ) as HTMLElement;
     expect(bubble).toBeTruthy();
 
     bubble.click();
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
     expect(handle.isOpen).toBe(true);
     expect(floatWindow.style.display).toBe("");
 
@@ -231,6 +262,26 @@ describe("createFloatBubble", () => {
 
     expect(document.querySelector(".perspective-float-bubble")).toBeFalsy();
     expect(document.querySelector(".perspective-float-window")).toBeFalsy();
+  });
+
+  it("unmount removes hidden preloaded iframe when float was never opened", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    expect(
+      document.querySelector(
+        "iframe[data-perspective-preload='test-research-id']"
+      )
+    ).toBeTruthy();
+
+    handle.unmount();
+
+    expect(
+      document.querySelector(
+        "iframe[data-perspective-preload='test-research-id']"
+      )
+    ).toBeFalsy();
   });
 
   it("destroy is alias for unmount", () => {
@@ -466,6 +517,10 @@ describe("createFloatBubble", () => {
 
       const handle = createFloatBubble({ researchId, host, onReady });
 
+      expect(onReady).not.toHaveBeenCalled();
+
+      handle.open();
+
       expect(onReady).toHaveBeenCalledTimes(1);
       expect(handle.iframe).toBe(preloadedIframe);
 
@@ -479,6 +534,9 @@ describe("createFloatBubble", () => {
 
       const handle = createFloatBubble({ researchId, host, onReady });
 
+      expect(onReady).not.toHaveBeenCalled();
+
+      handle.open();
       expect(onReady).not.toHaveBeenCalled();
 
       simulateReady(handle.iframe!);

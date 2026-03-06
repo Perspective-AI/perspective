@@ -261,10 +261,12 @@ function init(config: EmbedConfig): EmbedHandle | FloatHandle {
     existing &&
     isToggleable(existing) &&
     !existing.isOpen &&
-    existing.type === type
+    existing.type === type &&
+    existing.canReuse(config)
   ) {
     existing.update(config);
     existing.show();
+    existing.replayOpenCallbacks();
     return existing;
   }
   if (existing) {

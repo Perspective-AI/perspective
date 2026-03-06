@@ -4,6 +4,8 @@
  */
 
 const timers = new Map<string, EmbedTimer>();
+const shouldLogTimings =
+  typeof process !== "undefined" && process.env?.NODE_ENV === "development";
 
 export class EmbedTimer {
   private startTime: number;
@@ -23,7 +25,7 @@ export class EmbedTimer {
   }
 
   log(): void {
-    if (typeof console === "undefined") return;
+    if (!shouldLogTimings || typeof console === "undefined") return;
 
     const entries = Array.from(this.marks.entries());
     if (entries.length === 0) return;

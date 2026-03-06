@@ -46,7 +46,49 @@ export function preloadIframe(
 
   const key = preloadKey(researchId, type);
   destroyPreloadedEntry(key);
+  createPreloadedEntry(
+    key,
+    researchId,
+    type,
+    host,
+    params,
+    brand,
+    themeOverride
+  );
+}
 
+export function ensurePreloadedIframe(
+  researchId: string,
+  type: EmbedType,
+  host: string,
+  params?: Record<string, string>,
+  brand?: { light?: BrandColors; dark?: BrandColors },
+  themeOverride?: ThemeValue
+): void {
+  if (!hasDom()) return;
+
+  const key = preloadKey(researchId, type);
+  if (preloaded.has(key)) return;
+  createPreloadedEntry(
+    key,
+    researchId,
+    type,
+    host,
+    params,
+    brand,
+    themeOverride
+  );
+}
+
+function createPreloadedEntry(
+  key: string,
+  researchId: string,
+  type: EmbedType,
+  host: string,
+  params?: Record<string, string>,
+  brand?: { light?: BrandColors; dark?: BrandColors },
+  themeOverride?: ThemeValue
+): void {
   ensureGlobalListeners();
 
   const iframe = createIframe(

@@ -17,7 +17,11 @@ import {
   ensureGlobalListeners,
   getCachedAuthToken,
 } from "./iframe";
-import { claimPreloadedIframe } from "./preload";
+import {
+  claimPreloadedIframe,
+  ensurePreloadedIframe,
+  destroyPreloadedByType,
+} from "./preload";
 import { removeTimer } from "./timing";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
@@ -159,16 +163,27 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   let cleanup: (() => void) | null = null;
   let unregisterIframe: (() => void) | null = null;
   let isOpen = false;
+  let closeBtn: HTMLButtonElement | null = null;
   let teaser: HTMLElement | null = null;
   let teaserTypewriter: number | null = null;
   let notificationDot: HTMLElement | null = null;
   let audioCtx: AudioContext | null = null;
+  let lastAuthToken = getCachedAuthToken(researchId);
   let welcomeSequenceStarted = false;
   let welcomeDismissed = false;
   let welcomeTimers: number[] = [];
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
+
+  ensurePreloadedIframe(
+    researchId,
+    "float",
+    host,
+    currentConfig.params,
+    currentConfig.brand,
+    currentConfig.theme
+  );
 
   const setBubbleClosedState = () => {
     bubble.innerHTML = resolveBubbleIcon(currentConfig);
@@ -295,102 +310,110 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     welcomeTimers.push(soundTimer, teaserTimer);
   };
 
-  // Eagerly create chat window + iframe (hidden) so iframe loads in background.
-  // On open, just show — instant, no iframe reparenting or reload.
-  floatWindow = document.createElement("div");
-  floatWindow.className = cn(
-    "perspective-float-window perspective-embed-root",
-    getThemeClass(currentConfig.theme)
-  );
-  floatWindow.style.display = "none";
+  const mountFloatWindow = () => {
+    if (floatWindow && iframe) return;
 
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "perspective-close";
-  closeBtn.innerHTML = CLOSE_ICON;
-  closeBtn.setAttribute("aria-label", "Close chat");
+    floatWindow = document.createElement("div");
+    floatWindow.className = cn(
+      "perspective-float-window perspective-embed-root",
+      getThemeClass(currentConfig.theme)
+    );
+    floatWindow.style.display = "none";
 
-  const claimed = claimPreloadedIframe(researchId, "float");
-  iframe =
-    claimed?.iframe ??
-    createIframe(
+    closeBtn = document.createElement("button");
+    closeBtn.className = "perspective-close";
+    closeBtn.innerHTML = CLOSE_ICON;
+    closeBtn.setAttribute("aria-label", "Close chat");
+    closeBtn.addEventListener("click", closeFloat);
+
+    const claimed = claimPreloadedIframe(researchId, "float");
+    iframe =
+      claimed?.iframe ??
+      createIframe(
+        researchId,
+        "float",
+        host,
+        currentConfig.params,
+        currentConfig.brand,
+        currentConfig.theme
+      );
+
+    let loading: HTMLElement | null = null;
+    if (!claimed?.wasReady) {
+      loading = createLoadingIndicator({
+        theme: currentConfig.theme,
+        brand: currentConfig.brand,
+      });
+      loading.style.borderRadius = "16px";
+    }
+
+    if (claimed) {
+      iframe.style.cssText = "border:none;";
+    }
+
+    if (claimed?.wasReady) {
+      iframe.style.opacity = "1";
+    } else {
+      iframe.style.opacity = "0";
+      iframe.style.transition = "opacity 0.3s ease";
+    }
+
+    floatWindow.appendChild(closeBtn);
+    if (loading) {
+      floatWindow.appendChild(loading);
+    }
+    floatWindow.appendChild(iframe);
+    document.body.appendChild(floatWindow);
+
+    cleanup = setupMessageListener(
       researchId,
-      "float",
+      {
+        get onReady() {
+          return () => {
+            if (loading) {
+              loading.style.opacity = "0";
+              iframe!.style.opacity = "1";
+              const el = loading;
+              setTimeout(() => el.remove(), 300);
+              loading = null;
+            }
+            currentConfig.onReady?.();
+          };
+        },
+        get onSubmit() {
+          return isOpen ? currentConfig.onSubmit : undefined;
+        },
+        get onNavigate() {
+          return isOpen ? currentConfig.onNavigate : noopNavigate;
+        },
+        get onClose() {
+          return closeFloat;
+        },
+        get onAuth() {
+          return ({ token }: { researchId: string; token: string }) => {
+            lastAuthToken = token;
+            currentConfig.onAuth?.({ researchId, token });
+          };
+        },
+        get onError() {
+          return isOpen ? currentConfig.onError : undefined;
+        },
+      },
+      iframe,
       host,
-      currentConfig.params,
-      currentConfig.brand,
-      currentConfig.theme
+      { skipResize: true }
     );
 
-  let loading: HTMLElement | null = null;
-  if (!claimed?.wasReady) {
-    loading = createLoadingIndicator({
-      theme: currentConfig.theme,
-      brand: currentConfig.brand,
-    });
-    loading.style.borderRadius = "16px";
-  }
+    unregisterIframe = registerIframe(iframe, host);
 
-  if (claimed) {
-    iframe.style.cssText = "border:none;";
-  }
-
-  if (claimed?.wasReady) {
-    iframe.style.opacity = "1";
-  } else {
-    iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.3s ease";
-  }
-
-  floatWindow.appendChild(closeBtn);
-  if (loading) {
-    floatWindow.appendChild(loading);
-  }
-  floatWindow.appendChild(iframe);
-  document.body.appendChild(floatWindow);
-
-  // Set up message listener with loading state handling
-  cleanup = setupMessageListener(
-    researchId,
-    {
-      get onReady() {
-        return () => {
-          if (loading) {
-            loading.style.opacity = "0";
-            iframe!.style.opacity = "1";
-            const el = loading;
-            setTimeout(() => el.remove(), 300);
-            loading = null;
-          }
-          currentConfig.onReady?.();
-        };
-      },
-      get onSubmit() {
-        return isOpen ? currentConfig.onSubmit : undefined;
-      },
-      get onNavigate() {
-        return isOpen ? currentConfig.onNavigate : noopNavigate;
-      },
-      get onClose() {
-        return closeFloat;
-      },
-      get onError() {
-        return isOpen ? currentConfig.onError : undefined;
-      },
-    },
-    iframe,
-    host,
-    { skipResize: true }
-  );
-
-  unregisterIframe = registerIframe(iframe, host);
-
-  if (claimed?.wasReady) {
-    currentConfig.onReady?.();
-    const cachedToken = getCachedAuthToken(researchId);
-    if (cachedToken) {
-      currentConfig.onAuth?.({ researchId, token: cachedToken });
+    if (claimed?.wasReady) {
+      currentConfig.onReady?.();
+      const cachedToken = lastAuthToken ?? getCachedAuthToken(researchId);
+      if (cachedToken) {
+        currentConfig.onAuth?.({ researchId, token: cachedToken });
+      }
     }
-  }
+  };
 
   const openFloat = () => {
     if (isOpen) return;
@@ -398,6 +421,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     clearWelcomeTimers();
     removeTeaser();
 
+    mountFloatWindow();
     floatWindow!.style.display = "";
     setBubbleOpenState();
   };
@@ -411,9 +435,6 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
 
     currentConfig.onClose?.();
   };
-
-  closeBtn.addEventListener("click", closeFloat);
-
   // Toggle on bubble click
   const bubbleClickHandler = () => {
     if (isOpen) {
@@ -429,11 +450,17 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     isOpen = false;
     clearWelcomeTimers();
     removeTeaser();
-    closeBtn.removeEventListener("click", closeFloat);
+    closeBtn?.removeEventListener("click", closeFloat);
     bubble.removeEventListener("click", bubbleClickHandler);
     cleanup?.();
     unregisterIframe?.();
+    destroyPreloadedByType(researchId, "float");
     floatWindow?.remove();
+    closeBtn = null;
+    floatWindow = null;
+    iframe = null;
+    cleanup = null;
+    unregisterIframe = null;
     bubble.remove();
     void audioCtx?.close();
     audioCtx = null;

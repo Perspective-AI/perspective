@@ -2,44 +2,68 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useSlider } from "./useSlider";
 
-const mockUnmount = vi.fn();
-const mockUpdate = vi.fn();
 const mockDestroy = vi.fn();
+const mockUpdate = vi.fn();
 const mockShow = vi.fn();
 const mockHide = vi.fn();
+let invokeSdkClose: (() => void) | null = null;
 
 vi.mock("@perspective-ai/sdk", () => ({
   openSlider: vi.fn(
-    (config: { onClose?: () => void; _startHidden?: boolean }) => {
+    (config: {
+      researchId?: string;
+      onClose?: () => void;
+      host?: string;
+      _startHidden?: boolean;
+    }) => {
       const currentConfig = { ...config };
       let open = !config._startHidden;
-      mockUnmount.mockImplementation(() => {
+
+      const show = vi.fn(() => {
+        if (open) return;
+        mockShow();
+        open = true;
+      });
+
+      const hide = vi.fn(() => {
         if (!open) return;
+        mockHide();
         open = false;
         currentConfig.onClose?.();
       });
-      mockUpdate.mockImplementation(
-        (options: Partial<{ onClose?: () => void }>) => {
+
+      const destroy = vi.fn(() => {
+        mockDestroy();
+        const wasOpen = open;
+        open = false;
+        if (wasOpen) {
+          currentConfig.onClose?.();
+        }
+      });
+
+      const update = vi.fn(
+        (options: Partial<{ onClose?: () => void; host?: string }>) => {
+          mockUpdate(options);
           Object.assign(currentConfig, options);
         }
       );
-      mockShow.mockImplementation(() => {
-        open = true;
-      });
-      mockHide.mockImplementation(() => {
+
+      invokeSdkClose = () => {
+        if (!open) return;
         open = false;
         currentConfig.onClose?.();
-      });
+      };
+
       return {
-        unmount: mockUnmount,
-        update: mockUpdate,
-        destroy: mockDestroy,
-        show: mockShow,
-        hide: mockHide,
+        unmount: destroy,
+        update,
+        destroy,
+        show,
+        hide,
         get isOpen() {
           return open;
         },
-        researchId: "test-research-id",
+        researchId: config.researchId ?? "test-research-id",
         type: "slider",
         iframe: null,
         container: null,
@@ -49,18 +73,20 @@ vi.mock("@perspective-ai/sdk", () => ({
 }));
 
 import { openSlider } from "@perspective-ai/sdk";
+
 const mockOpenSlider = vi.mocked(openSlider);
 
 describe("useSlider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    invokeSdkClose = null;
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("returns open, close, toggle functions and isOpen state", () => {
+  it("returns open, close, toggle functions and initial state", () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
@@ -69,10 +95,10 @@ describe("useSlider", () => {
     expect(result.current.close).toBeInstanceOf(Function);
     expect(result.current.toggle).toBeInstanceOf(Function);
     expect(result.current.isOpen).toBe(false);
-    expect(result.current.handle).toBeNull();
+    expect(result.current.handle).not.toBeNull();
   });
 
-  it("eagerly creates slider hidden on mount", () => {
+  it("preloads a hidden slider on mount", () => {
     renderHook(() => useSlider({ researchId: "test-research-id" }));
 
     expect(mockOpenSlider).toHaveBeenCalledTimes(1);
@@ -84,74 +110,68 @@ describe("useSlider", () => {
     );
   });
 
-  it("shows hidden slider when open() is called", () => {
+  it("opens the preloaded slider without recreating it", () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
-
-    act(() => {
-      result.current.open();
-    });
-
-    expect(mockShow).toHaveBeenCalledTimes(1);
-    expect(result.current.isOpen).toBe(true);
-    expect(result.current.handle).not.toBeNull();
-  });
-
-  it("calls hide and sets isOpen to false when close() is called", () => {
-    const { result } = renderHook(() =>
-      useSlider({ researchId: "test-research-id" })
-    );
-
-    act(() => {
-      result.current.open();
-    });
-
-    expect(result.current.isOpen).toBe(true);
-
-    act(() => {
-      result.current.close();
-    });
-
-    expect(mockHide).toHaveBeenCalledTimes(1);
-    expect(result.current.isOpen).toBe(false);
-    expect(result.current.handle).toBeNull();
-  });
-
-  it("reuses hidden slider on re-open via show()", () => {
-    const { result } = renderHook(() =>
-      useSlider({ researchId: "test-research-id" })
-    );
-
-    act(() => {
-      result.current.open();
-    });
-
-    act(() => {
-      result.current.close();
-    });
 
     act(() => {
       result.current.open();
     });
 
     expect(mockOpenSlider).toHaveBeenCalledTimes(1);
-    expect(mockShow).toHaveBeenCalledTimes(2);
+    expect(mockShow).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(true);
+    expect(result.current.handle).not.toBeNull();
   });
 
-  it("toggles open state", () => {
+  it("hides the slider on close but keeps the handle for instant reopen", () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
 
+    act(() => {
+      result.current.open();
+    });
+
+    act(() => {
+      result.current.close();
+    });
+
+    expect(mockHide).toHaveBeenCalledTimes(1);
+    expect(mockDestroy).not.toHaveBeenCalled();
     expect(result.current.isOpen).toBe(false);
+    expect(result.current.handle).not.toBeNull();
+  });
+
+  it("reuses the same slider on reopen after close", () => {
+    const { result } = renderHook(() =>
+      useSlider({ researchId: "test-research-id" })
+    );
+
+    act(() => {
+      result.current.open();
+      result.current.close();
+      result.current.open();
+    });
+
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
+    expect(mockShow).toHaveBeenCalledTimes(2);
+    expect(mockHide).toHaveBeenCalledTimes(1);
+    expect(result.current.isOpen).toBe(true);
+  });
+
+  it("toggles open state using the same underlying slider", () => {
+    const { result } = renderHook(() =>
+      useSlider({ researchId: "test-research-id" })
+    );
 
     act(() => {
       result.current.toggle();
     });
 
     expect(result.current.isOpen).toBe(true);
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
     expect(mockShow).toHaveBeenCalledTimes(1);
 
     act(() => {
@@ -160,33 +180,29 @@ describe("useSlider", () => {
 
     expect(result.current.isOpen).toBe(false);
     expect(mockHide).toHaveBeenCalledTimes(1);
+    expect(mockDestroy).not.toHaveBeenCalled();
   });
 
-  it("calls unmount on component unmount", () => {
-    const { unmount } = renderHook(() =>
-      useSlider({ researchId: "test-research-id" })
+  it("passes config to openSlider during preload creation", () => {
+    renderHook(() =>
+      useSlider({
+        researchId: "test-research-id",
+        params: { source: "test" },
+        theme: "dark",
+        host: "https://custom.example.com",
+      })
     );
 
-    unmount();
-
-    expect(mockUnmount).toHaveBeenCalled();
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
+    const config = mockOpenSlider.mock.calls[0]![0];
+    expect(config.researchId).toBe("test-research-id");
+    expect(config.params).toEqual({ source: "test" });
+    expect(config.theme).toBe("dark");
+    expect(config.host).toBe("https://custom.example.com");
+    expect(config._startHidden).toBe(true);
   });
 
-  it("makes handle reactive - handle is available after open", () => {
-    const { result } = renderHook(() =>
-      useSlider({ researchId: "test-research-id" })
-    );
-
-    expect(result.current.handle).toBeNull();
-
-    act(() => {
-      result.current.open();
-    });
-
-    expect(result.current.handle).not.toBeNull();
-  });
-
-  it("supports controlled mode with open prop", () => {
+  it("supports controlled mode with open prop using show and hide", () => {
     const onOpenChange = vi.fn();
 
     const { rerender } = renderHook(
@@ -199,34 +215,116 @@ describe("useSlider", () => {
       { initialProps: { open: false } }
     );
 
-    rerender({ open: true });
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
 
+    rerender({ open: true });
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
     expect(mockShow).toHaveBeenCalledTimes(1);
 
     rerender({ open: false });
-
     expect(mockHide).toHaveBeenCalledTimes(1);
+    expect(mockDestroy).not.toHaveBeenCalled();
   });
 
-  it("sets handle in controlled mode when open becomes true", () => {
+  it("calls onOpenChange in controlled mode when open() is called", () => {
     const onOpenChange = vi.fn();
 
-    const { result, rerender } = renderHook(
-      ({ open }) =>
-        useSlider({
-          researchId: "test-research-id",
-          open,
-          onOpenChange,
-        }),
-      { initialProps: { open: false } }
+    const { result } = renderHook(() =>
+      useSlider({
+        researchId: "test-research-id",
+        open: false,
+        onOpenChange,
+      })
     );
 
-    expect(result.current.handle).toBeNull();
+    act(() => {
+      result.current.open();
+    });
 
-    rerender({ open: true });
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
 
-    expect(mockShow).toHaveBeenCalledTimes(1);
+  it("destroys the slider on component unmount", () => {
+    const { unmount } = renderHook(() =>
+      useSlider({ researchId: "test-research-id" })
+    );
+
+    unmount();
+
+    expect(mockUpdate).toHaveBeenCalledWith({ onClose: undefined });
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the handle available after mount", () => {
+    const { result } = renderHook(() =>
+      useSlider({ researchId: "test-research-id" })
+    );
+
     expect(result.current.handle).not.toBeNull();
+  });
+
+  it("updates state when the SDK triggers onClose without destroying the slider", () => {
+    const onClose = vi.fn();
+    const { result } = renderHook(() =>
+      useSlider({
+        researchId: "test-research-id",
+        onClose,
+      })
+    );
+
+    act(() => {
+      result.current.open();
+    });
+
+    act(() => {
+      invokeSdkClose?.();
+    });
+
+    expect(mockDestroy).not.toHaveBeenCalled();
+    expect(result.current.isOpen).toBe(false);
+    expect(result.current.handle).not.toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("recreates the slider when researchId changes", () => {
+    const { rerender } = renderHook(
+      ({ researchId }) =>
+        useSlider({
+          researchId,
+        }),
+      { initialProps: { researchId: "research-1" } }
+    );
+
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
+
+    rerender({ researchId: "research-2" });
+
+    expect(mockOpenSlider).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("recreates a hidden slider when iframe-defining config changes", () => {
+    const onClose = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ params }) =>
+        useSlider({
+          researchId: "test-research-id",
+          params,
+          onClose,
+        }),
+      { initialProps: { params: { source: "first" } } }
+    );
+
+    expect(result.current.isOpen).toBe(false);
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
+
+    rerender({ params: { source: "second" } });
+
+    expect(mockOpenSlider).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(result.current.isOpen).toBe(false);
   });
 
   it("keeps controlled slider open when recreated while open", () => {
@@ -243,14 +341,12 @@ describe("useSlider", () => {
     );
 
     expect(mockOpenSlider).toHaveBeenCalledTimes(1);
-    expect(mockShow).toHaveBeenCalledTimes(1);
-    expect(result.current.handle).not.toBeNull();
     expect(result.current.isOpen).toBe(true);
 
     rerender({ researchId: "research-2" });
 
     expect(mockOpenSlider).toHaveBeenCalledTimes(2);
-    expect(mockShow).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
     expect(result.current.handle).not.toBeNull();
     expect(result.current.isOpen).toBe(true);
     expect(onOpenChange).not.toHaveBeenCalled();
@@ -274,29 +370,14 @@ describe("useSlider", () => {
     });
 
     expect(mockOpenSlider).toHaveBeenCalledTimes(1);
-    expect(mockShow).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(true);
 
     rerender({ params: { source: "second" } });
 
     expect(mockOpenSlider).toHaveBeenCalledTimes(2);
-    expect(mockShow).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
     expect(result.current.handle).not.toBeNull();
     expect(result.current.isOpen).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
-  });
-
-  it("recreates slider when researchId changes", () => {
-    const { rerender } = renderHook(
-      ({ researchId }) => useSlider({ researchId }),
-      { initialProps: { researchId: "research-1" } }
-    );
-
-    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
-
-    rerender({ researchId: "research-2" });
-
-    expect(mockUnmount).toHaveBeenCalledTimes(1);
-    expect(mockOpenSlider).toHaveBeenCalledTimes(2);
   });
 });

@@ -27,7 +27,7 @@ export interface UseSliderReturn {
   toggle: () => void;
   /** Whether the slider is currently open */
   isOpen: boolean;
-  /** The underlying SDK handle (null when closed) */
+  /** The underlying SDK handle (created on mount; may be null during initial render) */
   handle: EmbedHandle | null;
 }
 
@@ -63,8 +63,7 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
-  const desiredOpenRef = useRef(isOpen);
-  desiredOpenRef.current = isOpen;
+  const initialHiddenRef = useRef(!isOpen);
 
   const stableParams = useStableValue(params);
   const stableBrand = useStableValue(brand);
@@ -85,71 +84,113 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
     [isControlled, onOpenChange]
   );
 
-  // Called by SDK's hide() via onClose — slider is hidden, not destroyed
+  const destroySlider = useCallback(
+    (targetHandle: SliderHandle | null = handleRef.current) => {
+      if (!targetHandle) return;
+
+      targetHandle.update({ onClose: undefined });
+      targetHandle.destroy();
+
+      if (handleRef.current === targetHandle) {
+        handleRef.current = null;
+        setHandle(null);
+      }
+    },
+    []
+  );
+
   const handleClose = useCallback(() => {
-    setHandle(null);
     setOpen(false);
     onClose?.();
   }, [setOpen, onClose]);
 
   const stableOnClose = useStableCallback(handleClose);
 
-  // Eagerly create slider (hidden) on mount so iframe loads in background.
-  // On open, just show() — instant, no iframe reparenting or reload.
-  useEffect(() => {
-    const newHandle = openSlider({
+  const createSliderHandle = useCallback(
+    (startHidden: boolean) =>
+      openSlider({
+        researchId,
+        params: stableParams,
+        brand: stableBrand,
+        theme,
+        host,
+        onReady: stableOnReady,
+        onSubmit: stableOnSubmit,
+        onNavigate: stableOnNavigate,
+        onClose: stableOnClose,
+        onError: stableOnError,
+        _startHidden: startHidden,
+      }),
+    [
       researchId,
-      params: stableParams,
-      brand: stableBrand,
+      stableParams,
+      stableBrand,
       theme,
       host,
-      onReady: stableOnReady,
-      onSubmit: stableOnSubmit,
-      onNavigate: stableOnNavigate,
-      onClose: stableOnClose,
-      onError: stableOnError,
-      _startHidden: true,
-    });
-    handleRef.current = newHandle;
-    if (desiredOpenRef.current) {
-      newHandle.show();
+      stableOnReady,
+      stableOnSubmit,
+      stableOnNavigate,
+      stableOnClose,
+      stableOnError,
+    ]
+  );
+
+  const setSliderHandle = useCallback(
+    (startHidden: boolean) => {
+      const newHandle = createSliderHandle(startHidden);
+      handleRef.current = newHandle;
       setHandle(newHandle);
+      return newHandle;
+    },
+    [createSliderHandle]
+  );
+
+  useEffect(() => {
+    const currentHandle = handleRef.current;
+    if (!currentHandle) return;
+
+    if (isOpen) {
+      currentHandle.show();
+    } else {
+      currentHandle.hide();
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    // Stable callback/value wrappers are part of this hook's contract.
+    // When any iframe-defining input changes, recreate the underlying embed.
+    const nextHandle = setSliderHandle(
+      handleRef.current ? !handleRef.current.isOpen : initialHiddenRef.current
+    );
 
     return () => {
-      newHandle.update({ onClose: undefined });
-      newHandle.unmount();
-      handleRef.current = null;
-      setHandle(null);
+      if (handleRef.current === nextHandle) {
+        destroySlider(nextHandle);
+      }
     };
-  }, [
-    researchId,
-    stableParams,
-    stableBrand,
-    host,
-    theme,
-    stableOnReady,
-    stableOnSubmit,
-    stableOnNavigate,
-    stableOnClose,
-    stableOnError,
-  ]);
+  }, [destroySlider, setSliderHandle]);
+
+  const ensureSlider = useCallback(() => {
+    if (handleRef.current) return handleRef.current;
+
+    return setSliderHandle(false);
+  }, [setSliderHandle]);
 
   const openFn = useCallback(() => {
     if (isControlled) {
       onOpenChange?.(true);
     } else {
-      handleRef.current?.show();
-      setHandle(handleRef.current);
+      ensureSlider().show();
       setInternalOpen(true);
     }
-  }, [isControlled, onOpenChange]);
+  }, [ensureSlider, isControlled, onOpenChange]);
 
   const closeFn = useCallback(() => {
     if (isControlled) {
       onOpenChange?.(false);
     } else {
       handleRef.current?.hide();
+      setInternalOpen(false);
     }
   }, [isControlled, onOpenChange]);
 
@@ -160,18 +201,6 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
       openFn();
     }
   }, [isOpen, openFn, closeFn]);
-
-  // Controlled mode: show/hide based on controlled state
-  useEffect(() => {
-    if (!isControlled) return;
-
-    if (controlledOpen && handleRef.current && !handleRef.current.isOpen) {
-      handleRef.current.show();
-      setHandle(handleRef.current);
-    } else if (!controlledOpen && handleRef.current?.isOpen) {
-      handleRef.current.hide();
-    }
-  }, [controlledOpen, isControlled]);
 
   return {
     open: openFn,

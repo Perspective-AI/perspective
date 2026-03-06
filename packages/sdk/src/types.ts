@@ -141,6 +141,8 @@ export interface EmbedHandle {
 export interface ToggleableHandle extends EmbedHandle {
   show: () => void;
   hide: () => void;
+  canReuse: (config: EmbedConfig) => boolean;
+  replayOpenCallbacks: () => void;
   readonly isOpen: boolean;
 }
 

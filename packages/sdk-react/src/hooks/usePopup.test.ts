@@ -2,44 +2,68 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { usePopup } from "./usePopup";
 
-const mockUnmount = vi.fn();
-const mockUpdate = vi.fn();
 const mockDestroy = vi.fn();
+const mockUpdate = vi.fn();
 const mockShow = vi.fn();
 const mockHide = vi.fn();
+let invokeSdkClose: (() => void) | null = null;
 
 vi.mock("@perspective-ai/sdk", () => ({
   openPopup: vi.fn(
-    (config: { onClose?: () => void; _startHidden?: boolean }) => {
+    (config: {
+      researchId?: string;
+      onClose?: () => void;
+      host?: string;
+      _startHidden?: boolean;
+    }) => {
       const currentConfig = { ...config };
       let open = !config._startHidden;
-      mockUnmount.mockImplementation(() => {
+
+      const show = vi.fn(() => {
+        if (open) return;
+        mockShow();
+        open = true;
+      });
+
+      const hide = vi.fn(() => {
         if (!open) return;
+        mockHide();
         open = false;
         currentConfig.onClose?.();
       });
-      mockUpdate.mockImplementation(
-        (options: Partial<{ onClose?: () => void }>) => {
+
+      const destroy = vi.fn(() => {
+        mockDestroy();
+        const wasOpen = open;
+        open = false;
+        if (wasOpen) {
+          currentConfig.onClose?.();
+        }
+      });
+
+      const update = vi.fn(
+        (options: Partial<{ onClose?: () => void; host?: string }>) => {
+          mockUpdate(options);
           Object.assign(currentConfig, options);
         }
       );
-      mockShow.mockImplementation(() => {
-        open = true;
-      });
-      mockHide.mockImplementation(() => {
+
+      invokeSdkClose = () => {
+        if (!open) return;
         open = false;
         currentConfig.onClose?.();
-      });
+      };
+
       return {
-        unmount: mockUnmount,
-        update: mockUpdate,
-        destroy: mockDestroy,
-        show: mockShow,
-        hide: mockHide,
+        unmount: destroy,
+        update,
+        destroy,
+        show,
+        hide,
         get isOpen() {
           return open;
         },
-        researchId: "test-research-id",
+        researchId: config.researchId ?? "test-research-id",
         type: "popup",
         iframe: null,
         container: null,
@@ -49,18 +73,20 @@ vi.mock("@perspective-ai/sdk", () => ({
 }));
 
 import { openPopup } from "@perspective-ai/sdk";
+
 const mockOpenPopup = vi.mocked(openPopup);
 
 describe("usePopup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    invokeSdkClose = null;
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it("returns open, close, toggle functions and isOpen state", () => {
+  it("returns open, close, toggle functions and initial state", () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
@@ -69,10 +95,10 @@ describe("usePopup", () => {
     expect(result.current.close).toBeInstanceOf(Function);
     expect(result.current.toggle).toBeInstanceOf(Function);
     expect(result.current.isOpen).toBe(false);
-    expect(result.current.handle).toBeNull();
+    expect(result.current.handle).not.toBeNull();
   });
 
-  it("eagerly creates popup hidden on mount", () => {
+  it("preloads a hidden popup on mount", () => {
     renderHook(() => usePopup({ researchId: "test-research-id" }));
 
     expect(mockOpenPopup).toHaveBeenCalledTimes(1);
@@ -84,7 +110,7 @@ describe("usePopup", () => {
     );
   });
 
-  it("shows hidden popup when open() is called", () => {
+  it("opens the preloaded popup without recreating it", () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
@@ -93,12 +119,13 @@ describe("usePopup", () => {
       result.current.open();
     });
 
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
     expect(mockShow).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(true);
     expect(result.current.handle).not.toBeNull();
   });
 
-  it("calls hide and sets isOpen to false when close() is called", () => {
+  it("hides the popup on close but keeps the handle for instant reopen", () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
@@ -106,53 +133,45 @@ describe("usePopup", () => {
     act(() => {
       result.current.open();
     });
-
-    expect(result.current.isOpen).toBe(true);
 
     act(() => {
       result.current.close();
     });
 
     expect(mockHide).toHaveBeenCalledTimes(1);
+    expect(mockDestroy).not.toHaveBeenCalled();
     expect(result.current.isOpen).toBe(false);
-    expect(result.current.handle).toBeNull();
+    expect(result.current.handle).not.toBeNull();
   });
 
-  it("reuses hidden popup on re-open via show()", () => {
+  it("reuses the same popup on reopen after close", () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
 
     act(() => {
       result.current.open();
-    });
-
-    act(() => {
       result.current.close();
-    });
-
-    act(() => {
       result.current.open();
     });
 
-    // Only created once on mount, subsequent opens just show()
     expect(mockOpenPopup).toHaveBeenCalledTimes(1);
-    expect(mockShow).toHaveBeenCalledTimes(2); // mount creates hidden, first open shows, re-open shows again
+    expect(mockShow).toHaveBeenCalledTimes(2);
+    expect(mockHide).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(true);
   });
 
-  it("toggles open state", () => {
+  it("toggles open state using the same underlying popup", () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
-
-    expect(result.current.isOpen).toBe(false);
 
     act(() => {
       result.current.toggle();
     });
 
     expect(result.current.isOpen).toBe(true);
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
     expect(mockShow).toHaveBeenCalledTimes(1);
 
     act(() => {
@@ -161,9 +180,10 @@ describe("usePopup", () => {
 
     expect(result.current.isOpen).toBe(false);
     expect(mockHide).toHaveBeenCalledTimes(1);
+    expect(mockDestroy).not.toHaveBeenCalled();
   });
 
-  it("passes config to openPopup", () => {
+  it("passes config to openPopup during preload creation", () => {
     const onReady = vi.fn();
     const onSubmit = vi.fn();
 
@@ -184,9 +204,10 @@ describe("usePopup", () => {
     expect(config.params).toEqual({ source: "test" });
     expect(config.theme).toBe("dark");
     expect(config.host).toBe("https://custom.example.com");
+    expect(config._startHidden).toBe(true);
   });
 
-  it("supports controlled mode with open prop", () => {
+  it("supports controlled mode with open prop using show and hide", () => {
     const onOpenChange = vi.fn();
 
     const { rerender } = renderHook(
@@ -199,13 +220,15 @@ describe("usePopup", () => {
       { initialProps: { open: false } }
     );
 
-    rerender({ open: true });
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
 
+    rerender({ open: true });
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
     expect(mockShow).toHaveBeenCalledTimes(1);
 
     rerender({ open: false });
-
     expect(mockHide).toHaveBeenCalledTimes(1);
+    expect(mockDestroy).not.toHaveBeenCalled();
   });
 
   it("calls onOpenChange in controlled mode when open() is called", () => {
@@ -226,49 +249,87 @@ describe("usePopup", () => {
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
-  it("calls unmount on component unmount", () => {
+  it("destroys the popup on component unmount", () => {
     const { unmount } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
 
     unmount();
 
-    expect(mockUnmount).toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith({ onClose: undefined });
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 
-  it("makes handle reactive - handle is available after open", () => {
+  it("keeps the handle available after mount", () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
 
-    expect(result.current.handle).toBeNull();
+    expect(result.current.handle).not.toBeNull();
+  });
+
+  it("updates state when the SDK triggers onClose without destroying the popup", () => {
+    const onClose = vi.fn();
+    const { result } = renderHook(() =>
+      usePopup({
+        researchId: "test-research-id",
+        onClose,
+      })
+    );
 
     act(() => {
       result.current.open();
     });
 
+    act(() => {
+      invokeSdkClose?.();
+    });
+
+    expect(mockDestroy).not.toHaveBeenCalled();
+    expect(result.current.isOpen).toBe(false);
     expect(result.current.handle).not.toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("sets handle in controlled mode when open becomes true", () => {
-    const onOpenChange = vi.fn();
-
-    const { result, rerender } = renderHook(
-      ({ open }) =>
+  it("recreates the popup when researchId changes", () => {
+    const { rerender } = renderHook(
+      ({ researchId }) =>
         usePopup({
-          researchId: "test-research-id",
-          open,
-          onOpenChange,
+          researchId,
         }),
-      { initialProps: { open: false } }
+      { initialProps: { researchId: "research-1" } }
     );
 
-    expect(result.current.handle).toBeNull();
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
 
-    rerender({ open: true });
+    rerender({ researchId: "research-2" });
 
-    expect(mockShow).toHaveBeenCalledTimes(1);
-    expect(result.current.handle).not.toBeNull();
+    expect(mockOpenPopup).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("recreates a hidden popup when iframe-defining config changes", () => {
+    const onClose = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ params }) =>
+        usePopup({
+          researchId: "test-research-id",
+          params,
+          onClose,
+        }),
+      { initialProps: { params: { source: "first" } } }
+    );
+
+    expect(result.current.isOpen).toBe(false);
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
+
+    rerender({ params: { source: "second" } });
+
+    expect(mockOpenPopup).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(result.current.isOpen).toBe(false);
   });
 
   it("keeps controlled popup open when recreated while open", () => {
@@ -285,14 +346,12 @@ describe("usePopup", () => {
     );
 
     expect(mockOpenPopup).toHaveBeenCalledTimes(1);
-    expect(mockShow).toHaveBeenCalledTimes(1);
-    expect(result.current.handle).not.toBeNull();
     expect(result.current.isOpen).toBe(true);
 
     rerender({ researchId: "research-2" });
 
     expect(mockOpenPopup).toHaveBeenCalledTimes(2);
-    expect(mockShow).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
     expect(result.current.handle).not.toBeNull();
     expect(result.current.isOpen).toBe(true);
     expect(onOpenChange).not.toHaveBeenCalled();
@@ -316,29 +375,14 @@ describe("usePopup", () => {
     });
 
     expect(mockOpenPopup).toHaveBeenCalledTimes(1);
-    expect(mockShow).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(true);
 
     rerender({ params: { source: "second" } });
 
     expect(mockOpenPopup).toHaveBeenCalledTimes(2);
-    expect(mockShow).toHaveBeenCalledTimes(2);
+    expect(mockDestroy).toHaveBeenCalledTimes(1);
     expect(result.current.handle).not.toBeNull();
     expect(result.current.isOpen).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
-  });
-
-  it("recreates popup when researchId changes", () => {
-    const { rerender } = renderHook(
-      ({ researchId }) => usePopup({ researchId }),
-      { initialProps: { researchId: "research-1" } }
-    );
-
-    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
-
-    rerender({ researchId: "research-2" });
-
-    expect(mockUnmount).toHaveBeenCalledTimes(1);
-    expect(mockOpenPopup).toHaveBeenCalledTimes(2);
   });
 });

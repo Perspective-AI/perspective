@@ -15,6 +15,7 @@ import {
 import { createLoadingIndicator } from "./loading";
 import { removeTimer } from "./timing";
 import { claimPreloadedIframe } from "./preload";
+import { getReusableEmbedSignature } from "./reuse";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { cn, getThemeClass } from "./utils";
 
@@ -25,6 +26,8 @@ function createNoOpHandle(researchId: string): ToggleableHandle {
     destroy: () => {},
     show: () => {},
     hide: () => {},
+    canReuse: () => false,
+    replayOpenCallbacks: () => {},
     isOpen: false,
     researchId,
     type: "popup",
@@ -109,7 +112,10 @@ export function openPopup(
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
+  const reuseSignature = getReusableEmbedSignature(config);
   let isOpen = !_startHidden;
+  let isReady = Boolean(claimed?.wasReady);
+  let lastAuthToken = getCachedAuthToken(researchId);
   let messageCleanup: (() => void) | null = null;
 
   if (_startHidden) {
@@ -150,16 +156,29 @@ export function openPopup(
     if (wasOpen) currentConfig.onClose?.();
   };
 
+  const replayOpenCallbacks = () => {
+    if (!isReady) return;
+
+    currentConfig.onReady?.();
+    const cachedToken = lastAuthToken ?? getCachedAuthToken(researchId);
+    if (cachedToken) {
+      currentConfig.onAuth?.({ researchId, token: cachedToken });
+    }
+  };
+
   // Set up message listener with loading state handling
   messageCleanup = setupMessageListener(
     researchId,
     {
       get onReady() {
         return () => {
+          isReady = true;
           if (loading) {
             loading.style.opacity = "0";
             iframe.style.opacity = "1";
-            setTimeout(() => loading!.remove(), 300);
+            const el = loading;
+            setTimeout(() => el.remove(), 300);
+            loading = null;
           }
           currentConfig.onReady?.();
         };
@@ -173,6 +192,12 @@ export function openPopup(
       get onClose() {
         return hide;
       },
+      get onAuth() {
+        return ({ token }: { researchId: string; token: string }) => {
+          lastAuthToken = token;
+          currentConfig.onAuth?.({ researchId, token });
+        };
+      },
       get onError() {
         return isOpen ? currentConfig.onError : undefined;
       },
@@ -184,11 +209,7 @@ export function openPopup(
 
   // Preloaded iframe already fired perspective:ready — replay consumer callbacks
   if (claimed?.wasReady) {
-    currentConfig.onReady?.();
-    const cachedToken = getCachedAuthToken(researchId);
-    if (cachedToken) {
-      currentConfig.onAuth?.({ researchId, token: cachedToken });
-    }
+    replayOpenCallbacks();
   }
 
   // Close handlers
@@ -209,6 +230,9 @@ export function openPopup(
     destroy: fullDestroy,
     show,
     hide,
+    canReuse: (nextConfig: EmbedConfig) =>
+      getReusableEmbedSignature(nextConfig) === reuseSignature,
+    replayOpenCallbacks,
     get isOpen() {
       return isOpen;
     },

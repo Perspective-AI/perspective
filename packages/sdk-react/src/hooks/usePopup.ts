@@ -27,7 +27,7 @@ export interface UsePopupReturn {
   toggle: () => void;
   /** Whether the popup is currently open */
   isOpen: boolean;
-  /** The underlying SDK handle (null when closed) */
+  /** The underlying SDK handle (created on mount; may be null during initial render) */
   handle: EmbedHandle | null;
 }
 
@@ -72,8 +72,7 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
-  const desiredOpenRef = useRef(isOpen);
-  desiredOpenRef.current = isOpen;
+  const initialHiddenRef = useRef(!isOpen);
 
   const stableParams = useStableValue(params);
   const stableBrand = useStableValue(brand);
@@ -94,71 +93,113 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     [isControlled, onOpenChange]
   );
 
-  // Called by SDK's hide() via onClose — popup is hidden, not destroyed
+  const destroyPopup = useCallback(
+    (targetHandle: PopupHandle | null = handleRef.current) => {
+      if (!targetHandle) return;
+
+      targetHandle.update({ onClose: undefined });
+      targetHandle.destroy();
+
+      if (handleRef.current === targetHandle) {
+        handleRef.current = null;
+        setHandle(null);
+      }
+    },
+    []
+  );
+
   const handleClose = useCallback(() => {
-    setHandle(null);
     setOpen(false);
     onClose?.();
   }, [setOpen, onClose]);
 
   const stableOnClose = useStableCallback(handleClose);
 
-  // Eagerly create popup (hidden) on mount so iframe loads in background.
-  // On open, just show() — instant, no iframe reparenting or reload.
-  useEffect(() => {
-    const newHandle = openPopup({
+  const createPopupHandle = useCallback(
+    (startHidden: boolean) =>
+      openPopup({
+        researchId,
+        params: stableParams,
+        brand: stableBrand,
+        theme,
+        host,
+        onReady: stableOnReady,
+        onSubmit: stableOnSubmit,
+        onNavigate: stableOnNavigate,
+        onClose: stableOnClose,
+        onError: stableOnError,
+        _startHidden: startHidden,
+      }),
+    [
       researchId,
-      params: stableParams,
-      brand: stableBrand,
+      stableParams,
+      stableBrand,
       theme,
       host,
-      onReady: stableOnReady,
-      onSubmit: stableOnSubmit,
-      onNavigate: stableOnNavigate,
-      onClose: stableOnClose,
-      onError: stableOnError,
-      _startHidden: true,
-    });
-    handleRef.current = newHandle;
-    if (desiredOpenRef.current) {
-      newHandle.show();
+      stableOnReady,
+      stableOnSubmit,
+      stableOnNavigate,
+      stableOnClose,
+      stableOnError,
+    ]
+  );
+
+  const setPopupHandle = useCallback(
+    (startHidden: boolean) => {
+      const newHandle = createPopupHandle(startHidden);
+      handleRef.current = newHandle;
       setHandle(newHandle);
+      return newHandle;
+    },
+    [createPopupHandle]
+  );
+
+  useEffect(() => {
+    const currentHandle = handleRef.current;
+    if (!currentHandle) return;
+
+    if (isOpen) {
+      currentHandle.show();
+    } else {
+      currentHandle.hide();
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    // Stable callback/value wrappers are part of this hook's contract.
+    // When any iframe-defining input changes, recreate the underlying embed.
+    const nextHandle = setPopupHandle(
+      handleRef.current ? !handleRef.current.isOpen : initialHiddenRef.current
+    );
 
     return () => {
-      newHandle.update({ onClose: undefined });
-      newHandle.unmount();
-      handleRef.current = null;
-      setHandle(null);
+      if (handleRef.current === nextHandle) {
+        destroyPopup(nextHandle);
+      }
     };
-  }, [
-    researchId,
-    stableParams,
-    stableBrand,
-    host,
-    theme,
-    stableOnReady,
-    stableOnSubmit,
-    stableOnNavigate,
-    stableOnClose,
-    stableOnError,
-  ]);
+  }, [destroyPopup, setPopupHandle]);
+
+  const ensurePopup = useCallback(() => {
+    if (handleRef.current) return handleRef.current;
+
+    return setPopupHandle(false);
+  }, [setPopupHandle]);
 
   const openFn = useCallback(() => {
     if (isControlled) {
       onOpenChange?.(true);
     } else {
-      handleRef.current?.show();
-      setHandle(handleRef.current);
+      ensurePopup().show();
       setInternalOpen(true);
     }
-  }, [isControlled, onOpenChange]);
+  }, [ensurePopup, isControlled, onOpenChange]);
 
   const closeFn = useCallback(() => {
     if (isControlled) {
       onOpenChange?.(false);
     } else {
       handleRef.current?.hide();
+      setInternalOpen(false);
     }
   }, [isControlled, onOpenChange]);
 
@@ -169,18 +210,6 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
       openFn();
     }
   }, [isOpen, openFn, closeFn]);
-
-  // Controlled mode: show/hide based on controlled state
-  useEffect(() => {
-    if (!isControlled) return;
-
-    if (controlledOpen && handleRef.current && !handleRef.current.isOpen) {
-      handleRef.current.show();
-      setHandle(handleRef.current);
-    } else if (!controlledOpen && handleRef.current?.isOpen) {
-      handleRef.current.hide();
-    }
-  }, [controlledOpen, isControlled]);
 
   return {
     open: openFn,

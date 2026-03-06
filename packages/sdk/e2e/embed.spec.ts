@@ -135,6 +135,9 @@ test.describe("Script Tag Auto-Init", () => {
     // Float bubble is appended to body, not inside the container
     const floatBubble = page.locator("body > .perspective-float-bubble");
     await expect(floatBubble).toBeVisible();
+    await expect(
+      page.locator("iframe[data-perspective-preload='pbbvdh26-float']")
+    ).toBeAttached();
   });
 });
 
@@ -764,6 +767,48 @@ test.describe("Preload & Reuse Lifecycle", () => {
     await expect(page.locator(".perspective-loading")).not.toBeAttached();
   });
 
+  test("autoInit preloads hidden iframe for button slider trigger when no popup exists", async ({
+    page,
+  }) => {
+    await page.goto("/preload-slider.html");
+
+    await page.waitForTimeout(500);
+
+    const preloadIframe = page.locator(
+      "iframe[data-perspective-preload='test-slider-only']"
+    );
+    await expect(preloadIframe).toBeAttached();
+
+    const opacity = await preloadIframe.evaluate(
+      (el) => (el as HTMLElement).style.opacity
+    );
+    expect(opacity).toBe("0");
+  });
+
+  test("preloaded slider opens without loading indicator and fires onReady", async ({
+    page,
+  }) => {
+    await page.goto("/preload-slider.html");
+
+    await page.waitForTimeout(500);
+
+    await expect(
+      page.locator("iframe[data-perspective-preload='test-slider-only']")
+    ).toBeAttached();
+
+    await page.click("#init-slider-btn");
+
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+    await expect(
+      page.locator("iframe[data-perspective-preload]")
+    ).not.toBeAttached();
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
+
+    await page.waitForTimeout(100);
+    const events = await page.evaluate(() => (window as any).__testEvents);
+    expect(events.some((e: any) => e.name === "slider:ready")).toBe(true);
+  });
+
   test("close hides slider, reopen reuses same iframe", async ({ page }) => {
     await page.goto("/preload-reuse.html");
 
@@ -913,6 +958,9 @@ test.describe("Float Bubble", () => {
     // Bubble should be visible
     const bubble = page.locator("body > .perspective-float-bubble");
     await expect(bubble).toBeVisible();
+    await expect(
+      page.locator("iframe[data-perspective-preload='pbbvdh26']")
+    ).toBeAttached();
 
     // Initially no float window
     await expect(page.locator(".perspective-float-window")).not.toBeVisible();
@@ -922,6 +970,10 @@ test.describe("Float Bubble", () => {
 
     // Float window should appear
     await expect(page.locator(".perspective-float-window")).toBeVisible();
+    await expect(
+      page.locator("iframe[data-perspective-preload]")
+    ).not.toBeAttached();
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
 
     // Click bubble again to close
     await bubble.click();

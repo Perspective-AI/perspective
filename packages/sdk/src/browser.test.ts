@@ -300,6 +300,67 @@ describe("browser entry", () => {
       handle.unmount();
     });
 
+    it("replays ready callbacks when reusing a ready hidden popup", () => {
+      const onReady = vi.fn();
+
+      const handle = init({ researchId: "test", type: "popup", host });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "perspective:ready",
+            researchId: "test",
+          },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      expect(isToggleable(handle)).toBe(true);
+      if (isToggleable(handle)) {
+        handle.hide();
+      }
+
+      const reopened = init({
+        researchId: "test",
+        type: "popup",
+        host,
+        onReady,
+      });
+
+      expect(reopened).toBe(handle);
+      expect(onReady).toHaveBeenCalledTimes(1);
+
+      reopened.unmount();
+    });
+
+    it("does not reuse hidden popup when iframe-defining config changes", () => {
+      const handle1 = init({
+        researchId: "test",
+        type: "popup",
+        host,
+        params: { step: "1" },
+      });
+      const iframe1 = handle1.iframe;
+
+      expect(isToggleable(handle1)).toBe(true);
+      if (isToggleable(handle1)) {
+        handle1.hide();
+      }
+
+      const handle2 = init({
+        researchId: "test",
+        type: "popup",
+        host,
+        params: { step: "2" },
+      });
+
+      expect(handle2).not.toBe(handle1);
+      expect(handle2.iframe).not.toBe(iframe1);
+
+      handle2.unmount();
+    });
+
     it("destroy() fully removes and allows fresh creation", () => {
       const handle1 = init({ researchId: "test", type: "popup", host });
       const iframe1 = handle1.iframe;
@@ -536,6 +597,24 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });
 
+    it("preloads the first slider button when no popup button exists", () => {
+      vi.useFakeTimers();
+
+      document.body.innerHTML = `
+        <button data-perspective-slider="test-slider">Open</button>
+      `;
+
+      autoInit();
+      vi.advanceTimersByTime(200);
+
+      const preloadIframe = document.querySelector(
+        "iframe[data-perspective-preload='test-slider']"
+      ) as HTMLIFrameElement | null;
+
+      expect(preloadIframe).toBeTruthy();
+      expect(preloadIframe?.style.opacity).toBe("0");
+    });
+
     it("initializes float from data-perspective-float", () => {
       document.body.innerHTML = `
         <div data-perspective-float="test-float"></div>
@@ -544,6 +623,9 @@ describe("browser entry", () => {
       autoInit();
 
       expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+      expect(
+        document.querySelector("iframe[data-perspective-preload='test-float']")
+      ).toBeTruthy();
     });
 
     it("initializes float from legacy data-perspective-chat", () => {
