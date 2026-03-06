@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { openSlider } from "./slider";
+import { preloadIframe, destroyPreloaded } from "./preload";
 import * as config from "./config";
 
 describe("openSlider", () => {
@@ -76,9 +77,9 @@ describe("openSlider", () => {
     expect(document.querySelector(".perspective-slider")).toBeFalsy();
   });
 
-  it("closes on close button click", () => {
+  it("close button hides slider and fires onClose", () => {
     const onClose = vi.fn();
-    openSlider({
+    const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
@@ -90,13 +91,17 @@ describe("openSlider", () => {
 
     closeBtn.click();
 
-    expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    const slider = document.querySelector(".perspective-slider") as HTMLElement;
+    expect(slider.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
+    expect(handle.isOpen).toBe(false);
+
+    handle.destroy();
   });
 
-  it("closes on backdrop click", () => {
+  it("backdrop click hides slider", () => {
     const onClose = vi.fn();
-    openSlider({
+    const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
@@ -108,13 +113,15 @@ describe("openSlider", () => {
 
     backdrop.click();
 
-    expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    expect(backdrop.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
+
+    handle.destroy();
   });
 
-  it("closes on Escape key", () => {
+  it("ESC key hides slider", () => {
     const onClose = vi.fn();
-    openSlider({
+    const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
@@ -123,22 +130,43 @@ describe("openSlider", () => {
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
-    expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    const slider = document.querySelector(".perspective-slider") as HTMLElement;
+    expect(slider.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
+
+    handle.destroy();
   });
 
-  it("only closes once on multiple triggers", () => {
+  it("hide is idempotent", () => {
     const onClose = vi.fn();
     const handle = openSlider({
       researchId: "test-research-id",
       onClose,
     });
 
-    handle.unmount();
-    handle.unmount();
-    handle.unmount();
+    handle.hide();
+    handle.hide();
+    handle.hide();
 
     expect(onClose).toHaveBeenCalledTimes(1);
+
+    handle.destroy();
+  });
+
+  it("show() restores hidden slider", () => {
+    const handle = openSlider({
+      researchId: "test-research-id",
+    });
+
+    handle.hide();
+    expect(handle.isOpen).toBe(false);
+
+    handle.show();
+    expect(handle.isOpen).toBe(true);
+    const slider = document.querySelector(".perspective-slider") as HTMLElement;
+    expect(slider.style.display).toBe("");
+
+    handle.destroy();
   });
 
   it("applies theme class", () => {
@@ -253,6 +281,7 @@ describe("openSlider", () => {
 
       const iframe = handle.iframe!;
 
+      // fullDestroy fires onClose once (was open), then tears down listeners
       handle.unmount();
       expect(onClose).toHaveBeenCalledTimes(1);
 
@@ -272,6 +301,221 @@ describe("openSlider", () => {
       handle.unmount();
 
       expect(() => handle.update({ onSubmit: vi.fn() })).not.toThrow();
+    });
+  });
+
+  describe("preloaded iframe callback replay", () => {
+    const host = "https://getperspective.ai";
+    const researchId = "test-research-id";
+
+    afterEach(() => {
+      destroyPreloaded();
+    });
+
+    const simulateReady = (iframe: HTMLIFrameElement) => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:ready", researchId },
+          origin: host,
+          source: iframe.contentWindow,
+        })
+      );
+    };
+
+    it("fires onReady immediately when claiming a ready preloaded iframe", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "slider", host);
+
+      const preloadedIframe = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+
+      simulateReady(preloadedIframe);
+
+      const handle = openSlider({ researchId, host, onReady });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+      expect(handle.iframe).toBe(preloadedIframe);
+
+      handle.destroy();
+    });
+
+    it("does not fire onReady immediately if preloaded iframe was not ready", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "slider", host);
+
+      const handle = openSlider({ researchId, host, onReady });
+
+      expect(onReady).not.toHaveBeenCalled();
+
+      simulateReady(handle.iframe!);
+      expect(onReady).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+    });
+
+    it("does not show loading indicator for ready preloaded iframe", () => {
+      preloadIframe(researchId, "slider", host);
+
+      const preloadedIframe = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+      simulateReady(preloadedIframe);
+
+      const handle = openSlider({ researchId, host });
+
+      expect(document.querySelector(".perspective-loading")).toBeFalsy();
+
+      handle.destroy();
+    });
+
+    it("shows loading indicator for claimed-but-not-ready preloaded iframe", () => {
+      preloadIframe(researchId, "slider", host);
+
+      // Don't simulate ready — claimed before ready
+
+      const handle = openSlider({ researchId, host });
+
+      // Loading indicator should be present (iframe not ready yet)
+      expect(document.querySelector(".perspective-loading")).toBeTruthy();
+
+      handle.destroy();
+    });
+  });
+
+  describe("_startHidden", () => {
+    it("creates slider hidden with display:none", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      const slider = document.querySelector(
+        ".perspective-slider"
+      ) as HTMLElement;
+      const backdrop = document.querySelector(
+        ".perspective-slider-backdrop"
+      ) as HTMLElement;
+      expect(slider.style.display).toBe("none");
+      expect(backdrop.style.display).toBe("none");
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("show() makes hidden slider visible", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      handle.show();
+
+      const slider = document.querySelector(
+        ".perspective-slider"
+      ) as HTMLElement;
+      const backdrop = document.querySelector(
+        ".perspective-slider-backdrop"
+      ) as HTMLElement;
+      expect(slider.style.display).toBe("");
+      expect(backdrop.style.display).toBe("");
+      expect(handle.isOpen).toBe(true);
+
+      handle.destroy();
+    });
+
+    it("does not register ESC listener when hidden", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      handle.show();
+      expect(handle.isOpen).toBe(true);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("gates callbacks while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const onSubmit = vi.fn();
+
+      const handle = openSlider({
+        researchId,
+        host,
+        onSubmit,
+        _startHidden: true,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      handle.show();
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+    });
+
+    it("does not navigate parent page while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const originalHref = window.location.href;
+      const mockLocation = { href: originalHref };
+
+      Object.defineProperty(window, "location", {
+        value: mockLocation,
+        writable: true,
+        configurable: true,
+      });
+
+      const handle = openSlider({
+        researchId,
+        host,
+        _startHidden: true,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "perspective:redirect",
+            researchId,
+            url: "https://example.com/hidden-slider",
+          },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      expect(mockLocation.href).toBe(originalHref);
+
+      handle.destroy();
+
+      Object.defineProperty(window, "location", {
+        value: { href: originalHref },
+        writable: true,
+        configurable: true,
+      });
     });
   });
 });

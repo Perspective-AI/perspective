@@ -15,7 +15,10 @@ import {
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  getCachedAuthToken,
 } from "./iframe";
+import { claimPreloadedIframe, destroyPreloadedByType } from "./preload";
+import { removeTimer } from "./timing";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
@@ -27,6 +30,7 @@ const SOUND_DELAY_MS = 2000;
 const TEASER_DELAY_MS = 3000;
 const TYPEWRITER_SPEED_MS = 40;
 const DEFAULT_WELCOME_MESSAGE = "Have a question? I'm here to help.";
+const noopNavigate = () => {};
 
 function getChannelMode(
   channel?: AIAssistantChannel | AIAssistantChannel[] | null
@@ -155,10 +159,12 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   let cleanup: (() => void) | null = null;
   let unregisterIframe: (() => void) | null = null;
   let isOpen = false;
+  let closeBtn: HTMLButtonElement | null = null;
   let teaser: HTMLElement | null = null;
   let teaserTypewriter: number | null = null;
   let notificationDot: HTMLElement | null = null;
   let audioCtx: AudioContext | null = null;
+  let lastAuthToken = getCachedAuthToken(researchId);
   let welcomeSequenceStarted = false;
   let welcomeDismissed = false;
   let welcomeTimers: number[] = [];
@@ -291,73 +297,93 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     welcomeTimers.push(soundTimer, teaserTimer);
   };
 
-  const openFloat = () => {
-    if (isOpen) return;
-    isOpen = true;
-    clearWelcomeTimers();
-    removeTeaser();
+  const mountFloatWindow = () => {
+    if (floatWindow && iframe) return;
 
-    // Create float window
     floatWindow = document.createElement("div");
     floatWindow.className = cn(
       "perspective-float-window perspective-embed-root",
       getThemeClass(currentConfig.theme)
     );
+    floatWindow.style.display = "none";
 
-    // Create close button
-    const closeBtn = document.createElement("button");
+    closeBtn = document.createElement("button");
     closeBtn.className = "perspective-close";
     closeBtn.innerHTML = CLOSE_ICON;
     closeBtn.setAttribute("aria-label", "Close chat");
     closeBtn.addEventListener("click", closeFloat);
 
-    // Create loading indicator with theme and brand colors
-    const loading = createLoadingIndicator({
-      theme: currentConfig.theme,
-      brand: currentConfig.brand,
-    });
-    loading.style.borderRadius = "16px";
+    const claimed = claimPreloadedIframe(researchId, "float");
+    iframe =
+      claimed?.iframe ??
+      createIframe(
+        researchId,
+        "float",
+        host,
+        currentConfig.params,
+        currentConfig.brand,
+        currentConfig.theme
+      );
 
-    // Create iframe (hidden initially)
-    iframe = createIframe(
-      researchId,
-      "float",
-      host,
-      currentConfig.params,
-      currentConfig.brand,
-      currentConfig.theme
-    );
-    iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.3s ease";
+    let loading: HTMLElement | null = null;
+    if (!claimed?.wasReady) {
+      loading = createLoadingIndicator({
+        theme: currentConfig.theme,
+        brand: currentConfig.brand,
+      });
+      loading.style.borderRadius = "16px";
+    }
+
+    if (claimed) {
+      iframe.style.cssText = "border:none;";
+    }
+
+    if (claimed?.wasReady) {
+      iframe.style.opacity = "1";
+    } else {
+      iframe.style.opacity = "0";
+      iframe.style.transition = "opacity 0.3s ease";
+    }
 
     floatWindow.appendChild(closeBtn);
-    floatWindow.appendChild(loading);
+    if (loading) {
+      floatWindow.appendChild(loading);
+    }
     floatWindow.appendChild(iframe);
     document.body.appendChild(floatWindow);
 
-    // Set up message listener with loading state handling
     cleanup = setupMessageListener(
       researchId,
       {
         get onReady() {
           return () => {
-            loading.style.opacity = "0";
-            iframe!.style.opacity = "1";
-            setTimeout(() => loading.remove(), 300);
+            if (loading) {
+              loading.style.opacity = "0";
+              iframe!.style.opacity = "1";
+              const el = loading;
+              setTimeout(() => el.remove(), 300);
+              loading = null;
+            }
             currentConfig.onReady?.();
           };
         },
         get onSubmit() {
-          return currentConfig.onSubmit;
+          return isOpen ? currentConfig.onSubmit : undefined;
         },
         get onNavigate() {
-          return currentConfig.onNavigate;
+          return isOpen ? currentConfig.onNavigate : noopNavigate;
         },
         get onClose() {
           return closeFloat;
         },
+        get onAuth() {
+          return ({ token }: { researchId: string; token: string }) => {
+            lastAuthToken = token;
+            currentConfig.onAuth?.({ researchId, token });
+          };
+        },
         get onError() {
-          return currentConfig.onError;
+          return isOpen ? currentConfig.onError : undefined;
         },
       },
       iframe,
@@ -365,12 +391,25 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       { skipResize: true }
     );
 
-    // Register iframe for theme change notifications
-    if (iframe) {
-      unregisterIframe = registerIframe(iframe, host);
-    }
+    unregisterIframe = registerIframe(iframe, host);
 
-    // Update bubble icon to close
+    if (claimed?.wasReady) {
+      currentConfig.onReady?.();
+      const cachedToken = lastAuthToken ?? getCachedAuthToken(researchId);
+      if (cachedToken) {
+        currentConfig.onAuth?.({ researchId, token: cachedToken });
+      }
+    }
+  };
+
+  const openFloat = () => {
+    if (isOpen) return;
+    isOpen = true;
+    clearWelcomeTimers();
+    removeTeaser();
+
+    mountFloatWindow();
+    floatWindow!.style.display = "";
     setBubbleOpenState();
   };
 
@@ -378,36 +417,44 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     if (!isOpen) return;
     isOpen = false;
 
-    cleanup?.();
-    unregisterIframe?.();
-    floatWindow?.remove();
-    floatWindow = null;
-    iframe = null;
-    cleanup = null;
-    unregisterIframe = null;
-
-    // Restore bubble icon
+    floatWindow!.style.display = "none";
     setBubbleClosedState();
 
     currentConfig.onClose?.();
   };
-
   // Toggle on bubble click
-  bubble.addEventListener("click", () => {
+  const bubbleClickHandler = () => {
     if (isOpen) {
       closeFloat();
     } else {
       openFloat();
     }
-  });
+  };
+  bubble.addEventListener("click", bubbleClickHandler);
 
+  // Build the float shell eagerly so first open only flips visibility.
+  mountFloatWindow();
   const unmount = () => {
+    const wasOpen = isOpen;
+    isOpen = false;
     clearWelcomeTimers();
     removeTeaser();
-    closeFloat();
+    closeBtn?.removeEventListener("click", closeFloat);
+    bubble.removeEventListener("click", bubbleClickHandler);
+    cleanup?.();
+    unregisterIframe?.();
+    destroyPreloadedByType(researchId, "float");
+    floatWindow?.remove();
+    closeBtn = null;
+    floatWindow = null;
+    iframe = null;
+    cleanup = null;
+    unregisterIframe = null;
     bubble.remove();
     void audioCtx?.close();
     audioCtx = null;
+    removeTimer(researchId);
+    if (wasOpen) currentConfig.onClose?.();
   };
 
   maybeStartWelcomeSequence();

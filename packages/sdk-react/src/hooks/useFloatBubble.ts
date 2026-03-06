@@ -5,6 +5,7 @@ import {
   type FloatHandle,
 } from "@perspective-ai/sdk";
 import { useStableCallback } from "./useStableCallback";
+import { useStableValue } from "./useStableValue";
 
 /** Options for useFloatBubble hook */
 export interface UseFloatBubbleOptions extends Omit<EmbedConfig, "type"> {
@@ -69,6 +70,9 @@ export function useFloatBubble(
 
   const isControlled = controlledOpen !== undefined;
 
+  const stableParams = useStableValue(params);
+  const stableBrand = useStableValue(brand);
+
   const stableOnReady = useStableCallback(onReady);
   const stableOnSubmit = useStableCallback(onSubmit);
   const stableOnNavigate = useStableCallback(onNavigate);
@@ -87,8 +91,8 @@ export function useFloatBubble(
   useEffect(() => {
     const newHandle = createFloatBubble({
       researchId,
-      params,
-      brand,
+      params: stableParams,
+      brand: stableBrand,
       theme,
       host,
       onReady: stableOnReady,
@@ -110,8 +114,8 @@ export function useFloatBubble(
     };
   }, [
     researchId,
-    params,
-    brand,
+    stableParams,
+    stableBrand,
     theme,
     host,
     stableOnReady,

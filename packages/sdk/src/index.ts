@@ -39,7 +39,14 @@ export {
 } from "./triggers";
 
 // Configuration
-export { configure, getConfig } from "./config";
+export { configure, getConfig, getHost } from "./config";
+
+// Preloading
+export {
+  preloadIframe,
+  destroyPreloaded,
+  destroyPreloadedByType,
+} from "./preload";
 
 // Types
 export type {
