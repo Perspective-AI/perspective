@@ -134,9 +134,12 @@ test.describe("Script Tag Auto-Init", () => {
 
     // Float bubble is appended to body, not inside the container
     const floatBubble = page.locator("body > .perspective-float-bubble");
+    const floatWindow = page.locator("body > .perspective-float-window");
     await expect(floatBubble).toBeVisible();
+    await expect(floatWindow).toBeAttached();
+    await expect(floatWindow).not.toBeVisible();
     await expect(
-      page.locator("iframe[data-perspective-preload='pbbvdh26-float']")
+      floatWindow.locator("iframe[data-perspective]")
     ).toBeAttached();
   });
 });
@@ -957,28 +960,27 @@ test.describe("Float Bubble", () => {
 
     // Bubble should be visible
     const bubble = page.locator("body > .perspective-float-bubble");
+    const floatWindow = page.locator("body > .perspective-float-window");
     await expect(bubble).toBeVisible();
-    await expect(
-      page.locator("iframe[data-perspective-preload='pbbvdh26']")
-    ).toBeAttached();
+    await expect(floatWindow).toBeAttached();
 
-    // Initially no float window
-    await expect(page.locator(".perspective-float-window")).not.toBeVisible();
+    // Float window shell is already mounted, but hidden.
+    await expect(floatWindow).not.toBeVisible();
+    await expect(
+      floatWindow.locator("iframe[data-perspective]")
+    ).toBeAttached();
 
     // Click bubble to open
     await bubble.click();
 
     // Float window should appear
-    await expect(page.locator(".perspective-float-window")).toBeVisible();
-    await expect(
-      page.locator("iframe[data-perspective-preload]")
-    ).not.toBeAttached();
+    await expect(floatWindow).toBeVisible();
     await expect(page.locator(".perspective-loading")).not.toBeAttached();
 
     // Click bubble again to close
     await bubble.click();
 
     // Float window should be closed
-    await expect(page.locator(".perspective-float-window")).not.toBeVisible();
+    await expect(floatWindow).not.toBeVisible();
   });
 });

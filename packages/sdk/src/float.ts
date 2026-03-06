@@ -17,11 +17,7 @@ import {
   ensureGlobalListeners,
   getCachedAuthToken,
 } from "./iframe";
-import {
-  claimPreloadedIframe,
-  ensurePreloadedIframe,
-  destroyPreloadedByType,
-} from "./preload";
+import { claimPreloadedIframe, destroyPreloadedByType } from "./preload";
 import { removeTimer } from "./timing";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
@@ -175,15 +171,6 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
-
-  ensurePreloadedIframe(
-    researchId,
-    "float",
-    host,
-    currentConfig.params,
-    currentConfig.brand,
-    currentConfig.theme
-  );
 
   const setBubbleClosedState = () => {
     bubble.innerHTML = resolveBubbleIcon(currentConfig);
@@ -445,6 +432,8 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   };
   bubble.addEventListener("click", bubbleClickHandler);
 
+  // Build the float shell eagerly so first open only flips visibility.
+  mountFloatWindow();
   const unmount = () => {
     const wasOpen = isOpen;
     isOpen = false;

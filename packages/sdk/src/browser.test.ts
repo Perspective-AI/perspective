@@ -623,8 +623,13 @@ describe("browser entry", () => {
       autoInit();
 
       expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+      const floatWindow = document.querySelector(
+        ".perspective-float-window"
+      ) as HTMLElement | null;
+      expect(floatWindow).toBeTruthy();
+      expect(floatWindow?.style.display).toBe("none");
       expect(
-        document.querySelector("iframe[data-perspective-preload='test-float']")
+        floatWindow?.querySelector("iframe[data-perspective]")
       ).toBeTruthy();
     });
 
