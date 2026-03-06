@@ -384,4 +384,138 @@ describe("openSlider", () => {
       handle.destroy();
     });
   });
+
+  describe("_startHidden", () => {
+    it("creates slider hidden with display:none", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      const slider = document.querySelector(
+        ".perspective-slider"
+      ) as HTMLElement;
+      const backdrop = document.querySelector(
+        ".perspective-slider-backdrop"
+      ) as HTMLElement;
+      expect(slider.style.display).toBe("none");
+      expect(backdrop.style.display).toBe("none");
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("show() makes hidden slider visible", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      handle.show();
+
+      const slider = document.querySelector(
+        ".perspective-slider"
+      ) as HTMLElement;
+      const backdrop = document.querySelector(
+        ".perspective-slider-backdrop"
+      ) as HTMLElement;
+      expect(slider.style.display).toBe("");
+      expect(backdrop.style.display).toBe("");
+      expect(handle.isOpen).toBe(true);
+
+      handle.destroy();
+    });
+
+    it("does not register ESC listener when hidden", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      handle.show();
+      expect(handle.isOpen).toBe(true);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("gates callbacks while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const onSubmit = vi.fn();
+
+      const handle = openSlider({
+        researchId,
+        host,
+        onSubmit,
+        _startHidden: true,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      handle.show();
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+    });
+
+    it("does not navigate parent page while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const originalHref = window.location.href;
+      const mockLocation = { href: originalHref };
+
+      Object.defineProperty(window, "location", {
+        value: mockLocation,
+        writable: true,
+        configurable: true,
+      });
+
+      const handle = openSlider({
+        researchId,
+        host,
+        _startHidden: true,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "perspective:redirect",
+            researchId,
+            url: "https://example.com/hidden-slider",
+          },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      expect(mockLocation.href).toBe(originalHref);
+
+      handle.destroy();
+
+      Object.defineProperty(window, "location", {
+        value: { href: originalHref },
+        writable: true,
+        configurable: true,
+      });
+    });
+  });
 });

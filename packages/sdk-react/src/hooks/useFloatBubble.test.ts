@@ -25,11 +25,6 @@ const stableMockHandle = {
 
 vi.mock("@perspective-ai/sdk", () => ({
   createFloatBubble: vi.fn(() => stableMockHandle),
-  destroyPreloadedByType: vi.fn(),
-}));
-
-vi.mock("./usePreloadIframe", () => ({
-  usePreloadIframe: vi.fn(),
 }));
 
 import { createFloatBubble } from "@perspective-ai/sdk";

@@ -33,8 +33,12 @@ function createNoOpHandle(researchId: string): ToggleableHandle {
   };
 }
 
-export function openSlider(config: EmbedConfig): ToggleableHandle {
-  const { researchId } = config;
+const noopNavigate = () => {};
+
+export function openSlider(
+  config: EmbedConfig & { _startHidden?: boolean }
+): ToggleableHandle {
+  const { researchId, _startHidden } = config;
 
   // SSR safety: return no-op handle
   if (!hasDom()) {
@@ -107,8 +111,13 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
-  let isOpen = true;
+  let isOpen = !_startHidden;
   let messageCleanup: (() => void) | null = null;
+
+  if (_startHidden) {
+    slider.style.display = "none";
+    backdrop.style.display = "none";
+  }
 
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
@@ -162,16 +171,16 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
         };
       },
       get onSubmit() {
-        return currentConfig.onSubmit;
+        return isOpen ? currentConfig.onSubmit : undefined;
       },
       get onNavigate() {
-        return currentConfig.onNavigate;
+        return isOpen ? currentConfig.onNavigate : noopNavigate;
       },
       get onClose() {
         return hide;
       },
       get onError() {
-        return currentConfig.onError;
+        return isOpen ? currentConfig.onError : undefined;
       },
     },
     iframe,
@@ -192,7 +201,9 @@ export function openSlider(config: EmbedConfig): ToggleableHandle {
   closeBtn.addEventListener("click", hide);
   backdrop.addEventListener("click", hide);
 
-  document.addEventListener("keydown", escHandler);
+  if (!_startHidden) {
+    document.addEventListener("keydown", escHandler);
+  }
 
   return {
     unmount: fullDestroy,

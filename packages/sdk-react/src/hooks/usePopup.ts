@@ -4,8 +4,10 @@ import {
   type EmbedConfig,
   type EmbedHandle,
 } from "@perspective-ai/sdk";
-import { usePreloadIframe } from "./usePreloadIframe";
 import { useStableCallback } from "./useStableCallback";
+import { useStableValue } from "./useStableValue";
+
+type PopupHandle = ReturnType<typeof openPopup>;
 
 /** Options for usePopup hook */
 export interface UsePopupOptions extends Omit<EmbedConfig, "type"> {
@@ -66,10 +68,15 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
 
   const [handle, setHandle] = useState<EmbedHandle | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
-  const handleRef = useRef<EmbedHandle | null>(null);
+  const handleRef = useRef<PopupHandle | null>(null);
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
+  const desiredOpenRef = useRef(isOpen);
+  desiredOpenRef.current = isOpen;
+
+  const stableParams = useStableValue(params);
+  const stableBrand = useStableValue(brand);
 
   const stableOnReady = useStableCallback(onReady);
   const stableOnSubmit = useStableCallback(onSubmit);
@@ -87,8 +94,8 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     [isControlled, onOpenChange]
   );
 
+  // Called by SDK's hide() via onClose — popup is hidden, not destroyed
   const handleClose = useCallback(() => {
-    handleRef.current = null;
     setHandle(null);
     setOpen(false);
     onClose?.();
@@ -96,13 +103,13 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
 
   const stableOnClose = useStableCallback(handleClose);
 
-  const createPopup = useCallback(() => {
-    if (handleRef.current) return handleRef.current;
-
+  // Eagerly create popup (hidden) on mount so iframe loads in background.
+  // On open, just show() — instant, no iframe reparenting or reload.
+  useEffect(() => {
     const newHandle = openPopup({
       researchId,
-      params,
-      brand,
+      params: stableParams,
+      brand: stableBrand,
       theme,
       host,
       onReady: stableOnReady,
@@ -110,17 +117,26 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
       onNavigate: stableOnNavigate,
       onClose: stableOnClose,
       onError: stableOnError,
+      _startHidden: true,
     });
-
     handleRef.current = newHandle;
-    setHandle(newHandle);
-    return newHandle;
+    if (desiredOpenRef.current) {
+      newHandle.show();
+      setHandle(newHandle);
+    }
+
+    return () => {
+      newHandle.update({ onClose: undefined });
+      newHandle.unmount();
+      handleRef.current = null;
+      setHandle(null);
+    };
   }, [
     researchId,
-    params,
-    brand,
-    theme,
+    stableParams,
+    stableBrand,
     host,
+    theme,
     stableOnReady,
     stableOnSubmit,
     stableOnNavigate,
@@ -128,31 +144,23 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     stableOnError,
   ]);
 
-  const destroyPopup = useCallback(() => {
-    if (handleRef.current) {
-      handleRef.current.destroy();
-      handleRef.current = null;
-      setHandle(null);
-    }
-  }, []);
-
   const openFn = useCallback(() => {
     if (isControlled) {
       onOpenChange?.(true);
     } else {
-      createPopup();
+      handleRef.current?.show();
+      setHandle(handleRef.current);
       setInternalOpen(true);
     }
-  }, [isControlled, onOpenChange, createPopup]);
+  }, [isControlled, onOpenChange]);
 
   const closeFn = useCallback(() => {
     if (isControlled) {
       onOpenChange?.(false);
     } else {
-      destroyPopup();
-      setInternalOpen(false);
+      handleRef.current?.hide();
     }
-  }, [isControlled, onOpenChange, destroyPopup]);
+  }, [isControlled, onOpenChange]);
 
   const toggleFn = useCallback(() => {
     if (isOpen) {
@@ -162,26 +170,17 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     }
   }, [isOpen, openFn, closeFn]);
 
-  usePreloadIframe("popup", researchId, host, handleRef, params, brand, theme);
-
+  // Controlled mode: show/hide based on controlled state
   useEffect(() => {
     if (!isControlled) return;
 
-    if (controlledOpen && !handleRef.current) {
-      createPopup();
-    } else if (!controlledOpen && handleRef.current) {
-      destroyPopup();
+    if (controlledOpen && handleRef.current && !handleRef.current.isOpen) {
+      handleRef.current.show();
+      setHandle(handleRef.current);
+    } else if (!controlledOpen && handleRef.current?.isOpen) {
+      handleRef.current.hide();
     }
-  }, [controlledOpen, isControlled, createPopup, destroyPopup]);
-
-  useEffect(() => {
-    return () => {
-      if (handleRef.current) {
-        handleRef.current.destroy();
-        handleRef.current = null;
-      }
-    };
-  }, []);
+  }, [controlledOpen, isControlled]);
 
   return {
     open: openFn,

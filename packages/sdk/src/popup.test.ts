@@ -448,4 +448,135 @@ describe("openPopup", () => {
 
     handle.destroy();
   });
+
+  describe("_startHidden", () => {
+    it("creates popup hidden with display:none", () => {
+      const handle = openPopup({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      const overlay = document.querySelector(
+        ".perspective-overlay"
+      ) as HTMLElement;
+      expect(overlay).toBeTruthy();
+      expect(overlay.style.display).toBe("none");
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("show() makes hidden popup visible", () => {
+      const handle = openPopup({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      handle.show();
+
+      const overlay = document.querySelector(
+        ".perspective-overlay"
+      ) as HTMLElement;
+      expect(overlay.style.display).toBe("");
+      expect(handle.isOpen).toBe(true);
+
+      handle.destroy();
+    });
+
+    it("does not register ESC listener when hidden", () => {
+      const handle = openPopup({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      // ESC should not close when hidden
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      // After show, ESC should work
+      handle.show();
+      expect(handle.isOpen).toBe(true);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("gates callbacks while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const onSubmit = vi.fn();
+
+      const handle = openPopup({
+        researchId,
+        host,
+        onSubmit,
+        _startHidden: true,
+      });
+
+      // Send message while hidden — should not fire
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      // Show and send — should fire
+      handle.show();
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+    });
+
+    it("does not navigate parent page while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const originalHref = window.location.href;
+      const mockLocation = { href: originalHref };
+
+      Object.defineProperty(window, "location", {
+        value: mockLocation,
+        writable: true,
+        configurable: true,
+      });
+
+      const handle = openPopup({
+        researchId,
+        host,
+        _startHidden: true,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "perspective:redirect",
+            researchId,
+            url: "https://example.com/hidden-popup",
+          },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      expect(mockLocation.href).toBe(originalHref);
+
+      handle.destroy();
+
+      Object.defineProperty(window, "location", {
+        value: { href: originalHref },
+        writable: true,
+        configurable: true,
+      });
+    });
+  });
 });
