@@ -1,5 +1,23 @@
 # @perspective-ai/sdk
 
+## 1.3.0
+
+### Minor Changes
+
+- ef714e7: feat: add embed auth for cross-origin iframe authentication
+  - Popup auth flow: SDK handles `perspective:auth-request` from iframe, opens OAuth popup, relays token back via `perspective:auth-complete`
+  - Two-layer token caching: parent localStorage (Layer 2) persists auth across tab close on Safari where iframe localStorage is ephemeral
+  - Popup-blocked fallback: falls back to new tab when popup is blocked by browser
+  - Feature negotiation: `FEATURES.EMBED_AUTH` bitmask in `perspective:init` handshake for graceful degradation with old SDK versions
+  - Fix base64url JWT decode (replace `-`/`_` with `+`/`/` before `atob`)
+  - New `onAuth` callback in `EmbedConfig` for custom token handling
+
+### Patch Changes
+
+- 6e1f4e4: fix: clear NextAuth session on signout via hidden popup
+
+  When a user signs out inside the iframe, open a hidden popup to the first-party domain's `/embed-auth/signout` endpoint to clear the NextAuth session cookie. Without this, the persisted session causes silent re-authentication on next visit.
+
 ## 1.2.0
 
 ### Minor Changes
