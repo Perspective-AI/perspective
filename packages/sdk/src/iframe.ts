@@ -490,11 +490,35 @@ export function setupMessageListener(
         break;
       }
 
-      case MESSAGE_TYPES.authSignout:
+      case MESSAGE_TYPES.authSignout: {
         // User signed out in iframe — clear cached token so the next visit
         // requires re-authentication (no stale session)
         clearAuthToken(researchId);
+
+        // Open a hidden popup to clear the NextAuth session on the first-party
+        // domain. The iframe can't clear first-party cookies (third-party cookie
+        // blocking), so the SDK opens this from the parent context.
+        try {
+          const signoutOrigin = new URL(host).origin;
+          const signoutPopup = window.open(
+            `${signoutOrigin}/embed-auth/signout`,
+            "perspective-signout",
+            "width=1,height=1,top=0,left=0"
+          );
+          if (signoutPopup) {
+            setTimeout(() => {
+              try {
+                signoutPopup.close();
+              } catch {
+                /* cross-origin */
+              }
+            }, 3000);
+          }
+        } catch {
+          /* invalid host URL — skip signout popup */
+        }
         break;
+      }
     }
   };
 

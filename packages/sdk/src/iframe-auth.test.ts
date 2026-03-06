@@ -183,6 +183,47 @@ describe("embed auth message handling", () => {
 
       expect(localStorage.getItem(storageKey)).toBeNull();
     });
+
+    it("opens hidden popup to clear NextAuth session", () => {
+      const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authSignout,
+      });
+
+      expect(openSpy).toHaveBeenCalledWith(
+        "https://getperspective.ai/embed-auth/signout",
+        "perspective-signout",
+        "width=1,height=1,top=0,left=0"
+      );
+
+      openSpy.mockRestore();
+    });
+
+    it("closes signout popup after timeout", () => {
+      vi.useFakeTimers();
+      const closeSpy = vi.fn();
+      const openSpy = vi
+        .spyOn(window, "open")
+        .mockReturnValue({ close: closeSpy } as unknown as Window);
+
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authSignout,
+      });
+
+      expect(closeSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(3000);
+
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+
+      openSpy.mockRestore();
+      vi.useRealTimers();
+    });
   });
 
   describe("token relay on perspective:ready", () => {
