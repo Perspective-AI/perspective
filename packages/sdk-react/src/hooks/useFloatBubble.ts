@@ -5,6 +5,7 @@ import {
   type FloatHandle,
 } from "@perspective-ai/sdk";
 import { useStableCallback } from "./useStableCallback";
+import { useStableValue } from "./useStableValue";
 
 /** Options for useFloatBubble hook */
 export interface UseFloatBubbleOptions extends Omit<EmbedConfig, "type"> {
@@ -59,6 +60,9 @@ export function useFloatBubble(
     onNavigate,
     onClose,
     onError,
+    onAuth,
+    channel,
+    welcomeMessage,
     open: controlledOpen,
     onOpenChange,
   } = options;
@@ -68,11 +72,20 @@ export function useFloatBubble(
   const handleRef = useRef<FloatHandle | null>(null);
 
   const isControlled = controlledOpen !== undefined;
+  const currentOpen = isControlled
+    ? controlledOpen
+    : (handleRef.current?.isOpen ?? internalOpen);
+  const openStateRef = useRef(Boolean(currentOpen));
+  openStateRef.current = Boolean(currentOpen);
+
+  const stableParams = useStableValue(params);
+  const stableBrand = useStableValue(brand);
 
   const stableOnReady = useStableCallback(onReady);
   const stableOnSubmit = useStableCallback(onSubmit);
   const stableOnNavigate = useStableCallback(onNavigate);
   const stableOnError = useStableCallback(onError);
+  const stableOnAuth = useStableCallback(onAuth);
 
   const handleClose = useCallback(() => {
     setInternalOpen(false);
@@ -85,10 +98,13 @@ export function useFloatBubble(
   const stableOnClose = useStableCallback(handleClose);
 
   useEffect(() => {
+    // Preserve the visible/open state if the float handle is recreated because
+    // an iframe-defining input changed.
+    const shouldStartOpen = openStateRef.current;
     const newHandle = createFloatBubble({
       researchId,
-      params,
-      brand,
+      params: stableParams,
+      brand: stableBrand,
       theme,
       host,
       onReady: stableOnReady,
@@ -96,7 +112,14 @@ export function useFloatBubble(
       onNavigate: stableOnNavigate,
       onClose: stableOnClose,
       onError: stableOnError,
+      onAuth: stableOnAuth,
+      channel,
+      welcomeMessage,
     });
+
+    if (shouldStartOpen) {
+      newHandle.open();
+    }
 
     handleRef.current = newHandle;
     setHandle(newHandle);
@@ -110,8 +133,8 @@ export function useFloatBubble(
     };
   }, [
     researchId,
-    params,
-    brand,
+    stableParams,
+    stableBrand,
     theme,
     host,
     stableOnReady,
@@ -119,6 +142,9 @@ export function useFloatBubble(
     stableOnNavigate,
     stableOnClose,
     stableOnError,
+    stableOnAuth,
+    channel,
+    welcomeMessage,
   ]);
 
   useEffect(() => {

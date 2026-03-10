@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Preload & Reuse Test</title>
+  </head>
+  <body>
+    <h1>Preload & Reuse Test</h1>
+
+    <!--
+      Button triggers for autoInit to process.
+      autoInit will:
+        1. Attach click handlers to these buttons
+        2. Preload an iframe for the first button embed (popup priority)
+    -->
+    <button id="popup-trigger" data-perspective-popup="test-popup">
+      Open Popup
+    </button>
+
+    <button id="slider-trigger" data-perspective-slider="test-slider">
+      Open Slider
+    </button>
+
+    <!--
+      Programmatic controls that call Perspective.init() with callbacks.
+      Uses the same researchIds as the data-attribute buttons so they can
+      claim the preloaded iframe.
+    -->
+    <button id="init-popup-btn">Init Popup (programmatic)</button>
+    <button id="init-slider-btn">Init Slider (programmatic)</button>
+    <button id="destroy-all-btn">Destroy All</button>
+
+    <script>
+      window.__testEvents = [];
+      window.__handles = {};
+      window.__trackEvent = (name, data) => {
+        window.__testEvents.push({ name, data, timestamp: Date.now() });
+      };
+    </script>
+
+    <script src="/sdk/perspective.global.js"></script>
+
+    <script>
+      document
+        .getElementById("init-popup-btn")
+        .addEventListener("click", () => {
+          window.__handles.popup = Perspective.init({
+            researchId: "test-popup",
+            type: "popup",
+            onReady: () => window.__trackEvent("popup:ready"),
+            onClose: () => window.__trackEvent("popup:close"),
+            onSubmit: () => window.__trackEvent("popup:submit"),
+          });
+        });
+
+      document
+        .getElementById("init-slider-btn")
+        .addEventListener("click", () => {
+          window.__handles.slider = Perspective.init({
+            researchId: "test-slider",
+            type: "slider",
+            onReady: () => window.__trackEvent("slider:ready"),
+            onClose: () => window.__trackEvent("slider:close"),
+          });
+        });
+
+      document
+        .getElementById("destroy-all-btn")
+        .addEventListener("click", () => {
+          Perspective.destroyAll();
+          window.__trackEvent("destroyAll");
+        });
+    </script>
+  </body>
+</html>

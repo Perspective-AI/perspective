@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Slider Preload Test</title>
+  </head>
+  <body>
+    <h1>Slider Preload Test</h1>
+
+    <button id="slider-trigger" data-perspective-slider="test-slider-only">
+      Open Slider
+    </button>
+
+    <button id="init-slider-btn">Init Slider (programmatic)</button>
+
+    <script>
+      window.__testEvents = [];
+      window.__handles = {};
+      window.__trackEvent = (name, data) => {
+        window.__testEvents.push({ name, data, timestamp: Date.now() });
+      };
+    </script>
+
+    <script src="/sdk/perspective.global.js"></script>
+
+    <script>
+      document
+        .getElementById("init-slider-btn")
+        .addEventListener("click", () => {
+          window.__handles.slider = Perspective.init({
+            researchId: "test-slider-only",
+            type: "slider",
+            onReady: () => window.__trackEvent("slider:ready"),
+            onClose: () => window.__trackEvent("slider:close"),
+          });
+        });
+    </script>
+  </body>
+</html>

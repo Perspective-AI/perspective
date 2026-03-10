@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createFloatBubble, createChatBubble } from "./float";
+import { preloadIframe, destroyPreloaded } from "./preload";
 import * as config from "./config";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 
@@ -9,6 +10,7 @@ describe("createFloatBubble", () => {
   });
 
   afterEach(() => {
+    destroyPreloaded();
     document.body.innerHTML = "";
     sessionStorage.clear();
     vi.useRealTimers();
@@ -24,6 +26,49 @@ describe("createFloatBubble", () => {
     expect(handle.type).toBe("float");
     expect(handle.isOpen).toBe(false);
     expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+
+    handle.unmount();
+  });
+
+  it("creates a hidden float window shell when the bubble is created", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement | null;
+    const iframe = floatWindow?.querySelector(
+      "iframe[data-perspective]"
+    ) as HTMLIFrameElement | null;
+
+    expect(floatWindow).toBeTruthy();
+    expect(floatWindow?.style.display).toBe("none");
+    expect(iframe).toBeTruthy();
+
+    handle.unmount();
+  });
+
+  it("claims an existing preloaded float iframe when the bubble is created", () => {
+    preloadIframe("test-research-id", "float", "https://getperspective.ai");
+    const existingPreload = document.querySelector(
+      "iframe[data-perspective-preload='test-research-id']"
+    );
+
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      host: "https://getperspective.ai",
+    });
+
+    expect(handle.iframe).toBe(existingPreload);
+    expect(
+      existingPreload?.getAttribute("data-perspective-preload")
+    ).toBeNull();
+    expect(
+      document.querySelector(
+        ".perspective-float-window iframe[data-perspective]"
+      )
+    ).toBe(existingPreload);
 
     handle.unmount();
   });
@@ -98,29 +143,38 @@ describe("createFloatBubble", () => {
     expect(() => handle.toggle()).not.toThrow();
   });
 
-  it("open() opens float window", () => {
+  it("keeps the float window hidden until opened", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
 
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
+    expect(floatWindow).toBeTruthy();
+    expect(floatWindow.style.display).toBe("none");
     expect(handle.isOpen).toBe(false);
-    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
-
-    handle.open();
-
-    expect(handle.isOpen).toBe(true);
-    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
-    expect(
-      getPersistedOpenState({
-        researchId: "test-research-id",
-        type: "float",
-      })
-    ).toBe(true);
 
     handle.unmount();
   });
 
-  it("close() closes float window", () => {
+  it("open() shows float window", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    handle.open();
+
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
+    expect(handle.isOpen).toBe(true);
+    expect(floatWindow.style.display).toBe("");
+
+    handle.unmount();
+  });
+
+  it("close() hides float window", () => {
     const onClose = vi.fn();
     const handle = createFloatBubble({
       researchId: "test-research-id",
@@ -129,12 +183,14 @@ describe("createFloatBubble", () => {
 
     handle.open();
     expect(handle.isOpen).toBe(true);
-    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
 
     handle.close();
 
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
     expect(handle.isOpen).toBe(false);
-    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
+    expect(floatWindow.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
     expect(
       getPersistedOpenState({
@@ -144,7 +200,7 @@ describe("createFloatBubble", () => {
     ).toBe(false);
   });
 
-  it("toggle() toggles float window", () => {
+  it("toggle() toggles float window visibility", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
@@ -152,17 +208,20 @@ describe("createFloatBubble", () => {
     expect(handle.isOpen).toBe(false);
 
     handle.toggle();
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
     expect(handle.isOpen).toBe(true);
-    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+    expect(floatWindow.style.display).toBe("");
 
     handle.toggle();
     expect(handle.isOpen).toBe(false);
-    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
+    expect(floatWindow.style.display).toBe("none");
 
     handle.unmount();
   });
 
-  it("clicking bubble toggles float window", () => {
+  it("clicking bubble toggles float window visibility", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
@@ -173,17 +232,20 @@ describe("createFloatBubble", () => {
     expect(bubble).toBeTruthy();
 
     bubble.click();
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
     expect(handle.isOpen).toBe(true);
-    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+    expect(floatWindow.style.display).toBe("");
 
     bubble.click();
     expect(handle.isOpen).toBe(false);
-    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
+    expect(floatWindow.style.display).toBe("none");
 
     handle.unmount();
   });
 
-  it("close button in float window closes it", () => {
+  it("close button in float window hides it", () => {
     const onClose = vi.fn();
     const handle = createFloatBubble({
       researchId: "test-research-id",
@@ -199,8 +261,11 @@ describe("createFloatBubble", () => {
 
     closeBtn.click();
 
+    const floatWindow = document.querySelector(
+      ".perspective-float-window"
+    ) as HTMLElement;
     expect(handle.isOpen).toBe(false);
-    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
+    expect(floatWindow.style.display).toBe("none");
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -223,6 +288,18 @@ describe("createFloatBubble", () => {
         type: "float",
       })
     ).toBe(true);
+  });
+
+  it("unmount removes the hidden float window when float was never opened", () => {
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+
+    handle.unmount();
+
+    expect(document.querySelector(".perspective-float-window")).toBeFalsy();
   });
 
   it("destroy clears persisted open state", () => {
@@ -408,7 +485,7 @@ describe("createFloatBubble", () => {
       handle.unmount();
     });
 
-    it("close prevents further callback invocations from that window", () => {
+    it("callbacks are gated while float is hidden", () => {
       const onSubmit = vi.fn();
       const onClose = vi.fn();
 
@@ -425,9 +502,106 @@ describe("createFloatBubble", () => {
       handle.close();
       expect(onClose).toHaveBeenCalledTimes(1);
 
+      // Iframe is still alive but hidden — callbacks should not fire
       sendMessage(iframe, "perspective:submit");
-
       expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it("does not navigate parent page while float is hidden", () => {
+      const originalHref = window.location.href;
+      const mockLocation = { href: originalHref };
+
+      Object.defineProperty(window, "location", {
+        value: mockLocation,
+        writable: true,
+        configurable: true,
+      });
+
+      const handle = createFloatBubble({
+        researchId,
+        host,
+      });
+
+      handle.open();
+      const iframe = handle.iframe!;
+      handle.close();
+
+      sendMessage(iframe, "perspective:redirect", {
+        url: "https://example.com/hidden-float",
+      });
+
+      expect(mockLocation.href).toBe(originalHref);
+
+      handle.unmount();
+
+      Object.defineProperty(window, "location", {
+        value: { href: originalHref },
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it("fires onClose when unmounted while open", () => {
+      const onClose = vi.fn();
+      const handle = createFloatBubble({
+        researchId,
+        host,
+        onClose,
+      });
+
+      handle.open();
+      handle.unmount();
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("preloaded iframe callback replay", () => {
+    const host = "https://getperspective.ai";
+    const researchId = "test-research-id";
+
+    const simulateReady = (iframe: HTMLIFrameElement) => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:ready", researchId },
+          origin: host,
+          source: iframe.contentWindow,
+        })
+      );
+    };
+
+    it("fires onReady immediately when claiming a ready preloaded iframe", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "float", host);
+
+      const preloadedIframe = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+
+      simulateReady(preloadedIframe);
+
+      const handle = createFloatBubble({ researchId, host, onReady });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+      expect(handle.iframe).toBe(preloadedIframe);
+
+      handle.unmount();
+    });
+
+    it("waits for onReady when the claimed preloaded iframe is not ready yet", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "float", host);
+
+      const handle = createFloatBubble({ researchId, host, onReady });
+
+      expect(onReady).not.toHaveBeenCalled();
+
+      simulateReady(handle.iframe!);
+      expect(onReady).toHaveBeenCalledTimes(1);
+
+      handle.unmount();
     });
   });
 });

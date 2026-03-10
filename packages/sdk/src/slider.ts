@@ -3,91 +3,47 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle } from "./types";
+import type { EmbedConfig, ToggleableHandle } from "./types";
 import { hasDom, getHost } from "./config";
-import {
-  createIframe,
-  setupMessageListener,
-  registerIframe,
-  ensureGlobalListeners,
-} from "./iframe";
-import { createLoadingIndicator } from "./loading";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
+import {
+  createNoOpToggleableHandle,
+  createToggleableEmbed,
+} from "./toggleable";
 
-function createNoOpHandle(researchId: string): EmbedHandle {
-  return {
-    unmount: () => {},
-    update: () => {},
-    destroy: () => {},
-    researchId,
-    type: "slider",
-    iframe: null,
-    container: null,
-  };
-}
-
-export function openSlider(config: EmbedConfig): EmbedHandle {
+export function openSlider(
+  config: EmbedConfig & { _startHidden?: boolean }
+): ToggleableHandle {
   const { researchId } = config;
 
-  // SSR safety: return no-op handle
   if (!hasDom()) {
-    return createNoOpHandle(researchId);
+    return createNoOpToggleableHandle(researchId, "slider");
   }
-  const host = getHost(config.host);
 
   injectStyles();
-  ensureGlobalListeners();
 
-  // Create backdrop
   const backdrop = document.createElement("div");
   backdrop.className = cn(
     "perspective-slider-backdrop perspective-embed-root",
     getThemeClass(config.theme)
   );
 
-  // Create slider container
   const slider = document.createElement("div");
   slider.className = cn(
     "perspective-slider perspective-embed-root",
     getThemeClass(config.theme)
   );
 
-  // Create close button
   const closeBtn = document.createElement("button");
   closeBtn.className = "perspective-close";
   closeBtn.innerHTML = CLOSE_ICON;
   closeBtn.setAttribute("aria-label", "Close");
 
-  // Create loading indicator with theme and brand colors
-  const loading = createLoadingIndicator({
-    theme: config.theme,
-    brand: config.brand,
-  });
-
-  // Create iframe (hidden initially)
-  const iframe = createIframe(
-    researchId,
-    "slider",
-    host,
-    config.params,
-    config.brand,
-    config.theme
-  );
-  iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
-
   slider.appendChild(closeBtn);
-  slider.appendChild(loading);
-  slider.appendChild(iframe);
   document.body.appendChild(backdrop);
   document.body.appendChild(slider);
-
-  // Mutable config reference for updates
-  let currentConfig = { ...config };
-  let isOpen = true;
-  let messageCleanup: (() => void) | null = null;
   const persistOpenState = (open: boolean) => {
     setPersistedOpenState({
       researchId,
@@ -97,82 +53,38 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
     });
   };
 
-  // Register iframe for theme change notifications
-  const unregisterIframe = registerIframe(iframe, host);
-
-  persistOpenState(true);
-
-  const removeSlider = () => {
-    if (!isOpen) return;
-    isOpen = false;
-    messageCleanup?.();
-    unregisterIframe();
-    slider.remove();
-    backdrop.remove();
-    document.removeEventListener("keydown", escHandler);
-    currentConfig.onClose?.();
-  };
-
-  const destroy = () => {
-    persistOpenState(false);
-    removeSlider();
-  };
-
-  const unmount = () => {
-    removeSlider();
-  };
-
-  // Set up message listener with loading state handling
-  messageCleanup = setupMessageListener(
-    researchId,
+  return createToggleableEmbed(
+    config,
+    "slider",
     {
-      get onReady() {
+      container: slider,
+      contentParent: slider,
+      show: () => {
+        slider.style.display = "";
+        backdrop.style.display = "";
+      },
+      hide: () => {
+        slider.style.display = "none";
+        backdrop.style.display = "none";
+      },
+      remove: () => {
+        slider.remove();
+        backdrop.remove();
+      },
+      bindCloseHandlers: (hide) => {
+        const handleCloseButton = () => hide();
+        const handleBackdropClick = () => hide();
+
+        closeBtn.addEventListener("click", handleCloseButton);
+        backdrop.addEventListener("click", handleBackdropClick);
+
         return () => {
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
-          currentConfig.onReady?.();
+          closeBtn.removeEventListener("click", handleCloseButton);
+          backdrop.removeEventListener("click", handleBackdropClick);
         };
       },
-      get onSubmit() {
-        return currentConfig.onSubmit;
-      },
-      get onNavigate() {
-        return currentConfig.onNavigate;
-      },
-      get onClose() {
-        return destroy;
-      },
-      get onError() {
-        return currentConfig.onError;
-      },
     },
-    iframe,
-    host,
-    { skipResize: true }
+    getHost(config.host),
+    { persistOpenState }
   );
-
-  // Close handlers
-  closeBtn.addEventListener("click", destroy);
-  backdrop.addEventListener("click", destroy);
-
-  // ESC key closes
-  const escHandler = (e: KeyboardEvent) => {
-    if (e.key === "Escape") {
-      destroy();
-    }
-  };
-  document.addEventListener("keydown", escHandler);
-
-  return {
-    unmount,
-    update: (options: Parameters<EmbedHandle["update"]>[0]) => {
-      currentConfig = { ...currentConfig, ...options };
-    },
-    destroy,
-    researchId,
-    type: "slider" as const,
-    iframe,
-    container: slider,
-  };
 }
