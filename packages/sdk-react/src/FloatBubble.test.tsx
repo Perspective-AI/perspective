@@ -22,6 +22,7 @@ vi.mock("@perspective-ai/sdk", () => ({
     container: null,
     isOpen: false,
   })),
+  stableSerialize: vi.fn((value: unknown) => JSON.stringify(value)),
 }));
 
 import { createFloatBubble } from "@perspective-ai/sdk";
@@ -129,6 +130,20 @@ describe("FloatBubble", () => {
     expect(config.brand).toEqual({
       light: { primary: "#ff0000", bg: "#ffffff" },
       dark: { primary: "#0000ff", bg: "#000000" },
+    });
+  });
+
+  it("forwards onAuth to createFloatBubble", () => {
+    const onAuth = vi.fn();
+
+    render(<FloatBubble researchId="test-research-id" onAuth={onAuth} />);
+
+    const config = mockCreateFloatBubble.mock.calls[0]![0];
+    config.onAuth?.({ researchId: "test-research-id", token: "test-token" });
+
+    expect(onAuth).toHaveBeenCalledWith({
+      researchId: "test-research-id",
+      token: "test-token",
     });
   });
 });

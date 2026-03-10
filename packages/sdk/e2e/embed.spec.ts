@@ -1,4 +1,4 @@
-import { test, expect, Route } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,32 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Path to built SDK - tests require build first
 const SDK_PATH = path.resolve(__dirname, "../dist/cdn/perspective.global.js");
 const MOCK_IFRAME_PATH = path.resolve(__dirname, "fixtures/mock-iframe.html");
+
+type TestEvent = {
+  name: string;
+  data?: unknown;
+  timestamp: number;
+};
+
+declare global {
+  interface Window {
+    __testEvents?: TestEvent[];
+    Perspective?: {
+      destroyAll: () => void;
+      autoInit: () => void;
+    };
+  }
+}
+
+async function getTestEvents(page: Page): Promise<TestEvent[]> {
+  return page.evaluate(() => window.__testEvents ?? []);
+}
+
+async function clearTestEvents(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    window.__testEvents = [];
+  });
+}
 
 // Check SDK exists before running tests
 test.beforeAll(async () => {
@@ -134,7 +160,13 @@ test.describe("Script Tag Auto-Init", () => {
 
     // Float bubble is appended to body, not inside the container
     const floatBubble = page.locator("body > .perspective-float-bubble");
+    const floatWindow = page.locator("body > .perspective-float-window");
     await expect(floatBubble).toBeVisible();
+    await expect(floatWindow).toBeAttached();
+    await expect(floatWindow).not.toBeVisible();
+    await expect(
+      floatWindow.locator("iframe[data-perspective]")
+    ).toBeAttached();
   });
 
   test("restores popup open state after reload", async ({ page }) => {
@@ -365,8 +397,8 @@ test.describe("Popup Lifecycle", () => {
     await page.keyboard.press("Escape");
 
     // Check callback was fired
-    const events = await page.evaluate(() => (window as any).__testEvents);
-    expect(events.some((e: any) => e.name === "popup:close")).toBe(true);
+    const events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "popup:close")).toBe(true);
   });
 });
 
@@ -424,8 +456,8 @@ test.describe("Slider Lifecycle", () => {
     await page.keyboard.press("Escape");
 
     // Check callback was fired
-    const events = await page.evaluate(() => (window as any).__testEvents);
-    expect(events.some((e: any) => e.name === "slider:close")).toBe(true);
+    const events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "slider:close")).toBe(true);
   });
 });
 
@@ -440,8 +472,8 @@ test.describe("PostMessage Communication", () => {
     await page.waitForTimeout(200);
 
     // Check callback was fired
-    const events = await page.evaluate(() => (window as any).__testEvents);
-    expect(events.some((e: any) => e.name === "widget:ready")).toBe(true);
+    const events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "widget:ready")).toBe(true);
   });
 
   test("fires onSubmit when iframe sends submit message", async ({ page }) => {
@@ -463,8 +495,8 @@ test.describe("PostMessage Communication", () => {
     await page.waitForTimeout(100);
 
     // Check callback was fired
-    const events = await page.evaluate(() => (window as any).__testEvents);
-    expect(events.some((e: any) => e.name === "widget:submit")).toBe(true);
+    const events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "widget:submit")).toBe(true);
   });
 
   test("fires onError when iframe sends error message", async ({ page }) => {
@@ -486,8 +518,8 @@ test.describe("PostMessage Communication", () => {
     await page.waitForTimeout(100);
 
     // Check callback was fired
-    const events = await page.evaluate(() => (window as any).__testEvents);
-    const errorEvent = events.find((e: any) => e.name === "widget:error");
+    const events = await getTestEvents(page);
+    const errorEvent = events.find((event) => event.name === "widget:error");
     expect(errorEvent).toBeTruthy();
   });
 });
@@ -501,9 +533,7 @@ test.describe("Security", () => {
     await page.waitForTimeout(200);
 
     // Clear events
-    await page.evaluate(() => {
-      (window as any).__testEvents = [];
-    });
+    await clearTestEvents(page);
 
     // Send fake message from page context (wrong origin - not from iframe)
     await page.evaluate(() => {
@@ -519,8 +549,8 @@ test.describe("Security", () => {
     await page.waitForTimeout(100);
 
     // onSubmit should NOT have been called (message from wrong source)
-    const events = await page.evaluate(() => (window as any).__testEvents);
-    expect(events.some((e: any) => e.name === "widget:submit")).toBe(false);
+    const events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "widget:submit")).toBe(false);
   });
 
   test("iframe has correct sandbox attributes", async ({ page }) => {
@@ -612,7 +642,7 @@ test.describe("Auto-Trigger Popup", () => {
     await expect(overlay).toBeVisible();
 
     const iframe = page.locator(".perspective-modal iframe[data-perspective]");
-    await expect(iframe).toBeVisible();
+    await expect(iframe).toBeAttached();
 
     const src = await iframe.getAttribute("src");
     expect(src).toContain("pbbvdh26");
@@ -748,6 +778,284 @@ test.describe("Auto-Trigger Popup", () => {
   });
 });
 
+test.describe("Preload & Reuse Lifecycle", () => {
+  test("autoInit preloads hidden iframe for button popup trigger", async ({
+    page,
+  }) => {
+    await page.goto("/preload-reuse.html");
+
+    // Wait for requestIdleCallback to fire and iframe to load
+    await page.waitForTimeout(500);
+
+    // A hidden preloaded iframe should exist in the DOM
+    const preloadIframe = page.locator(
+      "iframe[data-perspective-preload='test-popup']"
+    );
+    await expect(preloadIframe).toBeAttached();
+
+    // It should be visually hidden (opacity: 0, not display: none)
+    const opacity = await preloadIframe.evaluate(
+      (el) => (el as HTMLElement).style.opacity
+    );
+    expect(opacity).toBe("0");
+  });
+
+  test("preloaded popup opens without loading indicator and fires onReady", async ({
+    page,
+  }) => {
+    await page.goto("/preload-reuse.html");
+
+    // Wait for preload to complete (requestIdleCallback + iframe load + ready)
+    await page.waitForTimeout(500);
+
+    // Verify preloaded iframe exists
+    await expect(
+      page.locator("iframe[data-perspective-preload='test-popup']")
+    ).toBeAttached();
+
+    // Open popup via programmatic init (with onReady callback)
+    await page.click("#init-popup-btn");
+
+    // Popup should be visible
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    // Preload attribute should be removed (iframe was claimed)
+    await expect(
+      page.locator("iframe[data-perspective-preload]")
+    ).not.toBeAttached();
+
+    // No loading indicator (preloaded iframe was already ready)
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
+
+    // onReady should have fired (replayed from preload ready state)
+    await page.waitForTimeout(100);
+    const events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "popup:ready")).toBe(true);
+  });
+
+  test("close hides popup, reopen reuses same iframe (no loading)", async ({
+    page,
+  }) => {
+    await page.goto("/preload-reuse.html");
+    await page.waitForTimeout(500);
+
+    // Open popup
+    await page.click("#init-popup-btn");
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    // Mark the iframe so we can verify it's the same element after reopen
+    await page.evaluate(() => {
+      const iframe = document.querySelector(
+        ".perspective-modal iframe[data-perspective]"
+      ) as HTMLIFrameElement;
+      iframe.setAttribute("data-test-marker", "original");
+    });
+
+    // Close popup via ESC (hides, doesn't destroy)
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+
+    // Overlay should still be in the DOM (hidden, not removed)
+    const overlayCount = await page.locator(".perspective-overlay").count();
+    expect(overlayCount).toBe(1);
+
+    // Reopen by clicking the programmatic button again
+    await page.click("#init-popup-btn");
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    // Still exactly one overlay (reused, not duplicated)
+    const overlayCountAfter = await page
+      .locator(".perspective-overlay")
+      .count();
+    expect(overlayCountAfter).toBe(1);
+
+    // Same iframe element (marker attribute still present)
+    const marker = await page
+      .locator(".perspective-modal iframe[data-perspective]")
+      .getAttribute("data-test-marker");
+    expect(marker).toBe("original");
+
+    // No loading indicator (iframe was alive the whole time)
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
+  });
+
+  test("autoInit preloads hidden iframe for button slider trigger when no popup exists", async ({
+    page,
+  }) => {
+    await page.goto("/preload-slider.html");
+
+    await page.waitForTimeout(500);
+
+    const preloadIframe = page.locator(
+      "iframe[data-perspective-preload='test-slider-only']"
+    );
+    await expect(preloadIframe).toBeAttached();
+
+    const opacity = await preloadIframe.evaluate(
+      (el) => (el as HTMLElement).style.opacity
+    );
+    expect(opacity).toBe("0");
+  });
+
+  test("preloaded slider opens without loading indicator and fires onReady", async ({
+    page,
+  }) => {
+    await page.goto("/preload-slider.html");
+
+    await page.waitForTimeout(500);
+
+    await expect(
+      page.locator("iframe[data-perspective-preload='test-slider-only']")
+    ).toBeAttached();
+
+    await page.click("#init-slider-btn");
+
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+    await expect(
+      page.locator("iframe[data-perspective-preload]")
+    ).not.toBeAttached();
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
+
+    await page.waitForTimeout(100);
+    const events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "slider:ready")).toBe(true);
+  });
+
+  test("close hides slider, reopen reuses same iframe", async ({ page }) => {
+    await page.goto("/preload-reuse.html");
+
+    // Open slider
+    await page.click("#init-slider-btn");
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+
+    // Mark iframe
+    await page.evaluate(() => {
+      const iframe = document.querySelector(
+        ".perspective-slider iframe[data-perspective]"
+      ) as HTMLIFrameElement;
+      iframe.setAttribute("data-test-marker", "original");
+    });
+
+    // Close via ESC
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-slider")).not.toBeVisible();
+
+    // Slider still in DOM
+    expect(await page.locator(".perspective-slider").count()).toBe(1);
+
+    // Reopen
+    await page.click("#init-slider-btn");
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+
+    // Same iframe
+    const marker = await page
+      .locator(".perspective-slider iframe[data-perspective]")
+      .getAttribute("data-test-marker");
+    expect(marker).toBe("original");
+
+    // No loading indicator
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
+  });
+
+  test("destroyAll fully removes hidden popup and slider", async ({ page }) => {
+    await page.goto("/preload-reuse.html");
+
+    // Open popup, then hide it
+    await page.click("#init-popup-btn");
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+
+    // Open slider, then hide it
+    await page.click("#init-slider-btn");
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-slider")).not.toBeVisible();
+
+    // Both hidden but still in DOM
+    expect(await page.locator(".perspective-overlay").count()).toBe(1);
+    expect(await page.locator(".perspective-slider").count()).toBe(1);
+
+    // destroyAll should fully remove them from the DOM
+    await page.click("#destroy-all-btn");
+
+    await expect(page.locator(".perspective-overlay")).not.toBeAttached();
+    await expect(page.locator(".perspective-slider")).not.toBeAttached();
+  });
+
+  test("onClose fires on hide, not on reopen", async ({ page }) => {
+    await page.goto("/preload-reuse.html");
+    await page.waitForTimeout(500);
+
+    // Open popup
+    await page.click("#init-popup-btn");
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    // Clear events
+    await clearTestEvents(page);
+
+    // Close (hide) — should fire onClose
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+
+    let events = await getTestEvents(page);
+    const closeCount = events.filter(
+      (event) => event.name === "popup:close"
+    ).length;
+    expect(closeCount).toBe(1);
+
+    // Clear events again
+    await clearTestEvents(page);
+
+    // Reopen — should NOT fire onClose
+    await page.click("#init-popup-btn");
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+    await page.waitForTimeout(100);
+
+    events = await getTestEvents(page);
+    expect(events.some((event) => event.name === "popup:close")).toBe(false);
+  });
+});
+
+test.describe("Auto-Trigger Preload", () => {
+  test("auto-trigger popup is preloaded immediately before trigger fires", async ({
+    page,
+  }) => {
+    await page.goto("/auto-trigger.html");
+
+    // Preload should happen immediately for auto-triggers (no requestIdleCallback)
+    // Check within 200ms — well before the 500ms timeout trigger fires
+    await page.waitForTimeout(200);
+
+    // Preloaded iframe should exist
+    const preloadIframe = page.locator("iframe[data-perspective-preload]");
+    await expect(preloadIframe).toBeAttached();
+
+    // Popup should NOT be open yet (trigger hasn't fired)
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+  });
+
+  test("auto-trigger popup opens without loading indicator after preload", async ({
+    page,
+  }) => {
+    await page.goto("/auto-trigger.html");
+
+    // Wait for the 500ms timeout trigger to fire (with buffer)
+    await page.waitForTimeout(800);
+
+    // Popup should be open
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    // Preloaded iframe should have been claimed
+    await expect(
+      page.locator("iframe[data-perspective-preload]")
+    ).not.toBeAttached();
+
+    // No loading indicator (was preloaded and ready)
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
+  });
+});
+
 test.describe("Float Bubble", () => {
   test("clicking bubble opens float window", async ({ page }) => {
     await page.goto("/manual-api.html");
@@ -757,21 +1065,27 @@ test.describe("Float Bubble", () => {
 
     // Bubble should be visible
     const bubble = page.locator("body > .perspective-float-bubble");
+    const floatWindow = page.locator("body > .perspective-float-window");
     await expect(bubble).toBeVisible();
+    await expect(floatWindow).toBeAttached();
 
-    // Initially no float window
-    await expect(page.locator(".perspective-float-window")).not.toBeVisible();
+    // Float window shell is already mounted, but hidden.
+    await expect(floatWindow).not.toBeVisible();
+    await expect(
+      floatWindow.locator("iframe[data-perspective]")
+    ).toBeAttached();
 
     // Click bubble to open
     await bubble.click();
 
     // Float window should appear
-    await expect(page.locator(".perspective-float-window")).toBeVisible();
+    await expect(floatWindow).toBeVisible();
+    await expect(page.locator(".perspective-loading")).not.toBeAttached();
 
     // Click bubble again to close
     await bubble.click();
 
     // Float window should be closed
-    await expect(page.locator(".perspective-float-window")).not.toBeVisible();
+    await expect(floatWindow).not.toBeVisible();
   });
 });

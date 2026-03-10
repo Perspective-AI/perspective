@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createWidget } from "./widget";
 import * as config from "./config";
 import * as iframe from "./iframe";
+import { MESSAGE_TYPES } from "./constants";
+import * as timing from "./timing";
 
 describe("createWidget", () => {
   let container: HTMLDivElement;
@@ -39,6 +41,18 @@ describe("createWidget", () => {
     expect(loading).toBeTruthy();
 
     handle.unmount();
+  });
+
+  it("removes the load timer on unmount", () => {
+    const removeTimerSpy = vi.spyOn(timing, "removeTimer");
+
+    const handle = createWidget(container, {
+      researchId: "test-research-id",
+    });
+
+    handle.unmount();
+
+    expect(removeTimerSpy).toHaveBeenCalledWith("test-research-id");
   });
 
   it("returns no-op handle when no DOM", () => {
@@ -350,6 +364,41 @@ describe("createWidget", () => {
       expect(fn3).toHaveBeenCalledTimes(1);
       expect(fn2).not.toHaveBeenCalled();
       expect(fn1).not.toHaveBeenCalled();
+
+      handle.unmount();
+    });
+
+    it("forwards auth-complete messages to onAuth", () => {
+      const onAuth = vi.fn();
+      const popupWindow = {} as Window;
+      vi.spyOn(window, "open").mockReturnValue(popupWindow);
+
+      const handle = createWidget(container, {
+        researchId,
+        host,
+        onAuth,
+      });
+
+      sendMessage(handle.iframe!, MESSAGE_TYPES.authRequest, {
+        provider: "google",
+        authUrl: `${host}/embed-auth/google`,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: MESSAGE_TYPES.popupAuthComplete,
+            token: "test-token",
+          },
+          origin: host,
+          source: popupWindow,
+        })
+      );
+
+      expect(onAuth).toHaveBeenCalledWith({
+        researchId,
+        token: "test-token",
+      });
 
       handle.unmount();
     });

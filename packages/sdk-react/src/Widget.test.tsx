@@ -15,6 +15,7 @@ vi.mock("@perspective-ai/sdk", () => ({
     iframe: null,
     container: null,
   })),
+  stableSerialize: vi.fn((value: unknown) => JSON.stringify(value)),
 }));
 
 import { createWidget } from "@perspective-ai/sdk";
@@ -67,6 +68,7 @@ describe("Widget", () => {
   it("calls createWidget with correct config", () => {
     const onReady = vi.fn();
     const onSubmit = vi.fn();
+    const onAuth = vi.fn();
 
     render(
       <Widget
@@ -76,6 +78,7 @@ describe("Widget", () => {
         host="https://custom.example.com"
         onReady={onReady}
         onSubmit={onSubmit}
+        onAuth={onAuth}
       />
     );
 
@@ -86,6 +89,11 @@ describe("Widget", () => {
     expect(config.params).toEqual({ source: "test" });
     expect(config.theme).toBe("dark");
     expect(config.host).toBe("https://custom.example.com");
+    config.onAuth?.({ researchId: "test-research-id", token: "test-token" });
+    expect(onAuth).toHaveBeenCalledWith({
+      researchId: "test-research-id",
+      token: "test-token",
+    });
   });
 
   it("calls unmount on cleanup", () => {
@@ -150,6 +158,34 @@ describe("Widget", () => {
     rerender(<Widget researchId="research-2" />);
 
     expect(mockCreateWidget).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not recreate the widget when params and brand are deeply equal", () => {
+    const { rerender } = render(
+      <Widget
+        researchId="test-research-id"
+        params={{ source: "test" }}
+        brand={{
+          light: { primary: "#ff0000" },
+          dark: { primary: "#0000ff" },
+        }}
+      />
+    );
+
+    expect(mockCreateWidget).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Widget
+        researchId="test-research-id"
+        params={{ source: "test" }}
+        brand={{
+          light: { primary: "#ff0000" },
+          dark: { primary: "#0000ff" },
+        }}
+      />
+    );
+
+    expect(mockCreateWidget).toHaveBeenCalledTimes(1);
   });
 
   it("passes additional div props", () => {

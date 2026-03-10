@@ -51,7 +51,7 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "pnpm build && playwright test",
     "test:ssr": "node -e \"require('./dist/index.cjs'); require('./dist/constants.cjs');\" && echo 'SSR safe ✓'"
   },
   "keywords": [

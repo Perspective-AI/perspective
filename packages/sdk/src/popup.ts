@@ -3,51 +3,33 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle } from "./types";
+import type { EmbedConfig, ToggleableHandle } from "./types";
 import { hasDom, getHost } from "./config";
-import {
-  createIframe,
-  setupMessageListener,
-  registerIframe,
-  ensureGlobalListeners,
-} from "./iframe";
-import { createLoadingIndicator } from "./loading";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
+import {
+  createNoOpToggleableHandle,
+  createToggleableEmbed,
+} from "./toggleable";
 
-function createNoOpHandle(researchId: string): EmbedHandle {
-  return {
-    unmount: () => {},
-    update: () => {},
-    destroy: () => {},
-    researchId,
-    type: "popup",
-    iframe: null,
-    container: null,
-  };
-}
-
-export function openPopup(config: EmbedConfig): EmbedHandle {
+export function openPopup(
+  config: EmbedConfig & { _startHidden?: boolean }
+): ToggleableHandle {
   const { researchId } = config;
 
-  // SSR safety: return no-op handle
   if (!hasDom()) {
-    return createNoOpHandle(researchId);
+    return createNoOpToggleableHandle(researchId, "popup");
   }
-  const host = getHost(config.host);
 
   injectStyles();
-  ensureGlobalListeners();
 
-  // Create overlay
   const overlay = document.createElement("div");
   overlay.className = cn(
     "perspective-overlay perspective-embed-root",
     getThemeClass(config.theme)
   );
 
-  // Create modal container
   const modal = document.createElement("div");
   modal.className = "perspective-modal";
 
@@ -56,39 +38,10 @@ export function openPopup(config: EmbedConfig): EmbedHandle {
   closeBtn.className = "perspective-close";
   closeBtn.innerHTML = CLOSE_ICON;
   closeBtn.setAttribute("aria-label", "Close");
-  if (config.disableClose) {
-    closeBtn.style.display = "none";
-  }
-
-  // Create loading indicator with theme and brand colors
-  const loading = createLoadingIndicator({
-    theme: config.theme,
-    brand: config.brand,
-  });
-  loading.style.borderRadius = "16px";
-
-  // Create iframe (hidden initially)
-  const iframe = createIframe(
-    researchId,
-    "popup",
-    host,
-    config.params,
-    config.brand,
-    config.theme
-  );
-  iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
 
   modal.appendChild(closeBtn);
-  modal.appendChild(loading);
-  modal.appendChild(iframe);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
-
-  // Mutable config reference for updates
-  let currentConfig = { ...config };
-  let isOpen = true;
-  let messageCleanup: (() => void) | null = null;
   const persistOpenState = (open: boolean) => {
     setPersistedOpenState({
       researchId,
@@ -98,84 +51,45 @@ export function openPopup(config: EmbedConfig): EmbedHandle {
     });
   };
 
-  // Register iframe for theme change notifications
-  const unregisterIframe = registerIframe(iframe, host);
-
-  persistOpenState(true);
-
-  const removePopup = () => {
-    if (!isOpen) return;
-    isOpen = false;
-    messageCleanup?.();
-    unregisterIframe();
-    overlay.remove();
-    document.removeEventListener("keydown", escHandler);
-    currentConfig.onClose?.();
-  };
-
-  const destroy = () => {
-    persistOpenState(false);
-    removePopup();
-  };
-
-  const unmount = () => {
-    removePopup();
-  };
-
-  // Set up message listener with loading state handling
-  messageCleanup = setupMessageListener(
-    researchId,
+  return createToggleableEmbed(
+    config,
+    "popup",
     {
-      get onReady() {
+      container: overlay,
+      contentParent: modal,
+      show: () => {
+        overlay.style.display = "";
+      },
+      hide: () => {
+        overlay.style.display = "none";
+      },
+      remove: () => {
+        overlay.remove();
+      },
+      bindCloseHandlers: (requestClose) => {
+        const handleCloseButton = () => requestClose();
+        const handleOverlayClick = (event: MouseEvent) => {
+          if (event.target === overlay) {
+            requestClose();
+          }
+        };
+
+        closeBtn.addEventListener("click", handleCloseButton);
+        overlay.addEventListener("click", handleOverlayClick);
+
         return () => {
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
-          currentConfig.onReady?.();
+          closeBtn.removeEventListener("click", handleCloseButton);
+          overlay.removeEventListener("click", handleOverlayClick);
         };
       },
-      get onSubmit() {
-        return currentConfig.onSubmit;
+      setCloseEnabled: (enabled) => {
+        closeBtn.style.display = enabled ? "" : "none";
       },
-      get onNavigate() {
-        return currentConfig.onNavigate;
-      },
-      get onClose() {
-        return destroy;
-      },
-      get onError() {
-        return currentConfig.onError;
+      loadingStyle: (loading) => {
+        loading.style.borderRadius = "16px";
       },
     },
-    iframe,
-    host,
-    { skipResize: true, hasCloseButton: !config.disableClose }
+    getHost(config.host),
+    { persistOpenState }
   );
-
-  // Close handlers (disabled when disableClose is enabled)
-  const escHandler = (e: KeyboardEvent) => {
-    if (e.key === "Escape") {
-      destroy();
-    }
-  };
-
-  if (!config.disableClose) {
-    closeBtn.addEventListener("click", destroy);
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) destroy();
-    });
-    document.addEventListener("keydown", escHandler);
-  }
-
-  return {
-    unmount,
-    update: (options: Parameters<EmbedHandle["update"]>[0]) => {
-      currentConfig = { ...currentConfig, ...options };
-    },
-    destroy,
-    researchId,
-    type: "popup" as const,
-    iframe,
-    container: overlay,
-  };
 }

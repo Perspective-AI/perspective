@@ -5,6 +5,7 @@ import {
   useRef,
   useMemo,
   isValidElement,
+  type ReactElement,
 } from "react";
 import type { ReactNode } from "react";
 import {
@@ -12,9 +13,11 @@ import {
   type EmbedConfig,
   type FloatHandle,
   type LauncherConfig,
+  stableSerialize,
 } from "@perspective-ai/sdk";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderLauncherIconToSvg } from "./renderLauncherIcon";
 import { useStableCallback } from "./useStableCallback";
+import { useStableValue } from "./useStableValue";
 
 /** Launcher config with React support — icon accepts ReactNode in addition to SDK types */
 export interface LauncherConfigReact extends Omit<LauncherConfig, "icon"> {
@@ -50,6 +53,78 @@ export interface UseFloatBubbleReturn {
   handle: FloatHandle | null;
 }
 
+type LauncherResolution = {
+  launcher: EmbedConfig["launcher"] | undefined;
+  reactIcon: ReactElement | null;
+};
+
+function useStableReactElement(
+  element: ReactElement | null
+): ReactElement | null {
+  const ref = useRef(element);
+  const propsSignature = element ? stableSerialize(element.props) : null;
+  const previousPropsSignature = useRef(propsSignature);
+
+  const didChange =
+    ref.current?.type !== element?.type ||
+    ref.current?.key !== element?.key ||
+    previousPropsSignature.current !== propsSignature;
+
+  if (didChange) {
+    ref.current = element;
+    previousPropsSignature.current = propsSignature;
+  }
+
+  return ref.current;
+}
+
+function isLauncherIcon(
+  icon: LauncherConfigReact["icon"]
+): icon is LauncherConfig["icon"] {
+  if (icon === "default" || icon === "avatar") {
+    return true;
+  }
+
+  return Boolean(
+    icon &&
+    typeof icon === "object" &&
+    (("url" in icon && typeof icon.url === "string") ||
+      ("svg" in icon && typeof icon.svg === "string"))
+  );
+}
+
+function resolveLauncherConfig(
+  launcher: LauncherConfigReact | undefined
+): LauncherResolution {
+  if (!launcher) {
+    return { launcher: undefined, reactIcon: null };
+  }
+
+  const { icon, ...rest } = launcher;
+  const baseLauncher: Omit<LauncherConfig, "icon"> | undefined =
+    Object.keys(rest).length > 0 ? rest : undefined;
+
+  if (
+    icon === false ||
+    icon === null ||
+    icon === undefined ||
+    icon === 0 ||
+    icon === ""
+  ) {
+    return { launcher: baseLauncher, reactIcon: null };
+  }
+
+  if (isValidElement(icon)) {
+    return { launcher: baseLauncher, reactIcon: icon };
+  }
+
+  if (isLauncherIcon(icon)) {
+    return { launcher: { ...rest, icon }, reactIcon: null };
+  }
+
+  return { launcher: baseLauncher, reactIcon: null };
+}
+
 /**
  * Headless hook for float bubble lifecycle management.
  * Creates a floating bubble button that expands into a chat window.
@@ -82,6 +157,7 @@ export function useFloatBubble(
     onNavigate,
     onClose,
     onError,
+    onAuth,
     open: controlledOpen,
     onOpenChange,
   } = options;
@@ -91,11 +167,45 @@ export function useFloatBubble(
   const handleRef = useRef<FloatHandle | null>(null);
 
   const isControlled = controlledOpen !== undefined;
+  const currentOpen = isControlled
+    ? controlledOpen
+    : (handleRef.current?.isOpen ?? internalOpen);
+  const openStateRef = useRef(Boolean(currentOpen));
+  openStateRef.current = Boolean(currentOpen);
+
+  const stableParams = useStableValue(params);
+  const stableBrand = useStableValue(brand);
+  const rawReactLauncherIcon =
+    launcher && isValidElement(launcher.icon) ? launcher.icon : null;
+  const stableLauncher = useStableValue(
+    launcher
+      ? {
+          ...launcher,
+          icon: rawReactLauncherIcon ? undefined : launcher.icon,
+        }
+      : undefined
+  );
+  const stableReactLauncherIcon = useStableReactElement(rawReactLauncherIcon);
 
   const stableOnReady = useStableCallback(onReady);
   const stableOnSubmit = useStableCallback(onSubmit);
   const stableOnNavigate = useStableCallback(onNavigate);
   const stableOnError = useStableCallback(onError);
+  const stableOnAuth = useStableCallback(onAuth);
+  const launcherResolution = useMemo(
+    () =>
+      resolveLauncherConfig(
+        stableReactLauncherIcon
+          ? { ...stableLauncher, icon: stableReactLauncherIcon }
+          : stableLauncher
+      ),
+    [stableLauncher, stableReactLauncherIcon]
+  );
+  const baseLauncher = launcherResolution.launcher;
+  const reactLauncherIcon = launcherResolution.reactIcon;
+  const [resolvedLauncher, setResolvedLauncher] = useState<
+    EmbedConfig["launcher"] | undefined
+  >(launcherResolution.launcher);
 
   const handleClose = useCallback(() => {
     setInternalOpen(false);
@@ -107,39 +217,41 @@ export function useFloatBubble(
 
   const stableOnClose = useStableCallback(handleClose);
 
-  // Resolve ReactNode icons to SVG strings for the core SDK
-  const resolvedLauncher = useMemo((): EmbedConfig["launcher"] | undefined => {
-    if (!launcher) return undefined;
-    const { icon, ...rest } = launcher;
-    // Filter out falsy ReactNode values (e.g., `condition && <Icon />` producing `false`)
-    if (
-      icon === false ||
-      icon === null ||
-      icon === undefined ||
-      icon === 0 ||
-      icon === ""
-    ) {
-      return Object.keys(rest).length > 0 ? rest : undefined;
+  useEffect(() => {
+    let cancelled = false;
+
+    setResolvedLauncher(baseLauncher);
+
+    if (!reactLauncherIcon) {
+      return;
     }
-    if (isValidElement(icon)) {
-      return { ...rest, icon: { svg: renderToStaticMarkup(icon) } };
-    }
-    // Only pass through valid LauncherIcon values to core SDK
-    if (icon === "default" || icon === "avatar") {
-      return { ...rest, icon: icon as "default" | "avatar" };
-    }
-    if (typeof icon === "object" && ("url" in icon || "svg" in icon)) {
-      return { ...rest, icon: icon as { url: string } | { svg: string } };
-    }
-    // Unrecognized icon value (truthy primitives, arrays, etc.) — ignore it
-    return Object.keys(rest).length > 0 ? rest : undefined;
-  }, [launcher]);
+
+    void renderLauncherIconToSvg(reactLauncherIcon)
+      .then((svg) => {
+        if (cancelled) return;
+        setResolvedLauncher({
+          ...baseLauncher,
+          icon: { svg },
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setResolvedLauncher(baseLauncher);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [baseLauncher, reactLauncherIcon]);
 
   useEffect(() => {
+    // Preserve the visible/open state if the float handle is recreated because
+    // an iframe-defining input changed.
+    const shouldStartOpen = openStateRef.current;
     const newHandle = createFloatBubble({
       researchId,
-      params,
-      brand,
+      params: stableParams,
+      brand: stableBrand,
       theme,
       host,
       channel,
@@ -150,7 +262,12 @@ export function useFloatBubble(
       onNavigate: stableOnNavigate,
       onClose: stableOnClose,
       onError: stableOnError,
+      onAuth: stableOnAuth,
     });
+
+    if (shouldStartOpen) {
+      newHandle.open();
+    }
 
     handleRef.current = newHandle;
     setHandle(newHandle);
@@ -164,8 +281,8 @@ export function useFloatBubble(
     };
   }, [
     researchId,
-    params,
-    brand,
+    stableParams,
+    stableBrand,
     theme,
     host,
     channel,
@@ -176,6 +293,7 @@ export function useFloatBubble(
     stableOnNavigate,
     stableOnClose,
     stableOnError,
+    stableOnAuth,
   ]);
 
   useEffect(() => {

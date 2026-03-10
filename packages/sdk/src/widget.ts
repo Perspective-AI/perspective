@@ -13,6 +13,7 @@ import {
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
+import { removeTimer } from "./timing";
 import { cn, getThemeClass } from "./utils";
 
 type WidgetResources = {
@@ -154,6 +155,9 @@ export function createWidget(
       get onError() {
         return currentConfig.onError;
       },
+      get onAuth() {
+        return currentConfig.onAuth;
+      },
     },
     iframe,
     host,
@@ -178,6 +182,7 @@ export function createWidget(
     cleanup();
     unregisterIframe();
     widgetResources.delete(iframe);
+    removeTimer(researchId);
     wrapper.remove();
   };
 

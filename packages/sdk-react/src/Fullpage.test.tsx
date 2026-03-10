@@ -17,6 +17,7 @@ vi.mock("@perspective-ai/sdk", () => ({
     iframe: null,
     container: null,
   })),
+  stableSerialize: vi.fn((value: unknown) => JSON.stringify(value)),
 }));
 
 import { createFullpage } from "@perspective-ai/sdk";
@@ -64,6 +65,7 @@ describe("Fullpage", () => {
     const onClose = vi.fn();
     const onNavigate = vi.fn();
     const onError = vi.fn();
+    const onAuth = vi.fn();
 
     render(
       <Fullpage
@@ -76,6 +78,7 @@ describe("Fullpage", () => {
         onClose={onClose}
         onNavigate={onNavigate}
         onError={onError}
+        onAuth={onAuth}
       />
     );
 
@@ -85,6 +88,11 @@ describe("Fullpage", () => {
     expect(config.params).toEqual({ source: "test" });
     expect(config.theme).toBe("dark");
     expect(config.host).toBe("https://custom.example.com");
+    config.onAuth?.({ researchId: "test-research-id", token: "test-token" });
+    expect(onAuth).toHaveBeenCalledWith({
+      researchId: "test-research-id",
+      token: "test-token",
+    });
   });
 
   it("exposes handle via embedRef", () => {
@@ -142,6 +150,34 @@ describe("Fullpage", () => {
 
     expect(mockUnmount).toHaveBeenCalledTimes(1);
     expect(mockCreateFullpage).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not recreate fullpage when params and brand are deeply equal", () => {
+    const { rerender } = render(
+      <Fullpage
+        researchId="test-research-id"
+        params={{ source: "test" }}
+        brand={{
+          light: { primary: "#ff0000" },
+          dark: { primary: "#0000ff" },
+        }}
+      />
+    );
+
+    expect(mockCreateFullpage).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Fullpage
+        researchId="test-research-id"
+        params={{ source: "test" }}
+        brand={{
+          light: { primary: "#ff0000" },
+          dark: { primary: "#0000ff" },
+        }}
+      />
+    );
+
+    expect(mockCreateFullpage).toHaveBeenCalledTimes(1);
   });
 
   it("passes brand colors to createFullpage", () => {

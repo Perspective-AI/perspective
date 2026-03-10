@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { openPopup } from "./popup";
+import { preloadIframe, destroyPreloaded } from "./preload";
 import * as config from "./config";
 import { getPersistedOpenState } from "./state";
 
@@ -86,21 +87,9 @@ describe("openPopup", () => {
     ).toBe(false);
   });
 
-  it("calls onClose callback when destroyed", () => {
+  it("close button click hides popup and fires onClose", () => {
     const onClose = vi.fn();
     const handle = openPopup({
-      researchId: "test-research-id",
-      onClose,
-    });
-
-    handle.destroy();
-
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it("close button click closes popup", () => {
-    const onClose = vi.fn();
-    openPopup({
       researchId: "test-research-id",
       onClose,
     });
@@ -111,12 +100,20 @@ describe("openPopup", () => {
     closeBtn.click();
 
     expect(onClose).toHaveBeenCalled();
-    expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    // Overlay stays in DOM but is hidden
+    const overlay = document.querySelector(
+      ".perspective-overlay"
+    ) as HTMLElement;
+    expect(overlay).toBeTruthy();
+    expect(overlay.style.display).toBe("none");
+    expect(handle.isOpen).toBe(false);
+
+    handle.destroy();
   });
 
-  it("clicking overlay background closes popup", () => {
+  it("clicking overlay background hides popup", () => {
     const onClose = vi.fn();
-    openPopup({
+    const handle = openPopup({
       researchId: "test-research-id",
       onClose,
     });
@@ -127,7 +124,9 @@ describe("openPopup", () => {
     overlay.click();
 
     expect(onClose).toHaveBeenCalled();
-    expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    expect(overlay.style.display).toBe("none");
+
+    handle.destroy();
   });
 
   it("clicking modal does not close popup", () => {
@@ -147,9 +146,9 @@ describe("openPopup", () => {
     (document.querySelector(".perspective-close") as HTMLElement).click();
   });
 
-  it("ESC key closes popup", () => {
+  it("ESC key hides popup", () => {
     const onClose = vi.fn();
-    openPopup({
+    const handle = openPopup({
       researchId: "test-research-id",
       onClose,
     });
@@ -157,19 +156,21 @@ describe("openPopup", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
     expect(onClose).toHaveBeenCalled();
-    expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    const overlay = document.querySelector(
+      ".perspective-overlay"
+    ) as HTMLElement;
+    expect(overlay.style.display).toBe("none");
+
+    handle.destroy();
   });
 
-  it("unmount removes overlay", () => {
-    const onClose = vi.fn();
+  it("unmount removes overlay from DOM", () => {
     const handle = openPopup({
       researchId: "test-research-id",
-      onClose,
     });
 
     handle.unmount();
 
-    expect(onClose).toHaveBeenCalled();
     expect(document.querySelector(".perspective-overlay")).toBeFalsy();
     expect(
       getPersistedOpenState({
@@ -177,6 +178,24 @@ describe("openPopup", () => {
         type: "popup",
       })
     ).toBe(true);
+  });
+
+  it("show() restores hidden popup", () => {
+    const handle = openPopup({
+      researchId: "test-research-id",
+    });
+
+    handle.hide();
+    expect(handle.isOpen).toBe(false);
+
+    handle.show();
+    expect(handle.isOpen).toBe(true);
+    const overlay = document.querySelector(
+      ".perspective-overlay"
+    ) as HTMLElement;
+    expect(overlay.style.display).toBe("");
+
+    handle.destroy();
   });
 
   it("update modifies config", () => {
@@ -294,7 +313,7 @@ describe("openPopup", () => {
 
       const iframe = handle.iframe!;
 
-      // Destroy calls onClose once
+      // fullDestroy fires onClose once (was open), then tears down listeners
       handle.destroy();
       expect(onClose).toHaveBeenCalledTimes(1);
 
@@ -303,7 +322,6 @@ describe("openPopup", () => {
       sendMessage(iframe, "perspective:close");
 
       expect(onSubmit).not.toHaveBeenCalled();
-      // onClose should still be called only once (from destroy)
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
@@ -430,6 +448,35 @@ describe("openPopup", () => {
       expect(document.querySelector(".perspective-overlay")).toBeFalsy();
     });
 
+    it("update applies disableClose after mount", () => {
+      const onClose = vi.fn();
+      const handle = openPopup({
+        researchId: "test-research-id",
+        onClose,
+      });
+
+      const closeBtn = document.querySelector(
+        ".perspective-close"
+      ) as HTMLElement;
+      const overlay = document.querySelector(
+        ".perspective-overlay"
+      ) as HTMLElement;
+
+      const updatedConfig = { disableClose: true };
+      handle.update(updatedConfig);
+
+      expect(closeBtn.style.display).toBe("none");
+
+      closeBtn.click();
+      overlay.click();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+
+      handle.unmount();
+    });
+
     it("sends hasCloseButton: false in init message when disableClose is true", () => {
       const host = "https://getperspective.ai";
       const researchId = "test-research-id";
@@ -498,18 +545,259 @@ describe("openPopup", () => {
     });
   });
 
-  it("destroy is idempotent", () => {
+  describe("preloaded iframe callback replay", () => {
+    const host = "https://getperspective.ai";
+    const researchId = "test-research-id";
+
+    afterEach(() => {
+      destroyPreloaded();
+    });
+
+    const simulateReady = (iframe: HTMLIFrameElement) => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:ready", researchId },
+          origin: host,
+          source: iframe.contentWindow,
+        })
+      );
+    };
+
+    it("fires onReady immediately when claiming a ready preloaded iframe", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "popup", host);
+
+      const preloadedIframe = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+
+      // Simulate ready during preload phase
+      simulateReady(preloadedIframe);
+
+      // Open popup — should claim preloaded iframe and fire onReady immediately
+      const handle = openPopup({ researchId, host, onReady });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+      expect(handle.iframe).toBe(preloadedIframe);
+
+      handle.destroy();
+    });
+
+    it("does not fire onReady immediately if preloaded iframe was not ready", () => {
+      const onReady = vi.fn();
+
+      preloadIframe(researchId, "popup", host);
+
+      // Don't simulate ready — iframe is still loading
+
+      const handle = openPopup({ researchId, host, onReady });
+
+      // onReady should NOT have been called yet
+      expect(onReady).not.toHaveBeenCalled();
+
+      // But when ready fires later, it should work
+      simulateReady(handle.iframe!);
+      expect(onReady).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+    });
+
+    it("does not show loading indicator for ready preloaded iframe", () => {
+      preloadIframe(researchId, "popup", host);
+
+      const preloadedIframe = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+      simulateReady(preloadedIframe);
+
+      const handle = openPopup({ researchId, host });
+
+      expect(document.querySelector(".perspective-loading")).toBeFalsy();
+
+      handle.destroy();
+    });
+
+    it("shows loading indicator for claimed-but-not-ready preloaded iframe", () => {
+      preloadIframe(researchId, "popup", host);
+
+      // Don't simulate ready — claimed before ready
+
+      const handle = openPopup({ researchId, host });
+
+      // Loading indicator should be present (iframe not ready yet)
+      expect(document.querySelector(".perspective-loading")).toBeTruthy();
+
+      handle.destroy();
+    });
+
+    it("does not claim a stale preloaded iframe when config does not match", () => {
+      preloadIframe(researchId, "popup", host, { source: "first" });
+
+      const stalePreload = document.querySelector(
+        "iframe[data-perspective-preload]"
+      ) as HTMLIFrameElement;
+
+      const handle = openPopup({
+        researchId,
+        host,
+        params: { source: "second" },
+      });
+
+      expect(handle.iframe).not.toBe(stalePreload);
+      expect(
+        document.querySelector("iframe[data-perspective-preload]")
+      ).toBeFalsy();
+
+      handle.destroy();
+    });
+  });
+
+  it("hide is idempotent", () => {
     const onClose = vi.fn();
     const handle = openPopup({
       researchId: "test-research-id",
       onClose,
     });
 
-    handle.destroy();
-    handle.destroy();
-    handle.destroy();
+    handle.hide();
+    handle.hide();
+    handle.hide();
 
     // onClose only called once
     expect(onClose).toHaveBeenCalledTimes(1);
+
+    handle.destroy();
+  });
+
+  describe("_startHidden", () => {
+    it("creates popup hidden with display:none", () => {
+      const handle = openPopup({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      const overlay = document.querySelector(
+        ".perspective-overlay"
+      ) as HTMLElement;
+      expect(overlay).toBeTruthy();
+      expect(overlay.style.display).toBe("none");
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("show() makes hidden popup visible", () => {
+      const handle = openPopup({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      handle.show();
+
+      const overlay = document.querySelector(
+        ".perspective-overlay"
+      ) as HTMLElement;
+      expect(overlay.style.display).toBe("");
+      expect(handle.isOpen).toBe(true);
+
+      handle.destroy();
+    });
+
+    it("does not register ESC listener when hidden", () => {
+      const handle = openPopup({
+        researchId: "test-research-id",
+        _startHidden: true,
+      });
+
+      // ESC should not close when hidden
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      // After show, ESC should work
+      handle.show();
+      expect(handle.isOpen).toBe(true);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      expect(handle.isOpen).toBe(false);
+
+      handle.destroy();
+    });
+
+    it("gates callbacks while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const onSubmit = vi.fn();
+
+      const handle = openPopup({
+        researchId,
+        host,
+        onSubmit,
+        _startHidden: true,
+      });
+
+      // Send message while hidden — should not fire
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      // Show and send — should fire
+      handle.show();
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:submit", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+
+      handle.destroy();
+    });
+
+    it("does not navigate parent page while hidden", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const originalHref = window.location.href;
+      const mockLocation = { href: originalHref };
+
+      Object.defineProperty(window, "location", {
+        value: mockLocation,
+        writable: true,
+        configurable: true,
+      });
+
+      const handle = openPopup({
+        researchId,
+        host,
+        _startHidden: true,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "perspective:redirect",
+            researchId,
+            url: "https://example.com/hidden-popup",
+          },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      expect(mockLocation.href).toBe(originalHref);
+
+      handle.destroy();
+
+      Object.defineProperty(window, "location", {
+        value: { href: originalHref },
+        writable: true,
+        configurable: true,
+      });
+    });
   });
 });

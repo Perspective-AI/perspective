@@ -5,6 +5,7 @@ import {
   type EmbedHandle,
 } from "@perspective-ai/sdk";
 import { useStableCallback } from "./hooks/useStableCallback";
+import { useStableValue } from "./hooks/useStableValue";
 
 export interface WidgetProps
   extends
@@ -29,6 +30,7 @@ export function Widget({
   onNavigate,
   onClose,
   onError,
+  onAuth,
   embedRef,
   className,
   style,
@@ -38,11 +40,14 @@ export function Widget({
   const handleRef = useRef<EmbedHandle | null>(null);
 
   // Stable callbacks to avoid re-mounting on callback changes
+  const stableParams = useStableValue(params);
+  const stableBrand = useStableValue(brand);
   const stableOnReady = useStableCallback(onReady);
   const stableOnSubmit = useStableCallback(onSubmit);
   const stableOnNavigate = useStableCallback(onNavigate);
   const stableOnClose = useStableCallback(onClose);
   const stableOnError = useStableCallback(onError);
+  const stableOnAuth = useStableCallback(onAuth);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -50,8 +55,8 @@ export function Widget({
 
     const handle = createWidget(container, {
       researchId,
-      params,
-      brand,
+      params: stableParams,
+      brand: stableBrand,
       theme,
       host,
       onReady: stableOnReady,
@@ -59,6 +64,7 @@ export function Widget({
       onNavigate: stableOnNavigate,
       onClose: stableOnClose,
       onError: stableOnError,
+      onAuth: stableOnAuth,
     });
 
     handleRef.current = handle;
@@ -76,8 +82,8 @@ export function Widget({
     };
   }, [
     researchId,
-    params,
-    brand,
+    stableParams,
+    stableBrand,
     theme,
     host,
     stableOnReady,
@@ -85,6 +91,7 @@ export function Widget({
     stableOnNavigate,
     stableOnClose,
     stableOnError,
+    stableOnAuth,
     embedRef,
   ]);
 

@@ -13,6 +13,7 @@ import {
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
+import { removeTimer } from "./timing";
 import { cn, getThemeClass } from "./utils";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
@@ -71,16 +72,26 @@ export function createFullpage(config: EmbedConfig): EmbedHandle {
   // Mutable config reference for updates
   let currentConfig = { ...config };
   let messageCleanup: (() => void) | null = null;
+  let destroyed = false;
 
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
 
-  const unmount = () => {
+  const teardown = (notifyClose: boolean) => {
+    if (destroyed) return;
+    destroyed = true;
+
     messageCleanup?.();
+    messageCleanup = null;
     unregisterIframe();
+    removeTimer(researchId);
     container.remove();
-    currentConfig.onClose?.();
+    if (notifyClose) {
+      currentConfig.onClose?.();
+    }
   };
+  const unmount = () => teardown(false);
+  const destroy = () => teardown(true);
 
   // Set up message listener
   messageCleanup = setupMessageListener(
@@ -101,10 +112,13 @@ export function createFullpage(config: EmbedConfig): EmbedHandle {
         return currentConfig.onNavigate;
       },
       get onClose() {
-        return unmount;
+        return destroy;
       },
       get onError() {
         return currentConfig.onError;
+      },
+      get onAuth() {
+        return currentConfig.onAuth;
       },
     },
     iframe,
@@ -117,7 +131,7 @@ export function createFullpage(config: EmbedConfig): EmbedHandle {
     update: (options) => {
       currentConfig = { ...currentConfig, ...options };
     },
-    destroy: unmount,
+    destroy,
     researchId,
     type: "fullpage" as const,
     iframe,

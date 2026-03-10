@@ -21,16 +21,12 @@ import type {
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
+  ToggleableHandle,
   ThemeConfig,
 } from "./types";
 import { DATA_ATTRS, THEME_VALUES } from "./constants";
-import {
-  parseTriggerAttr,
-  parseShowOnceAttr,
-  setupTrigger,
-  shouldShow,
-  markShown,
-} from "./triggers";
+import { markShown, parseTriggerAttr, parseShowOnceAttr } from "./triggers";
+import { setupAutoOpenPopup } from "./auto-open";
 import { createWidget } from "./widget";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
@@ -39,12 +35,34 @@ import { createFullpage } from "./fullpage";
 import { configure, getConfig, hasDom, getHost } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
+import { getTimer, removeTimer } from "./timing";
+import { injectResourceHints } from "./hints";
+import { preloadIframe, destroyPreloaded } from "./preload";
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 
+export function isToggleable(
+  handle: EmbedHandle | FloatHandle
+): handle is ToggleableHandle {
+  return "show" in handle && "hide" in handle;
+}
+
 // Track auto-open trigger cleanups (keyed by researchId)
 const triggerCleanups: Map<string, () => void> = new Map();
+const clickHandlerCleanups: Map<HTMLElement, () => void> = new Map();
+
+// Track pending idle preload so it can be cancelled on destroy
+let pendingPreloadHandle: number | null = null;
+
+function cancelPendingPreload(): void {
+  if (pendingPreloadHandle === null) return;
+  if ("cancelIdleCallback" in window) {
+    (window as Window).cancelIdleCallback(pendingPreloadHandle);
+  }
+  clearTimeout(pendingPreloadHandle);
+  pendingPreloadHandle = null;
+}
 
 // Theme config cache
 type EmbedApiConfig = ThemeConfig & {
@@ -58,6 +76,13 @@ type ButtonStyleConfig = {
   theme?: EmbedConfig["theme"];
   brand?: EmbedConfig["brand"];
 };
+type ThemeAwareFloatHandle = FloatHandle & {
+  update: (
+    options: Parameters<FloatHandle["update"]>[0] & {
+      _themeConfig?: ThemeConfig;
+    }
+  ) => void;
+};
 const styledButtons = new Map<HTMLElement, ButtonStyleConfig>();
 let buttonThemeMediaQuery: MediaQueryList | null = null;
 
@@ -67,6 +92,15 @@ const DEFAULT_THEME: ThemeConfig = {
   darkPrimaryColor: "#a78bfa",
   darkTextColor: "#ffffff",
 };
+const shouldWarnConfigFetch =
+  typeof process !== "undefined" && process.env?.NODE_ENV === "development";
+
+function warnConfigFetch(researchId: string, reason: string): void {
+  if (!shouldWarnConfigFetch || typeof console === "undefined") return;
+  console.warn(
+    `[Perspective] Failed to load embed config for ${researchId}: ${reason}`
+  );
+}
 
 /**
  * Fetch theme config from API (cached)
@@ -79,11 +113,18 @@ async function fetchConfig(researchId: string): Promise<EmbedApiConfig> {
   try {
     const host = getHost();
     const res = await fetch(`${host}/api/v1/embed/config/${researchId}`);
-    if (!res.ok) return DEFAULT_THEME;
+    if (!res.ok) {
+      warnConfigFetch(researchId, `HTTP ${res.status}`);
+      return DEFAULT_THEME;
+    }
     const config = (await res.json()) as EmbedApiConfig;
     configCache.set(researchId, config);
     return config;
-  } catch {
+  } catch (error) {
+    warnConfigFetch(
+      researchId,
+      error instanceof Error ? error.message : String(error)
+    );
     return DEFAULT_THEME;
   }
 }
@@ -295,9 +336,22 @@ function init(config: EmbedConfig): EmbedHandle | FloatHandle {
   // Normalize legacy "chat" type to "float"
   const type = config.type === "chat" ? "float" : (config.type ?? "widget");
 
-  // Destroy existing instance for this research
-  if (instances.has(researchId)) {
-    instances.get(researchId)!.unmount();
+  // Reuse hidden popup/slider instead of recreating (must match type)
+  const existing = instances.get(researchId);
+  if (
+    existing &&
+    isToggleable(existing) &&
+    !existing.isOpen &&
+    existing.type === type &&
+    existing.canReuse(config)
+  ) {
+    existing.update(config);
+    existing.show();
+    existing.replayOpenCallbacks();
+    return existing;
+  }
+  if (existing) {
+    existing.unmount();
     instances.delete(researchId);
   }
 
@@ -375,16 +429,25 @@ function destroy(researchId: string): void {
   if (instance) {
     instance.destroy();
     instances.delete(researchId);
+    removeTimer(researchId);
   }
 }
 
 function destroyAll(): void {
-  instances.forEach((instance) => instance.unmount());
+  instances.forEach((instance, researchId) => {
+    instance.destroy();
+    removeTimer(researchId);
+  });
   instances.clear();
   triggerCleanups.forEach((cleanup) => cleanup());
   triggerCleanups.clear();
+  clickHandlerCleanups.forEach((cleanup) => cleanup());
+  clickHandlerCleanups.clear();
   styledButtons.clear();
+  configCache.clear();
   teardownButtonThemeListener();
+  cancelPendingPreload();
+  destroyPreloaded();
   // Reset initialized flags so autoInit can re-process elements cleanly
   if (hasDom()) {
     document
@@ -409,6 +472,7 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        getTimer(researchId).mark("sdk:autoInit");
         mount(el, { researchId, type: "widget", params, ...brandConfig });
       }
     });
@@ -421,6 +485,7 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        getTimer(researchId).mark("sdk:autoInit");
         init({ researchId, type: "fullpage", params, ...brandConfig });
       }
     });
@@ -455,20 +520,25 @@ function autoInit(): void {
             ...brandConfig,
           });
         } else if (persistedOpen !== false) {
-          // Auto-open mode: trigger-based, no button styling
           try {
             const trigger = parseTriggerAttr(autoOpenAttr);
             const showOnce = parseShowOnceAttr(
               el.getAttribute(DATA_ATTRS.showOnce)
             );
+            triggerCleanups.get(researchId)?.();
 
-            if (shouldShow(researchId, showOnce)) {
-              // Clean up any existing trigger for this researchId
-              triggerCleanups.get(researchId)?.();
-
-              const cleanup = setupTrigger(trigger, () => {
+            const cleanup = setupAutoOpenPopup({
+              researchId,
+              trigger,
+              showOnce,
+              params,
+              brand: brandConfig.brand,
+              theme: brandConfig.theme,
+              onTriggered: () => {
                 triggerCleanups.delete(researchId);
                 markShown(researchId, showOnce);
+              },
+              onOpen: () => {
                 init({
                   researchId,
                   type: "popup",
@@ -476,18 +546,26 @@ function autoInit(): void {
                   disableClose,
                   ...brandConfig,
                 });
-              });
+              },
+            });
+
+            if (cleanup) {
               triggerCleanups.set(researchId, cleanup);
             }
           } catch (e) {
-            console.warn("[Perspective]", (e as Error).message);
+            console.warn(
+              "[Perspective]",
+              e instanceof Error ? e.message : String(e)
+            );
           }
         }
       } else {
         // Click-to-open mode: styled button
         styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", (e) => {
+        clickHandlerCleanups.get(el)?.();
+        const clickHandler = (e: MouseEvent) => {
           e.preventDefault();
+          getTimer(researchId).mark("sdk:triggerOpen");
           init({
             researchId,
             type: "popup",
@@ -495,6 +573,10 @@ function autoInit(): void {
             disableClose,
             ...brandConfig,
           });
+        };
+        el.addEventListener("click", clickHandler);
+        clickHandlerCleanups.set(el, () => {
+          el.removeEventListener("click", clickHandler);
         });
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
@@ -529,8 +611,10 @@ function autoInit(): void {
           type: "slider",
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", (e) => {
+        clickHandlerCleanups.get(el)?.();
+        const clickHandler = (e: MouseEvent) => {
           e.preventDefault();
+          getTimer(researchId).mark("sdk:triggerOpen");
           init({
             researchId,
             type: "slider",
@@ -538,6 +622,10 @@ function autoInit(): void {
             disableClose,
             ...brandConfig,
           });
+        };
+        el.addEventListener("click", clickHandler);
+        clickHandlerCleanups.set(el, () => {
+          el.removeEventListener("click", clickHandler);
         });
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
@@ -566,6 +654,7 @@ function autoInit(): void {
       const params = parseParamsAttr(floatEl);
       const brandConfig = extractBrandConfig(floatEl);
       const launcherConfig = extractLauncherConfig(floatEl);
+      getTimer(researchId).mark("sdk:autoInit");
       const floatHandle = init({
         researchId,
         type: "float",
@@ -576,45 +665,80 @@ function autoInit(): void {
       } as EmbedConfig & { _themeConfig: ThemeConfig });
 
       fetchConfig(researchId).then((config) => {
-        // Update bubble color with fetched theme
-        const bubble = document.querySelector<HTMLElement>(
-          '[data-perspective="float-bubble"]'
-        );
-        if (bubble && !floatEl.hasAttribute(DATA_ATTRS.noStyle)) {
-          // Only apply theme colors if launcher.style didn't override backgroundColor
-          if (!launcherConfig?.style?.backgroundColor) {
-            const isDark = resolveIsDark(brandConfig.theme);
-            const bg = isDark
-              ? (brandConfig.brand?.dark?.primary ?? config.darkPrimaryColor)
-              : (brandConfig.brand?.light?.primary ?? config.primaryColor);
-            bubble.style.setProperty("--perspective-float-bg", bg);
-            bubble.style.setProperty(
-              "--perspective-float-shadow",
-              `0 4px 12px ${bg}66`
-            );
-            bubble.style.setProperty(
-              "--perspective-float-shadow-hover",
-              `0 6px 16px ${bg}80`
-            );
-            bubble.style.backgroundColor = bg;
-            bubble.style.boxShadow = `0 4px 12px ${bg}66`;
-          }
-        }
-
         if (
           floatHandle.type === "float" &&
           instances.get(researchId) === floatHandle
         ) {
           const channels =
             config.channel ?? config.allowedChannels ?? undefined;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (floatHandle.update as any)({
+          const themeAwareFloatHandle = floatHandle as ThemeAwareFloatHandle;
+          themeAwareFloatHandle.update({
             channel: channels,
             welcomeMessage: config.welcomeMessage,
             _themeConfig: config,
           });
         }
       });
+    }
+  }
+
+  // Preload iframe for the first button-triggered or auto-triggered embed
+  // Priority: button embeds first (user will click), then auto-trigger embeds
+  const firstButtonEmbed =
+    document.querySelector<HTMLElement>(
+      `[${DATA_ATTRS.popup}]:not([${DATA_ATTRS.autoOpen}])`
+    ) ?? document.querySelector<HTMLElement>(`[${DATA_ATTRS.slider}]`);
+
+  const firstAutoTriggerEmbed = !firstButtonEmbed
+    ? document.querySelector<HTMLElement>(
+        `[${DATA_ATTRS.popup}][${DATA_ATTRS.autoOpen}]`
+      )
+    : null;
+
+  const preloadTarget = firstButtonEmbed ?? firstAutoTriggerEmbed;
+
+  if (preloadTarget) {
+    const preloadResearchId =
+      preloadTarget.getAttribute(DATA_ATTRS.popup) ??
+      preloadTarget.getAttribute(DATA_ATTRS.slider);
+    if (preloadResearchId && !instances.has(preloadResearchId)) {
+      const preloadType = preloadTarget.hasAttribute(DATA_ATTRS.popup)
+        ? ("popup" as const)
+        : ("slider" as const);
+      const preloadParams = parseParamsAttr(preloadTarget);
+      const preloadBrand = extractBrandConfig(preloadTarget);
+      const preloadHost = getHost();
+
+      const doPreload = () => {
+        pendingPreloadHandle = null;
+        // Re-check: user may have clicked before idle callback fired
+        if (instances.has(preloadResearchId)) return;
+        preloadIframe(
+          preloadResearchId,
+          preloadType,
+          preloadHost,
+          preloadParams,
+          preloadBrand.brand,
+          preloadBrand.theme
+        );
+      };
+
+      if (firstButtonEmbed) {
+        // Button embeds: defer to idle time
+        if ("requestIdleCallback" in window) {
+          pendingPreloadHandle = (window as Window).requestIdleCallback(
+            doPreload
+          ) as unknown as number;
+        } else {
+          pendingPreloadHandle = setTimeout(
+            doPreload,
+            200
+          ) as unknown as number;
+        }
+      } else {
+        // Auto-trigger embeds: preload immediately (trigger timer is already ticking)
+        doPreload();
+      }
     }
   }
 }
@@ -667,6 +791,9 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
       script
     );
   }
+
+  // Inject resource hints early — start DNS/TLS before iframe creation
+  injectResourceHints(getHost());
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", autoInit, { once: true });

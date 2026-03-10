@@ -95,8 +95,6 @@ export interface EmbedConfig {
   channel?: AIAssistantChannel | AIAssistantChannel[] | null;
   /** Welcome message shown as a teaser bubble next to the float button. Only used for float-type embeds. */
   welcomeMessage?: string;
-  /** Custom button text for popup/slider triggers */
-  buttonText?: string;
   /** Custom params to pass to the interview (for tracking/attribution) */
   params?: Record<string, string>;
   /** Brand colors to override Research settings */
@@ -160,6 +158,7 @@ export interface EmbedHandle {
         | "onAuth"
         | "channel"
         | "welcomeMessage"
+        | "disableClose"
       >
     >
   ) => void;
@@ -176,6 +175,15 @@ export interface EmbedHandle {
   readonly iframe: HTMLIFrameElement | null;
   /** @deprecated For legacy compatibility - may be null on server */
   readonly container: HTMLElement | null;
+}
+
+/** Internal handle for popup/slider with hide/show lifecycle (not re-exported from public entrypoint) */
+export interface ToggleableHandle extends EmbedHandle {
+  show: () => void;
+  hide: () => void;
+  canReuse: (config: EmbedConfig) => boolean;
+  replayOpenCallbacks: () => void;
+  readonly isOpen: boolean;
 }
 
 /** Handle for float bubble with open/close control (persistent UI element) */

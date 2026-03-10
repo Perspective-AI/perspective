@@ -195,7 +195,7 @@ const { open, close } = useFloatBubble({
 });
 ```
 
-React components passed as `icon` are converted to static SVG via `renderToStaticMarkup`. See the [core SDK docs](../sdk/README.md#launcher-customization-float-bubble) for all `launcher` options.
+React components passed as `icon` are converted to static SVG markup for the core SDK. See the [core SDK docs](../sdk/README.md#launcher-customization-float-bubble) for all `launcher` options.
 
 ## Components
 
@@ -258,7 +258,6 @@ interface UsePopupOptions {
   theme?: "light" | "dark" | "system";
   channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode
   welcomeMessage?: string; // Teaser text (float only)
-  buttonText?: string; // Trigger button text (popup/slider)
   params?: Record<string, string>;
   brand?: {
     light?: {

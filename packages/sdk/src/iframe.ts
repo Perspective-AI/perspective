@@ -6,8 +6,10 @@
 import type {
   BrandColors,
   EmbedConfig,
+  EmbedError,
   EmbedMessage,
   EmbedType,
+  ErrorCode,
 } from "./types";
 import { hasDom } from "./config";
 import {
@@ -23,6 +25,9 @@ import {
   ERROR_CODES,
 } from "./constants";
 import { normalizeHex } from "./utils";
+import { getTimer } from "./timing";
+
+const ERROR_CODE_VALUES: readonly string[] = Object.values(ERROR_CODES);
 
 /** Validate redirect URL - allow https, http localhost, and relative URLs */
 function isAllowedRedirectUrl(url: string): boolean {
@@ -89,10 +94,25 @@ function decodeTokenExpiry(token: string): number | null {
     if (parts.length !== 3) return null;
     const base64 = parts[1]!.replace(/-/g, "+").replace(/_/g, "/");
     const payload = JSON.parse(atob(base64));
-    return payload.data?.expiresAt ?? null;
+    const expiresAt = payload.data?.expiresAt;
+    if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) {
+      return null;
+    }
+    return expiresAt < 1_000_000_000_000 ? expiresAt * 1000 : expiresAt;
   } catch {
     return null;
   }
+}
+
+function createEmbedError(
+  message: string,
+  code: ErrorCode = ERROR_CODES.UNKNOWN
+): EmbedError {
+  return Object.assign(new Error(message), { code });
+}
+
+function isErrorCode(value: unknown): value is ErrorCode {
+  return typeof value === "string" && ERROR_CODE_VALUES.includes(value);
 }
 
 function authTokenKey(researchId: string): string {
@@ -102,7 +122,7 @@ function authTokenKey(researchId: string): string {
 /** Get cached embed auth token from parent's first-party localStorage (Layer 2).
  * Called on iframe ready to relay token back — critical for Safari where
  * iframe localStorage (Layer 1) is wiped on tab close. */
-function getCachedAuthToken(researchId: string): string | null {
+export function getCachedAuthToken(researchId: string): string | null {
   if (!hasDom()) return null;
   try {
     const key = authTokenKey(researchId);
@@ -276,6 +296,16 @@ export function createIframe(
   iframe.setAttribute("data-perspective", "true");
   iframe.style.cssText = "border:none;";
 
+  iframe.addEventListener(
+    "load",
+    () => {
+      getTimer(researchId).mark("iframe:loaded");
+    },
+    { once: true }
+  );
+
+  getTimer(researchId).mark("iframe:created");
+
   return iframe;
 }
 
@@ -284,7 +314,14 @@ export function setupMessageListener(
   config: Partial<EmbedConfig>,
   iframe: HTMLIFrameElement,
   host: string,
-  options?: { skipResize?: boolean; hasCloseButton?: boolean }
+  options?: {
+    skipResize?: boolean;
+    hasCloseButton?: boolean;
+    /** When true, only handle ready/resize — suppress redirect, auth, and close side effects. Used during preload. */
+    preloadOnly?: boolean;
+    /** When provided, suppress authRequest/authSignout side effects when this returns false. */
+    isActive?: () => boolean;
+  }
 ): () => void {
   if (!hasDom()) {
     return () => {};
@@ -307,6 +344,8 @@ export function setupMessageListener(
 
     switch (event.data.type) {
       case MESSAGE_TYPES.ready: {
+        getTimer(researchId).mark("perspective:ready");
+        getTimer(researchId).log();
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
         // Send anon_id for anonymous auth
@@ -347,20 +386,23 @@ export function setupMessageListener(
         }
         break;
 
+      // In preload mode, only ready and resize are handled — suppress all side effects
       case MESSAGE_TYPES.submit:
+        if (options?.preloadOnly) break;
         config.onSubmit?.({ researchId });
         break;
 
       case MESSAGE_TYPES.close:
+        if (options?.preloadOnly) break;
         config.onClose?.();
         break;
 
       case MESSAGE_TYPES.error: {
-        const error = new Error(
-          event.data.error
-        ) as import("./types").EmbedError;
-        error.code =
-          (event.data.code as import("./types").ErrorCode) || "UNKNOWN";
+        if (options?.preloadOnly) break;
+        const error = createEmbedError(
+          event.data.error,
+          isErrorCode(event.data.code) ? event.data.code : ERROR_CODES.UNKNOWN
+        );
 
         // Always log critical errors to console
         if (error.code === ERROR_CODES.SDK_OUTDATED) {
@@ -377,6 +419,7 @@ export function setupMessageListener(
       }
 
       case MESSAGE_TYPES.redirect: {
+        if (options?.preloadOnly) break;
         const redirectUrl = event.data.url;
         // Security: Only allow http(s) and localhost URLs
         if (!isAllowedRedirectUrl(redirectUrl)) {
@@ -396,6 +439,8 @@ export function setupMessageListener(
       }
 
       case MESSAGE_TYPES.authRequest: {
+        if (options?.preloadOnly) break;
+        if (options?.isActive && !options.isActive()) break;
         // The iframe can't do OAuth itself (cross-origin context, third-party
         // cookie blocking). So the iframe asks the SDK to open auth in a
         // first-party popup where cookies work normally. After auth, the
@@ -437,6 +482,19 @@ export function setupMessageListener(
         const authWindow =
           window.open(fullAuthUrl, "perspective-auth", popupFeatures) ??
           window.open(fullAuthUrl, "_blank"); // Popup blocked — fall back to new tab
+
+        if (!authWindow) {
+          sendMessage(iframe, host, {
+            type: MESSAGE_TYPES.authCancelled,
+            researchId,
+          });
+          config.onError?.(
+            createEmbedError(
+              "Authentication popup was blocked. Please allow popups and try again."
+            )
+          );
+          break;
+        }
 
         // Token handling: cache in Layer 2 (parent localStorage for persistence),
         // relay to iframe (which stores in Layer 1), and notify host app
@@ -492,6 +550,8 @@ export function setupMessageListener(
       }
 
       case MESSAGE_TYPES.authSignout: {
+        if (options?.preloadOnly) break;
+        if (options?.isActive && !options.isActive()) break;
         // User signed out in iframe — clear cached token so the next visit
         // requires re-authentication (no stale session)
         clearAuthToken(researchId);

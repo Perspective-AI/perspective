@@ -29,6 +29,9 @@ export { openSlider } from "./slider";
 export { createFloatBubble, createChatBubble } from "./float";
 export { createFullpage } from "./fullpage";
 
+// Auto-open helpers
+export { setupAutoOpenPopup } from "./auto-open";
+
 // Auto-open triggers
 export {
   setupTrigger,
@@ -39,8 +42,16 @@ export {
 } from "./triggers";
 
 // Configuration
-export { configure, getConfig } from "./config";
 export { getPersistedOpenState } from "./state";
+export { configure, getConfig, getHost } from "./config";
+
+// Preloading
+export {
+  preloadIframe,
+  destroyPreloaded,
+  destroyPreloadedByType,
+} from "./preload";
+export { stableSerialize } from "./reuse";
 
 // Types
 export type {
@@ -62,6 +73,7 @@ export type {
   LauncherConfig,
   LauncherIcon,
   LauncherStyle,
+  ErrorCode,
 } from "./types";
 
 // Re-export commonly used constants and types
@@ -72,8 +84,16 @@ export {
   DATA_ATTRS,
   PARAM_KEYS,
   BRAND_KEYS,
+  ERROR_CODES,
   MESSAGE_TYPES,
   THEME_VALUES,
+  MODE_VALUES,
 } from "./constants";
 
-export type { ThemeValue, ParamKey, BrandKey, MessageType } from "./constants";
+export type {
+  ThemeValue,
+  ParamKey,
+  BrandKey,
+  MessageType,
+  ModeValue,
+} from "./constants";

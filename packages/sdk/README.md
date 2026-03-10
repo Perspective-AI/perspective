@@ -111,7 +111,6 @@ interface EmbedConfig {
   theme?: "light" | "dark" | "system"; // Theme preference (default: "system")
   channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode (default: from server config)
   welcomeMessage?: string; // Teaser text next to float button (float-type only)
-  buttonText?: string; // Custom text for popup/slider trigger buttons
   params?: Record<string, string>; // Custom URL parameters for tracking
   brand?: {
     light?: BrandColors; // Light mode brand colors

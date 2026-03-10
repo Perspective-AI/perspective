@@ -38,6 +38,7 @@ export function FloatBubble({
   onNavigate,
   onClose,
   onError,
+  onAuth,
   embedRef,
 }: FloatBubbleProps) {
   const { handle } = useFloatBubble({
@@ -54,6 +55,7 @@ export function FloatBubble({
     onNavigate,
     onClose,
     onError,
+    onAuth,
   });
 
   useEffect(() => {

@@ -72,6 +72,44 @@ describe("embed auth message handling", () => {
       expect(openSpy.mock.calls[1]![1]).toBe("_blank");
     });
 
+    it("notifies the host app when auth windows are blocked entirely", () => {
+      const onError = vi.fn();
+      const postMessageSpy = vi.fn();
+      vi.spyOn(window, "open").mockReturnValue(null);
+      Object.defineProperty(iframe, "contentWindow", {
+        value: { postMessage: postMessageSpy },
+        configurable: true,
+      });
+
+      removeListener = setupMessageListener(
+        researchId,
+        { onError },
+        iframe,
+        host
+      );
+
+      dispatchFromIframe({
+        type: MESSAGE_TYPES.authRequest,
+        provider: "google",
+        authUrl: "https://getperspective.ai/embed-auth/google?research_id=test",
+      });
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "UNKNOWN",
+          message:
+            "Authentication popup was blocked. Please allow popups and try again.",
+        })
+      );
+      expect(postMessageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: MESSAGE_TYPES.authCancelled,
+          researchId,
+        }),
+        host
+      );
+    });
+
     it("ignores auth request without authUrl", () => {
       const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
       removeListener = setupMessageListener(researchId, {}, iframe, host);
@@ -98,7 +136,7 @@ describe("embed auth message handling", () => {
     });
 
     it("listens for postMessage from popup after opening auth window", () => {
-      vi.spyOn(window, "open").mockReturnValue(null);
+      vi.spyOn(window, "open").mockReturnValue({ closed: false } as Window);
       const addEventSpy = vi.spyOn(window, "addEventListener");
       removeListener = setupMessageListener(researchId, {}, iframe, host);
 
@@ -259,6 +297,34 @@ describe("embed auth message handling", () => {
       });
     });
 
+    it("relays cached token when expiresAt is encoded in seconds", () => {
+      const token = createMockToken(
+        researchId,
+        Math.floor((Date.now() + 86400000) / 1000)
+      );
+      localStorage.setItem(
+        `${STORAGE_KEYS.embedAuthToken}:${researchId}`,
+        token
+      );
+
+      const postMessageSpy = vi.fn();
+      Object.defineProperty(iframe, "contentWindow", {
+        value: { postMessage: postMessageSpy },
+        configurable: true,
+      });
+
+      removeListener = setupMessageListener(researchId, {}, iframe, host);
+
+      dispatchFromIframe({ type: MESSAGE_TYPES.ready });
+
+      const authMessages = postMessageSpy.mock.calls.filter(
+        (call: unknown[]) =>
+          (call[0] as Record<string, unknown>).type ===
+          MESSAGE_TYPES.authComplete
+      );
+      expect(authMessages).toHaveLength(1);
+    });
+
     it("does NOT relay expired token on ready", () => {
       // Pre-cache an expired token
       const expiredToken = createMockToken(researchId, Date.now() - 1000);
@@ -390,7 +456,7 @@ describe("embed auth message handling", () => {
 
   describe("auth listener cleanup on embed destroy", () => {
     it("cleans up auth listeners when removeListener is called during active auth", () => {
-      vi.spyOn(window, "open").mockReturnValue(null);
+      vi.spyOn(window, "open").mockReturnValue({ closed: false } as Window);
       const removeEventSpy = vi.spyOn(window, "removeEventListener");
       const clearIntervalSpy = vi.spyOn(window, "clearInterval");
 
@@ -412,7 +478,7 @@ describe("embed auth message handling", () => {
     });
 
     it("cleans up previous auth flow when new auth request arrives", () => {
-      vi.spyOn(window, "open").mockReturnValue(null);
+      vi.spyOn(window, "open").mockReturnValue({ closed: false } as Window);
       const clearIntervalSpy = vi.spyOn(window, "clearInterval");
 
       removeListener = setupMessageListener(researchId, {}, iframe, host);

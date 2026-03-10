@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createFullpage } from "./fullpage";
 import * as config from "./config";
+import { MESSAGE_TYPES } from "./constants";
+import * as timing from "./timing";
 
 describe("createFullpage", () => {
   beforeEach(() => {
@@ -36,6 +38,18 @@ describe("createFullpage", () => {
     handle.unmount();
   });
 
+  it("removes the load timer on unmount", () => {
+    const removeTimerSpy = vi.spyOn(timing, "removeTimer");
+
+    const handle = createFullpage({
+      researchId: "test-research-id",
+    });
+
+    handle.unmount();
+
+    expect(removeTimerSpy).toHaveBeenCalledWith("test-research-id");
+  });
+
   it("returns no-op handle when no DOM", () => {
     vi.spyOn(config, "hasDom").mockReturnValue(false);
 
@@ -61,7 +75,7 @@ describe("createFullpage", () => {
     expect(document.querySelector(".perspective-fullpage")).toBeFalsy();
   });
 
-  it("destroy is alias for unmount", () => {
+  it("destroy removes the fullpage container", () => {
     const handle = createFullpage({
       researchId: "test-research-id",
     });
@@ -73,7 +87,7 @@ describe("createFullpage", () => {
     expect(document.querySelector(".perspective-fullpage")).toBeFalsy();
   });
 
-  it("calls onClose on unmount", () => {
+  it("does not call onClose on unmount", () => {
     const onClose = vi.fn();
     const handle = createFullpage({
       researchId: "test-research-id",
@@ -82,7 +96,19 @@ describe("createFullpage", () => {
 
     handle.unmount();
 
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("calls onClose on destroy", () => {
+    const onClose = vi.fn();
+    const handle = createFullpage({
+      researchId: "test-research-id",
+      onClose,
+    });
+
+    handle.destroy();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("applies theme class", () => {
@@ -175,6 +201,41 @@ describe("createFullpage", () => {
       handle.unmount();
     });
 
+    it("forwards auth-complete messages to onAuth", () => {
+      const onAuth = vi.fn();
+      const popupWindow = {} as Window;
+      vi.spyOn(window, "open").mockReturnValue(popupWindow);
+
+      const handle = createFullpage({
+        researchId,
+        host,
+        onAuth,
+      });
+
+      sendMessage(handle.iframe!, MESSAGE_TYPES.authRequest, {
+        provider: "google",
+        authUrl: `${host}/embed-auth/google`,
+      });
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: MESSAGE_TYPES.popupAuthComplete,
+            token: "test-token",
+          },
+          origin: host,
+          source: popupWindow,
+        })
+      );
+
+      expect(onAuth).toHaveBeenCalledWith({
+        researchId,
+        token: "test-token",
+      });
+
+      handle.unmount();
+    });
+
     it("sequential updates only use latest callback", () => {
       const fn1 = vi.fn();
       const fn2 = vi.fn();
@@ -211,13 +272,28 @@ describe("createFullpage", () => {
 
       const iframe = handle.iframe!;
 
-      handle.unmount();
+      handle.destroy();
       expect(onClose).toHaveBeenCalledTimes(1);
 
       sendMessage(iframe, "perspective:submit");
       sendMessage(iframe, "perspective:close");
 
       expect(onSubmit).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("close messages tear down the embed and fire onClose once", () => {
+      const onClose = vi.fn();
+
+      const handle = createFullpage({
+        researchId,
+        host,
+        onClose,
+      });
+
+      sendMessage(handle.iframe!, "perspective:close");
+
+      expect(document.querySelector(".perspective-fullpage")).toBeFalsy();
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
