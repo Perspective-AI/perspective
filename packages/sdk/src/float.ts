@@ -435,6 +435,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   };
 
   if (shouldRestoreOpen) {
+    welcomeSequenceStarted = true;
     openFloat();
   } else {
     maybeStartWelcomeSequence();

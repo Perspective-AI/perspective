@@ -260,6 +260,31 @@ describe("createFloatBubble", () => {
     handle.unmount();
   });
 
+  it("does not restart welcome sequence after closing a restored float", () => {
+    vi.useFakeTimers();
+
+    setPersistedOpenState({
+      researchId: "test-research-id",
+      type: "float",
+      open: true,
+    });
+
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+      welcomeMessage: "Have questions? I can help.",
+    });
+
+    expect(handle.isOpen).toBe(true);
+
+    handle.close();
+    handle.update({});
+    vi.advanceTimersByTime(3000);
+
+    expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+    handle.unmount();
+  });
+
   it("open when already open is no-op", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
