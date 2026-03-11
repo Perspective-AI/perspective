@@ -40,6 +40,7 @@ export {
 
 // Configuration
 export { configure, getConfig } from "./config";
+export { getPersistedOpenState } from "./state";
 
 // Types
 export type {

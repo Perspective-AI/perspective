@@ -13,6 +13,7 @@ import {
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, CLOSE_ICON } from "./styles";
+import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
@@ -87,11 +88,21 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
   let currentConfig = { ...config };
   let isOpen = true;
   let messageCleanup: (() => void) | null = null;
+  const persistOpenState = (open: boolean) => {
+    setPersistedOpenState({
+      researchId,
+      type: "slider",
+      host: config.host,
+      open,
+    });
+  };
 
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
 
-  const destroy = () => {
+  persistOpenState(true);
+
+  const removeSlider = () => {
     if (!isOpen) return;
     isOpen = false;
     messageCleanup?.();
@@ -100,6 +111,15 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
     backdrop.remove();
     document.removeEventListener("keydown", escHandler);
     currentConfig.onClose?.();
+  };
+
+  const destroy = () => {
+    persistOpenState(false);
+    removeSlider();
+  };
+
+  const unmount = () => {
+    removeSlider();
   };
 
   // Set up message listener with loading state handling
@@ -145,7 +165,7 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
   document.addEventListener("keydown", escHandler);
 
   return {
-    unmount: destroy,
+    unmount,
     update: (options: Parameters<EmbedHandle["update"]>[0]) => {
       currentConfig = { ...currentConfig, ...options };
     },

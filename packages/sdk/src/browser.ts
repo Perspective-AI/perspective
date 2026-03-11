@@ -37,6 +37,7 @@ import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
 import { configure, getConfig, hasDom, getHost } from "./config";
+import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
 
 // Track all active instances
@@ -323,7 +324,7 @@ function mount(
 function destroy(researchId: string): void {
   const instance = instances.get(researchId);
   if (instance) {
-    instance.unmount();
+    instance.destroy();
     instances.delete(researchId);
   }
 }
@@ -388,28 +389,36 @@ function autoInit(): void {
       const params = parseParamsAttr(el);
       const brandConfig = extractBrandConfig(el);
       const autoOpenAttr = el.getAttribute(DATA_ATTRS.autoOpen);
+      const persistedOpen = getPersistedOpenState({
+        researchId,
+        type: "popup",
+      });
 
       if (autoOpenAttr) {
-        // Auto-open mode: trigger-based, no button styling
-        try {
-          const trigger = parseTriggerAttr(autoOpenAttr);
-          const showOnce = parseShowOnceAttr(
-            el.getAttribute(DATA_ATTRS.showOnce)
-          );
+        if (persistedOpen === true) {
+          init({ researchId, type: "popup", params, ...brandConfig });
+        } else if (persistedOpen !== false) {
+          // Auto-open mode: trigger-based, no button styling
+          try {
+            const trigger = parseTriggerAttr(autoOpenAttr);
+            const showOnce = parseShowOnceAttr(
+              el.getAttribute(DATA_ATTRS.showOnce)
+            );
 
-          if (shouldShow(researchId, showOnce)) {
-            // Clean up any existing trigger for this researchId
-            triggerCleanups.get(researchId)?.();
+            if (shouldShow(researchId, showOnce)) {
+              // Clean up any existing trigger for this researchId
+              triggerCleanups.get(researchId)?.();
 
-            const cleanup = setupTrigger(trigger, () => {
-              triggerCleanups.delete(researchId);
-              markShown(researchId, showOnce);
-              init({ researchId, type: "popup", params, ...brandConfig });
-            });
-            triggerCleanups.set(researchId, cleanup);
+              const cleanup = setupTrigger(trigger, () => {
+                triggerCleanups.delete(researchId);
+                markShown(researchId, showOnce);
+                init({ researchId, type: "popup", params, ...brandConfig });
+              });
+              triggerCleanups.set(researchId, cleanup);
+            }
+          } catch (e) {
+            console.warn("[Perspective]", (e as Error).message);
           }
-        } catch (e) {
-          console.warn("[Perspective]", (e as Error).message);
         }
       } else {
         // Click-to-open mode: styled button
@@ -421,6 +430,10 @@ function autoInit(): void {
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
         });
+
+        if (persistedOpen === true) {
+          init({ researchId, type: "popup", params, ...brandConfig });
+        }
       }
     });
 
@@ -435,6 +448,10 @@ function autoInit(): void {
       if (researchId) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        const persistedOpen = getPersistedOpenState({
+          researchId,
+          type: "slider",
+        });
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", (e) => {
           e.preventDefault();
@@ -443,6 +460,10 @@ function autoInit(): void {
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
         });
+
+        if (persistedOpen === true) {
+          init({ researchId, type: "slider", params, ...brandConfig });
+        }
       }
     });
 

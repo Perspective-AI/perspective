@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import {
+  getPersistedOpenState,
   openSlider,
   type EmbedConfig,
   type EmbedHandle,
@@ -118,9 +119,13 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
     stableOnError,
   ]);
 
-  const destroySlider = useCallback(() => {
+  const destroySlider = useCallback((mode: "destroy" | "unmount") => {
     if (handleRef.current) {
-      handleRef.current.destroy();
+      if (mode === "destroy") {
+        handleRef.current.destroy();
+      } else {
+        handleRef.current.unmount();
+      }
       handleRef.current = null;
       setHandle(null);
     }
@@ -139,7 +144,7 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
     if (isControlled) {
       onOpenChange?.(false);
     } else {
-      destroySlider();
+      destroySlider("destroy");
       setInternalOpen(false);
     }
   }, [isControlled, onOpenChange, destroySlider]);
@@ -158,14 +163,25 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
     if (controlledOpen && !handleRef.current) {
       createSlider();
     } else if (!controlledOpen && handleRef.current) {
-      destroySlider();
+      destroySlider("destroy");
     }
   }, [controlledOpen, isControlled, createSlider, destroySlider]);
 
   useEffect(() => {
+    if (isControlled || handleRef.current) return;
+
+    if (getPersistedOpenState({ researchId, type: "slider", host }) !== true) {
+      return;
+    }
+
+    createSlider();
+    setInternalOpen(true);
+  }, [createSlider, host, isControlled, researchId]);
+
+  useEffect(() => {
     return () => {
       if (handleRef.current) {
-        handleRef.current.destroy();
+        handleRef.current.unmount();
         handleRef.current = null;
       }
     };

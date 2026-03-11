@@ -136,6 +136,86 @@ test.describe("Script Tag Auto-Init", () => {
     const floatBubble = page.locator("body > .perspective-float-bubble");
     await expect(floatBubble).toBeVisible();
   });
+
+  test("restores popup open state after reload", async ({ page }) => {
+    await page.goto("/script-tag.html");
+
+    await page.click("#popup-trigger");
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    await page.reload();
+
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+  });
+
+  test("does not restore popup after explicit close", async ({ page }) => {
+    await page.goto("/script-tag.html");
+
+    await page.click("#popup-trigger");
+    await expect(page.locator(".perspective-overlay")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+
+    await page.reload();
+
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
+  });
+
+  test("restores slider open state after reload", async ({ page }) => {
+    await page.goto("/script-tag.html");
+
+    await page.click("#slider-trigger");
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+
+    await page.reload();
+
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+  });
+
+  test("does not restore slider after explicit close", async ({ page }) => {
+    await page.goto("/script-tag.html");
+
+    await page.click("#slider-trigger");
+    await expect(page.locator(".perspective-slider")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-slider")).not.toBeVisible();
+
+    await page.reload();
+
+    await expect(page.locator(".perspective-slider")).not.toBeVisible();
+  });
+
+  test("restores float open state after reload", async ({ page }) => {
+    await page.goto("/script-tag.html");
+
+    const bubble = page.locator("body > .perspective-float-bubble");
+    await bubble.click();
+    await expect(page.locator(".perspective-float-window")).toBeVisible();
+
+    await page.reload();
+
+    await expect(page.locator(".perspective-float-window")).toBeVisible();
+  });
+
+  test("does not restore float after explicit close", async ({ page }) => {
+    await page.goto("/script-tag.html");
+
+    const bubble = page.locator("body > .perspective-float-bubble");
+    await bubble.click();
+    await expect(page.locator(".perspective-float-window")).toBeVisible();
+
+    await page.locator(".perspective-float-window .perspective-close").click();
+    await expect(page.locator(".perspective-float-window")).not.toBeVisible();
+
+    await page.reload();
+
+    await expect(page.locator(".perspective-float-window")).not.toBeVisible();
+    await expect(
+      page.locator("body > .perspective-float-bubble")
+    ).toBeVisible();
+  });
 });
 
 test.describe("Manual API", () => {
@@ -597,7 +677,7 @@ test.describe("Auto-Trigger Popup", () => {
     await expect(page.locator(".perspective-overlay")).toBeVisible();
   });
 
-  test("show-once visitor: uses localStorage so popup does not reopen", async ({
+  test("show-once visitor: uses localStorage so popup does not reopen after explicit close", async ({
     page,
   }) => {
     await page.goto("/auto-trigger-visitor.html");
@@ -615,6 +695,11 @@ test.describe("Auto-Trigger Popup", () => {
         null
     );
     expect(stored).toBe("1");
+
+    // Close popup so the test isolates visitor show-once behavior rather than
+    // the separate open-state restore feature.
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".perspective-overlay")).not.toBeVisible();
 
     // destroyAll + autoInit should NOT re-trigger (localStorage marker persists)
     await page.evaluate(() => {

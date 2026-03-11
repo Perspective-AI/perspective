@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createFloatBubble, createChatBubble } from "./float";
 import * as config from "./config";
+import { getPersistedOpenState, setPersistedOpenState } from "./state";
 
 describe("createFloatBubble", () => {
   beforeEach(() => {
@@ -9,6 +10,7 @@ describe("createFloatBubble", () => {
 
   afterEach(() => {
     document.body.innerHTML = "";
+    sessionStorage.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -108,6 +110,12 @@ describe("createFloatBubble", () => {
 
     expect(handle.isOpen).toBe(true);
     expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "float",
+      })
+    ).toBe(true);
 
     handle.unmount();
   });
@@ -128,6 +136,12 @@ describe("createFloatBubble", () => {
     expect(handle.isOpen).toBe(false);
     expect(document.querySelector(".perspective-float-window")).toBeFalsy();
     expect(onClose).toHaveBeenCalled();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "float",
+      })
+    ).toBe(false);
   });
 
   it("toggle() toggles float window", () => {
@@ -203,18 +217,47 @@ describe("createFloatBubble", () => {
 
     expect(document.querySelector(".perspective-float-bubble")).toBeFalsy();
     expect(document.querySelector(".perspective-float-window")).toBeFalsy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "float",
+      })
+    ).toBe(true);
   });
 
-  it("destroy is alias for unmount", () => {
+  it("destroy clears persisted open state", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",
     });
 
-    expect(document.querySelector(".perspective-float-bubble")).toBeTruthy();
+    handle.open();
 
     handle.destroy();
 
     expect(document.querySelector(".perspective-float-bubble")).toBeFalsy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "float",
+      })
+    ).toBe(false);
+  });
+
+  it("restores open state from sessionStorage", () => {
+    setPersistedOpenState({
+      researchId: "test-research-id",
+      type: "float",
+      open: true,
+    });
+
+    const handle = createFloatBubble({
+      researchId: "test-research-id",
+    });
+
+    expect(handle.isOpen).toBe(true);
+    expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+
+    handle.unmount();
   });
 
   it("open when already open is no-op", () => {

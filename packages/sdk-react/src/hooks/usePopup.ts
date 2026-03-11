@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import {
+  getPersistedOpenState,
   openPopup,
   type EmbedConfig,
   type EmbedHandle,
@@ -127,9 +128,13 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     stableOnError,
   ]);
 
-  const destroyPopup = useCallback(() => {
+  const destroyPopup = useCallback((mode: "destroy" | "unmount") => {
     if (handleRef.current) {
-      handleRef.current.destroy();
+      if (mode === "destroy") {
+        handleRef.current.destroy();
+      } else {
+        handleRef.current.unmount();
+      }
       handleRef.current = null;
       setHandle(null);
     }
@@ -148,7 +153,7 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     if (isControlled) {
       onOpenChange?.(false);
     } else {
-      destroyPopup();
+      destroyPopup("destroy");
       setInternalOpen(false);
     }
   }, [isControlled, onOpenChange, destroyPopup]);
@@ -167,14 +172,25 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     if (controlledOpen && !handleRef.current) {
       createPopup();
     } else if (!controlledOpen && handleRef.current) {
-      destroyPopup();
+      destroyPopup("destroy");
     }
   }, [controlledOpen, isControlled, createPopup, destroyPopup]);
 
   useEffect(() => {
+    if (isControlled || handleRef.current) return;
+
+    if (getPersistedOpenState({ researchId, type: "popup", host }) !== true) {
+      return;
+    }
+
+    createPopup();
+    setInternalOpen(true);
+  }, [createPopup, host, isControlled, researchId]);
+
+  useEffect(() => {
     return () => {
       if (handleRef.current) {
-        handleRef.current.destroy();
+        handleRef.current.unmount();
         handleRef.current = null;
       }
     };

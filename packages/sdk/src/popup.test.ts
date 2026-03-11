@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { openPopup } from "./popup";
 import * as config from "./config";
+import { getPersistedOpenState } from "./state";
 
 describe("openPopup", () => {
   afterEach(() => {
@@ -8,6 +9,7 @@ describe("openPopup", () => {
     document
       .querySelectorAll(".perspective-overlay")
       .forEach((el) => el.remove());
+    sessionStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -66,10 +68,22 @@ describe("openPopup", () => {
     const handle = openPopup({ researchId: "test-research-id" });
 
     expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "popup",
+      })
+    ).toBe(true);
 
     handle.destroy();
 
     expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "popup",
+      })
+    ).toBe(false);
   });
 
   it("calls onClose callback when destroyed", () => {
@@ -157,6 +171,12 @@ describe("openPopup", () => {
 
     expect(onClose).toHaveBeenCalled();
     expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "popup",
+      })
+    ).toBe(true);
   });
 
   it("update modifies config", () => {
