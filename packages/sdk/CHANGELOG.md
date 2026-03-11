@@ -1,5 +1,13 @@
 # @perspective-ai/sdk
 
+## 1.3.1
+
+### Patch Changes
+
+- ca61c73: Persist popup, slider, and float open state within the current browser
+  session. The SDK now restores shell state after reloads and React remounts
+  while keeping explicit closes separate from teardown.
+
 ## 1.3.0
 
 ### Minor Changes
