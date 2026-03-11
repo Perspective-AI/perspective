@@ -185,4 +185,5 @@ export const STORAGE_KEYS = {
   anonId: "perspective-anon-id",
   triggerShown: "perspective-trigger-shown",
   embedAuthToken: "perspective-embed-auth-token",
+  embedState: "perspective-embed-state",
 } as const;

@@ -12,10 +12,12 @@ import {
   createChatBubble,
   createFullpage,
 } from "./browser";
+import { getPersistedOpenState, setPersistedOpenState } from "./state";
 
 describe("browser entry", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
+    sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -136,6 +138,9 @@ describe("browser entry", () => {
 
       destroy("test");
       expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+      expect(getPersistedOpenState({ researchId: "test", type: "popup" })).toBe(
+        false
+      );
     });
 
     it("is no-op for unknown researchId", () => {
@@ -154,6 +159,16 @@ describe("browser entry", () => {
 
       expect(document.querySelector(".perspective-overlay")).toBeFalsy();
       expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    });
+
+    it("preserves persisted open state for teardown", () => {
+      init({ researchId: "test1", type: "popup" });
+
+      destroyAll();
+
+      expect(
+        getPersistedOpenState({ researchId: "test1", type: "popup" })
+      ).toBe(true);
     });
 
     it("resets data-perspective-initialized so autoInit can re-process elements", () => {
@@ -352,6 +367,21 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-overlay")).toBeTruthy();
     });
 
+    it("restores popup open state from sessionStorage", () => {
+      setPersistedOpenState({
+        researchId: "test-popup",
+        type: "popup",
+        open: true,
+      });
+      document.body.innerHTML = `
+        <button data-perspective-popup="test-popup">Open</button>
+      `;
+
+      autoInit();
+
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+    });
+
     it("attaches slider click handler from data-perspective-slider", () => {
       document.body.innerHTML = `
         <button data-perspective-slider="test-slider">Open</button>
@@ -365,6 +395,21 @@ describe("browser entry", () => {
         "[data-perspective-slider]"
       ) as HTMLButtonElement;
       button.click();
+
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+    });
+
+    it("restores slider open state from sessionStorage", () => {
+      setPersistedOpenState({
+        researchId: "test-slider",
+        type: "slider",
+        open: true,
+      });
+      document.body.innerHTML = `
+        <button data-perspective-slider="test-slider">Open</button>
+      `;
+
+      autoInit();
 
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });

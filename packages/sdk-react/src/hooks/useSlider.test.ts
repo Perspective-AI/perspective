@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useSlider } from "./useSlider";
 
-const mockDestroy = vi.fn();
-const mockUnmount = vi.fn();
-const mockUpdate = vi.fn();
+const { mockDestroy, mockUnmount, mockUpdate, mockGetPersistedOpenState } =
+  vi.hoisted(() => ({
+    mockDestroy: vi.fn(),
+    mockUnmount: vi.fn(),
+    mockUpdate: vi.fn(),
+    mockGetPersistedOpenState: vi.fn(),
+  }));
 
 vi.mock("@perspective-ai/sdk", () => ({
+  getPersistedOpenState: mockGetPersistedOpenState,
   openSlider: vi.fn(() => ({
     unmount: mockUnmount,
     update: mockUpdate,
@@ -24,6 +29,7 @@ const mockOpenSlider = vi.mocked(openSlider);
 describe("useSlider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetPersistedOpenState.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -120,7 +126,7 @@ describe("useSlider", () => {
     expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 
-  it("cleans up on unmount", () => {
+  it("cleans up on unmount without treating it as explicit close", () => {
     const { result, unmount } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
@@ -131,7 +137,8 @@ describe("useSlider", () => {
 
     unmount();
 
-    expect(mockDestroy).toHaveBeenCalled();
+    expect(mockUnmount).toHaveBeenCalled();
+    expect(mockDestroy).not.toHaveBeenCalled();
   });
 
   it("makes handle reactive - handle is available after open", () => {
@@ -145,6 +152,18 @@ describe("useSlider", () => {
       result.current.open();
     });
 
+    expect(result.current.handle).not.toBeNull();
+  });
+
+  it("restores persisted open state on mount in uncontrolled mode", () => {
+    mockGetPersistedOpenState.mockReturnValue(true);
+
+    const { result } = renderHook(() =>
+      useSlider({ researchId: "test-research-id" })
+    );
+
+    expect(mockOpenSlider).toHaveBeenCalledTimes(1);
+    expect(result.current.isOpen).toBe(true);
     expect(result.current.handle).not.toBeNull();
   });
 });

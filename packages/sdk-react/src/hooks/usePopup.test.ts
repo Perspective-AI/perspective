@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { usePopup } from "./usePopup";
 
-const mockDestroy = vi.fn();
-const mockUnmount = vi.fn();
-const mockUpdate = vi.fn();
+const { mockDestroy, mockUnmount, mockUpdate, mockGetPersistedOpenState } =
+  vi.hoisted(() => ({
+    mockDestroy: vi.fn(),
+    mockUnmount: vi.fn(),
+    mockUpdate: vi.fn(),
+    mockGetPersistedOpenState: vi.fn(),
+  }));
 
 vi.mock("@perspective-ai/sdk", () => ({
+  getPersistedOpenState: mockGetPersistedOpenState,
   openPopup: vi.fn(() => ({
     unmount: mockUnmount,
     update: mockUpdate,
@@ -24,6 +29,7 @@ const mockOpenPopup = vi.mocked(openPopup);
 describe("usePopup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetPersistedOpenState.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -189,7 +195,7 @@ describe("usePopup", () => {
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
-  it("cleans up on unmount", () => {
+  it("cleans up on unmount without treating it as explicit close", () => {
     const { result, unmount } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
@@ -200,7 +206,8 @@ describe("usePopup", () => {
 
     unmount();
 
-    expect(mockDestroy).toHaveBeenCalled();
+    expect(mockUnmount).toHaveBeenCalled();
+    expect(mockDestroy).not.toHaveBeenCalled();
   });
 
   it("makes handle reactive - handle is available after open", () => {
@@ -214,6 +221,18 @@ describe("usePopup", () => {
       result.current.open();
     });
 
+    expect(result.current.handle).not.toBeNull();
+  });
+
+  it("restores persisted open state on mount in uncontrolled mode", () => {
+    mockGetPersistedOpenState.mockReturnValue(true);
+
+    const { result } = renderHook(() =>
+      usePopup({ researchId: "test-research-id" })
+    );
+
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
+    expect(result.current.isOpen).toBe(true);
     expect(result.current.handle).not.toBeNull();
   });
 });

@@ -18,6 +18,7 @@ import {
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
+import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
 
 type FloatConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
@@ -162,6 +163,20 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   let welcomeSequenceStarted = false;
   let welcomeDismissed = false;
   let welcomeTimers: number[] = [];
+  const persistOpenState = (open: boolean) => {
+    setPersistedOpenState({
+      researchId,
+      type: "float",
+      host: config.host,
+      open,
+    });
+  };
+  const shouldRestoreOpen =
+    getPersistedOpenState({
+      researchId,
+      type: "float",
+      host: config.host,
+    }) === true;
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
@@ -253,7 +268,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     messageEl.appendChild(textEl);
 
     teaserEl.appendChild(messageEl);
-    teaserEl.addEventListener("click", openFloat);
+    teaserEl.addEventListener("click", () => openFloat());
 
     document.body.appendChild(teaserEl);
     teaser = teaserEl;
@@ -294,6 +309,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   const openFloat = () => {
     if (isOpen) return;
     isOpen = true;
+    persistOpenState(true);
     clearWelcomeTimers();
     removeTeaser();
 
@@ -309,7 +325,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     closeBtn.className = "perspective-close";
     closeBtn.innerHTML = CLOSE_ICON;
     closeBtn.setAttribute("aria-label", "Close chat");
-    closeBtn.addEventListener("click", closeFloat);
+    closeBtn.addEventListener("click", () => closeFloat());
 
     // Create loading indicator with theme and brand colors
     const loading = createLoadingIndicator({
@@ -374,8 +390,11 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     setBubbleOpenState();
   };
 
-  const closeFloat = () => {
+  const closeFloat = (options?: { persistState?: boolean }) => {
     if (!isOpen) return;
+    if (options?.persistState !== false) {
+      persistOpenState(false);
+    }
     isOpen = false;
 
     cleanup?.();
@@ -404,13 +423,23 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   const unmount = () => {
     clearWelcomeTimers();
     removeTeaser();
-    closeFloat();
+    closeFloat({ persistState: false });
     bubble.remove();
     void audioCtx?.close();
     audioCtx = null;
   };
 
-  maybeStartWelcomeSequence();
+  const destroy = () => {
+    persistOpenState(false);
+    unmount();
+  };
+
+  if (shouldRestoreOpen) {
+    welcomeSequenceStarted = true;
+    openFloat();
+  } else {
+    maybeStartWelcomeSequence();
+  }
 
   return {
     unmount,
@@ -422,7 +451,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
 
       maybeStartWelcomeSequence();
     },
-    destroy: unmount,
+    destroy,
     open: openFloat,
     close: closeFloat,
     toggle: () => {

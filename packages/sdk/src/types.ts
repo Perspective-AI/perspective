@@ -109,6 +109,10 @@ export interface EmbedInstance {
 
 /** Handle returned by embed creation functions */
 export interface EmbedHandle {
+  /**
+   * Tear down DOM and listeners without changing persisted open/closed state.
+   * Use this for framework cleanup or route remounts.
+   */
   unmount: () => void;
   update: (
     options: Partial<
@@ -125,7 +129,10 @@ export interface EmbedHandle {
       >
     >
   ) => void;
-  /** @deprecated Use unmount() instead */
+  /**
+   * Explicitly close the embed and persist a "closed" state for restorable
+   * embeds such as popup and slider.
+   */
   destroy: () => void;
   /** @deprecated For legacy compatibility */
   readonly researchId: string;

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { openSlider } from "./slider";
 import * as config from "./config";
+import { getPersistedOpenState } from "./state";
 
 describe("openSlider", () => {
   beforeEach(() => {
@@ -9,6 +10,7 @@ describe("openSlider", () => {
 
   afterEach(() => {
     document.body.innerHTML = "";
+    sessionStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -62,9 +64,15 @@ describe("openSlider", () => {
 
     expect(document.querySelector(".perspective-slider")).toBeFalsy();
     expect(document.querySelector(".perspective-slider-backdrop")).toBeFalsy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "slider",
+      })
+    ).toBe(true);
   });
 
-  it("destroy is alias for unmount", () => {
+  it("destroy removes slider and persists closed state", () => {
     const handle = openSlider({
       researchId: "test-research-id",
     });
@@ -74,6 +82,12 @@ describe("openSlider", () => {
     handle.destroy();
 
     expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    expect(
+      getPersistedOpenState({
+        researchId: "test-research-id",
+        type: "slider",
+      })
+    ).toBe(false);
   });
 
   it("closes on close button click", () => {
