@@ -29,6 +29,9 @@ export { openSlider } from "./slider";
 export { createFloatBubble, createChatBubble } from "./float";
 export { createFullpage } from "./fullpage";
 
+// Auto-open helpers
+export { setupAutoOpenPopup } from "./auto-open";
+
 // Auto-open triggers
 export {
   setupTrigger,
@@ -39,8 +42,15 @@ export {
 } from "./triggers";
 
 // Configuration
-export { configure, getConfig } from "./config";
 export { getPersistedOpenState } from "./state";
+export { configure, getConfig, getHost } from "./config";
+
+// Preloading
+export {
+  preloadIframe,
+  destroyPreloaded,
+  destroyPreloadedByType,
+} from "./preload";
 
 // Types
 export type {

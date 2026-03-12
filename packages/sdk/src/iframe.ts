@@ -23,6 +23,7 @@ import {
   ERROR_CODES,
 } from "./constants";
 import { normalizeHex } from "./utils";
+import { getTimer } from "./timing";
 
 /** Validate redirect URL - allow https, http localhost, and relative URLs */
 function isAllowedRedirectUrl(url: string): boolean {
@@ -102,7 +103,7 @@ function authTokenKey(researchId: string): string {
 /** Get cached embed auth token from parent's first-party localStorage (Layer 2).
  * Called on iframe ready to relay token back — critical for Safari where
  * iframe localStorage (Layer 1) is wiped on tab close. */
-function getCachedAuthToken(researchId: string): string | null {
+export function getCachedAuthToken(researchId: string): string | null {
   if (!hasDom()) return null;
   try {
     const key = authTokenKey(researchId);
@@ -276,6 +277,16 @@ export function createIframe(
   iframe.setAttribute("data-perspective", "true");
   iframe.style.cssText = "border:none;";
 
+  iframe.addEventListener(
+    "load",
+    () => {
+      getTimer(researchId).mark("iframe:loaded");
+    },
+    { once: true }
+  );
+
+  getTimer(researchId).mark("iframe:created");
+
   return iframe;
 }
 
@@ -307,6 +318,8 @@ export function setupMessageListener(
 
     switch (event.data.type) {
       case MESSAGE_TYPES.ready: {
+        getTimer(researchId).mark("perspective:ready");
+        getTimer(researchId).log();
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
         // Send anon_id for anonymous auth

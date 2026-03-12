@@ -10,13 +10,10 @@ import type {
   ThemeConfig,
 } from "./types";
 import { hasDom, getHost } from "./config";
-import {
-  createIframe,
-  setupMessageListener,
-  registerIframe,
-  ensureGlobalListeners,
-} from "./iframe";
-import { createLoadingIndicator } from "./loading";
+import { ensureGlobalListeners } from "./iframe";
+import { destroyPreloadedByType } from "./preload";
+import { removeTimer } from "./timing";
+import { createEmbedFrameSession } from "./frame-session";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
@@ -154,8 +151,8 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   let floatWindow: HTMLElement | null = null;
   let iframe: HTMLIFrameElement | null = null;
   let cleanup: (() => void) | null = null;
-  let unregisterIframe: (() => void) | null = null;
   let isOpen = false;
+  let closeBtn: HTMLButtonElement | null = null;
   let teaser: HTMLElement | null = null;
   let teaserTypewriter: number | null = null;
   let notificationDot: HTMLElement | null = null;
@@ -306,87 +303,54 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     welcomeTimers.push(soundTimer, teaserTimer);
   };
 
+  const mountFloatWindow = () => {
+    if (floatWindow && iframe) return;
+
+    floatWindow = document.createElement("div");
+    floatWindow.className = cn(
+      "perspective-float-window perspective-embed-root",
+      getThemeClass(currentConfig.theme)
+    );
+    floatWindow.style.display = "none";
+
+    closeBtn = document.createElement("button");
+    closeBtn.className = "perspective-close";
+    closeBtn.innerHTML = CLOSE_ICON;
+    closeBtn.setAttribute("aria-label", "Close chat");
+    closeBtn.addEventListener("click", handleFloatCloseButtonClick);
+
+    floatWindow.appendChild(closeBtn);
+    document.body.appendChild(floatWindow);
+
+    const frameSession = createEmbedFrameSession({
+      config,
+      type: "float",
+      host,
+      contentParent: floatWindow,
+      getConfig: () => currentConfig,
+      isOpen: () => isOpen,
+      onClose: closeFloat,
+      loadingStyle: (loading) => {
+        loading.style.borderRadius = "16px";
+      },
+    });
+
+    iframe = frameSession.iframe;
+    cleanup = frameSession.cleanup;
+  };
+
+  const handleFloatCloseButtonClick = () => {
+    closeFloat();
+  };
+
   const openFloat = () => {
     if (isOpen) return;
     isOpen = true;
     persistOpenState(true);
     clearWelcomeTimers();
     removeTeaser();
-
-    // Create float window
-    floatWindow = document.createElement("div");
-    floatWindow.className = cn(
-      "perspective-float-window perspective-embed-root",
-      getThemeClass(currentConfig.theme)
-    );
-
-    // Create close button
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "perspective-close";
-    closeBtn.innerHTML = CLOSE_ICON;
-    closeBtn.setAttribute("aria-label", "Close chat");
-    closeBtn.addEventListener("click", () => closeFloat());
-
-    // Create loading indicator with theme and brand colors
-    const loading = createLoadingIndicator({
-      theme: currentConfig.theme,
-      brand: currentConfig.brand,
-    });
-    loading.style.borderRadius = "16px";
-
-    // Create iframe (hidden initially)
-    iframe = createIframe(
-      researchId,
-      "float",
-      host,
-      currentConfig.params,
-      currentConfig.brand,
-      currentConfig.theme
-    );
-    iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.3s ease";
-
-    floatWindow.appendChild(closeBtn);
-    floatWindow.appendChild(loading);
-    floatWindow.appendChild(iframe);
-    document.body.appendChild(floatWindow);
-
-    // Set up message listener with loading state handling
-    cleanup = setupMessageListener(
-      researchId,
-      {
-        get onReady() {
-          return () => {
-            loading.style.opacity = "0";
-            iframe!.style.opacity = "1";
-            setTimeout(() => loading.remove(), 300);
-            currentConfig.onReady?.();
-          };
-        },
-        get onSubmit() {
-          return currentConfig.onSubmit;
-        },
-        get onNavigate() {
-          return currentConfig.onNavigate;
-        },
-        get onClose() {
-          return closeFloat;
-        },
-        get onError() {
-          return currentConfig.onError;
-        },
-      },
-      iframe,
-      host,
-      { skipResize: true }
-    );
-
-    // Register iframe for theme change notifications
-    if (iframe) {
-      unregisterIframe = registerIframe(iframe, host);
-    }
-
-    // Update bubble icon to close
+    mountFloatWindow();
+    floatWindow!.style.display = "";
     setBubbleOpenState();
   };
 
@@ -397,36 +361,42 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     }
     isOpen = false;
 
-    cleanup?.();
-    unregisterIframe?.();
-    floatWindow?.remove();
-    floatWindow = null;
-    iframe = null;
-    cleanup = null;
-    unregisterIframe = null;
-
-    // Restore bubble icon
+    floatWindow!.style.display = "none";
     setBubbleClosedState();
 
     currentConfig.onClose?.();
   };
-
   // Toggle on bubble click
-  bubble.addEventListener("click", () => {
+  const bubbleClickHandler = () => {
     if (isOpen) {
       closeFloat();
     } else {
       openFloat();
     }
-  });
+  };
+  bubble.addEventListener("click", bubbleClickHandler);
 
+  // Build the float shell eagerly so first open only flips visibility.
+  mountFloatWindow();
   const unmount = () => {
+    const wasOpen = isOpen;
+    isOpen = false;
     clearWelcomeTimers();
     removeTeaser();
-    closeFloat({ persistState: false });
+    closeBtn?.removeEventListener("click", handleFloatCloseButtonClick);
+    bubble.removeEventListener("click", bubbleClickHandler);
+    cleanup?.();
+    destroyPreloadedByType(researchId, "float");
+    floatWindow?.remove();
+    closeBtn = null;
+    floatWindow = null;
+    iframe = null;
+    cleanup = null;
     bubble.remove();
     void audioCtx?.close();
     audioCtx = null;
+    removeTimer(researchId);
+    if (wasOpen) currentConfig.onClose?.();
   };
 
   const destroy = () => {

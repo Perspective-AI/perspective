@@ -21,16 +21,12 @@ import type {
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
+  ToggleableHandle,
   ThemeConfig,
 } from "./types";
 import { DATA_ATTRS, THEME_VALUES } from "./constants";
-import {
-  parseTriggerAttr,
-  parseShowOnceAttr,
-  setupTrigger,
-  shouldShow,
-  markShown,
-} from "./triggers";
+import { parseTriggerAttr, parseShowOnceAttr } from "./triggers";
+import { setupAutoOpenPopup } from "./auto-open";
 import { createWidget } from "./widget";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
@@ -39,12 +35,22 @@ import { createFullpage } from "./fullpage";
 import { configure, getConfig, hasDom, getHost } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
+import { getTimer, removeTimer } from "./timing";
+import { injectResourceHints } from "./hints";
+import { preloadIframe, destroyPreloaded } from "./preload";
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 
+export function isToggleable(
+  handle: EmbedHandle | FloatHandle
+): handle is ToggleableHandle {
+  return "show" in handle && "hide" in handle;
+}
+
 // Track auto-open trigger cleanups (keyed by researchId)
 const triggerCleanups: Map<string, () => void> = new Map();
+const clickHandlerCleanups: Map<HTMLElement, () => void> = new Map();
 
 // Theme config cache
 type EmbedApiConfig = ThemeConfig & {
@@ -246,9 +252,22 @@ function init(config: EmbedConfig): EmbedHandle | FloatHandle {
   // Normalize legacy "chat" type to "float"
   const type = config.type === "chat" ? "float" : (config.type ?? "widget");
 
-  // Destroy existing instance for this research
-  if (instances.has(researchId)) {
-    instances.get(researchId)!.unmount();
+  // Reuse hidden popup/slider instead of recreating (must match type)
+  const existing = instances.get(researchId);
+  if (
+    existing &&
+    isToggleable(existing) &&
+    !existing.isOpen &&
+    existing.type === type &&
+    existing.canReuse(config)
+  ) {
+    existing.update(config);
+    existing.show();
+    existing.replayOpenCallbacks();
+    return existing;
+  }
+  if (existing) {
+    existing.unmount();
     instances.delete(researchId);
   }
 
@@ -326,16 +345,23 @@ function destroy(researchId: string): void {
   if (instance) {
     instance.destroy();
     instances.delete(researchId);
+    removeTimer(researchId);
   }
 }
 
 function destroyAll(): void {
-  instances.forEach((instance) => instance.unmount());
+  instances.forEach((instance, researchId) => {
+    instance.unmount();
+    removeTimer(researchId);
+  });
   instances.clear();
   triggerCleanups.forEach((cleanup) => cleanup());
   triggerCleanups.clear();
+  clickHandlerCleanups.forEach((cleanup) => cleanup());
+  clickHandlerCleanups.clear();
   styledButtons.clear();
   teardownButtonThemeListener();
+  destroyPreloaded();
   // Reset initialized flags so autoInit can re-process elements cleanly
   if (hasDom()) {
     document
@@ -360,6 +386,7 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        getTimer(researchId).mark("sdk:autoInit");
         mount(el, { researchId, type: "widget", params, ...brandConfig });
       }
     });
@@ -372,6 +399,7 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        getTimer(researchId).mark("sdk:autoInit");
         init({ researchId, type: "fullpage", params, ...brandConfig });
       }
     });
@@ -398,22 +426,29 @@ function autoInit(): void {
         if (persistedOpen === true) {
           init({ researchId, type: "popup", params, ...brandConfig });
         } else if (persistedOpen !== false) {
-          // Auto-open mode: trigger-based, no button styling
           try {
             const trigger = parseTriggerAttr(autoOpenAttr);
             const showOnce = parseShowOnceAttr(
               el.getAttribute(DATA_ATTRS.showOnce)
             );
+            triggerCleanups.get(researchId)?.();
 
-            if (shouldShow(researchId, showOnce)) {
-              // Clean up any existing trigger for this researchId
-              triggerCleanups.get(researchId)?.();
-
-              const cleanup = setupTrigger(trigger, () => {
+            const cleanup = setupAutoOpenPopup({
+              researchId,
+              trigger,
+              showOnce,
+              params,
+              brand: brandConfig.brand,
+              theme: brandConfig.theme,
+              onTriggered: () => {
                 triggerCleanups.delete(researchId);
-                markShown(researchId, showOnce);
+              },
+              onOpen: () => {
                 init({ researchId, type: "popup", params, ...brandConfig });
-              });
+              },
+            });
+
+            if (cleanup) {
               triggerCleanups.set(researchId, cleanup);
             }
           } catch (e) {
@@ -423,9 +458,15 @@ function autoInit(): void {
       } else {
         // Click-to-open mode: styled button
         styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", (e) => {
+        clickHandlerCleanups.get(el)?.();
+        const clickHandler = (e: MouseEvent) => {
           e.preventDefault();
+          getTimer(researchId).mark("sdk:triggerOpen");
           init({ researchId, type: "popup", params, ...brandConfig });
+        };
+        el.addEventListener("click", clickHandler);
+        clickHandlerCleanups.set(el, () => {
+          el.removeEventListener("click", clickHandler);
         });
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
@@ -453,9 +494,15 @@ function autoInit(): void {
           type: "slider",
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", (e) => {
+        clickHandlerCleanups.get(el)?.();
+        const clickHandler = (e: MouseEvent) => {
           e.preventDefault();
+          getTimer(researchId).mark("sdk:triggerOpen");
           init({ researchId, type: "slider", params, ...brandConfig });
+        };
+        el.addEventListener("click", clickHandler);
+        clickHandlerCleanups.set(el, () => {
+          el.removeEventListener("click", clickHandler);
         });
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
@@ -477,6 +524,7 @@ function autoInit(): void {
     if (researchId && !instances.has(researchId)) {
       const params = parseParamsAttr(floatEl);
       const brandConfig = extractBrandConfig(floatEl);
+      getTimer(researchId).mark("sdk:autoInit");
       const floatHandle = init({
         researchId,
         type: "float",
@@ -522,6 +570,60 @@ function autoInit(): void {
       });
     }
   }
+
+  // Preload iframe for the first button-triggered or auto-triggered embed
+  // Priority: button embeds first (user will click), then auto-trigger embeds
+  const firstButtonEmbed =
+    document.querySelector<HTMLElement>(
+      `[${DATA_ATTRS.popup}]:not([${DATA_ATTRS.autoOpen}])`
+    ) ?? document.querySelector<HTMLElement>(`[${DATA_ATTRS.slider}]`);
+
+  const firstAutoTriggerEmbed = !firstButtonEmbed
+    ? document.querySelector<HTMLElement>(
+        `[${DATA_ATTRS.popup}][${DATA_ATTRS.autoOpen}]`
+      )
+    : null;
+
+  const preloadTarget = firstButtonEmbed ?? firstAutoTriggerEmbed;
+
+  if (preloadTarget) {
+    const preloadResearchId =
+      preloadTarget.getAttribute(DATA_ATTRS.popup) ??
+      preloadTarget.getAttribute(DATA_ATTRS.slider);
+    if (preloadResearchId && !instances.has(preloadResearchId)) {
+      const preloadType = preloadTarget.hasAttribute(DATA_ATTRS.popup)
+        ? ("popup" as const)
+        : ("slider" as const);
+      const preloadParams = parseParamsAttr(preloadTarget);
+      const preloadBrand = extractBrandConfig(preloadTarget);
+      const preloadHost = getHost();
+
+      const doPreload = () => {
+        // Re-check: user may have clicked before idle callback fired
+        if (instances.has(preloadResearchId)) return;
+        preloadIframe(
+          preloadResearchId,
+          preloadType,
+          preloadHost,
+          preloadParams,
+          preloadBrand.brand,
+          preloadBrand.theme
+        );
+      };
+
+      if (firstButtonEmbed) {
+        // Button embeds: defer to idle time
+        if ("requestIdleCallback" in window) {
+          (window as Window).requestIdleCallback(doPreload);
+        } else {
+          setTimeout(doPreload, 200);
+        }
+      } else {
+        // Auto-trigger embeds: preload immediately (trigger timer is already ticking)
+        doPreload();
+      }
+    }
+  }
 }
 
 // Build the public API
@@ -561,6 +663,9 @@ declare global {
 // and create isolated module state, causing memory leaks and duplicate handlers.
 if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
   window.__PERSPECTIVE_SDK_INITIALIZED__ = true;
+
+  // Inject resource hints early — start DNS/TLS before iframe creation
+  injectResourceHints(getHost());
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", autoInit, { once: true });
