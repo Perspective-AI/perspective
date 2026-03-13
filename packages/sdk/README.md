@@ -1,6 +1,6 @@
 # @perspective-ai/sdk
 
-Embed SDK for [Perspective AI](https://getperspective.ai).
+Embed SDK for [Perspective AI](https://getperspective.ai) — AI-powered conversation agents for your website.
 
 ## Installation
 
@@ -13,7 +13,7 @@ npm install @perspective-ai/sdk
 ### Vanilla JavaScript
 
 ```html
-<button id="feedback-btn">Give Feedback</button>
+<button id="feedback-btn">Get Started</button>
 
 <script type="module">
   import { openPopup } from "@perspective-ai/sdk";
@@ -22,7 +22,7 @@ npm install @perspective-ai/sdk
     openPopup({
       researchId: "your-research-id",
       onSubmit: () => {
-        console.log("Thank you for your feedback!");
+        console.log("Conversation completed!");
       },
     });
   });
@@ -104,7 +104,7 @@ const handle = createFullpage({
 ```typescript
 interface EmbedConfig {
   // Required
-  researchId: string;
+  researchId: string; // The ID of your Perspective agent
 
   // Optional
   host?: string; // Custom API host
@@ -251,7 +251,7 @@ import type {
 
 ## Auto-Trigger Popups
 
-Open popups automatically based on configurable triggers — no user click required. Ideal for lead capture, engagement prompts, and exit-intent surveys.
+Open popups automatically based on configurable triggers — no user click required. Ideal for lead capture, onboarding, intake flows, and engagement prompts.
 
 ### JavaScript API
 
@@ -316,10 +316,10 @@ For non-module environments, use the browser bundle:
 <div data-perspective-widget="your-research-id"></div>
 
 <!-- Popup trigger -->
-<button data-perspective-popup="your-research-id">Start Interview</button>
+<button data-perspective-popup="your-research-id">Start Conversation</button>
 
 <!-- Slider trigger -->
-<button data-perspective-slider="your-research-id">Open Survey</button>
+<button data-perspective-slider="your-research-id">Open Panel</button>
 
 <!-- Float bubble -->
 <div data-perspective-float="your-research-id"></div>

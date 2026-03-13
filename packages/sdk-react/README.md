@@ -1,6 +1,6 @@
 # @perspective-ai/sdk-react
 
-React hooks and components for [Perspective AI](https://getperspective.ai).
+React hooks and components for [Perspective AI](https://getperspective.ai) — AI-powered conversation agents.
 
 > **Not using React?** Use [`@perspective-ai/sdk`](https://www.npmjs.com/package/@perspective-ai/sdk) for vanilla JavaScript.
 
@@ -20,10 +20,10 @@ import { usePopup } from "@perspective-ai/sdk-react";
 function App() {
   const { open } = usePopup({
     researchId: "your-research-id",
-    onSubmit: () => console.log("Interview completed!"),
+    onSubmit: () => console.log("Conversation completed!"),
   });
 
-  return <button onClick={open}>Give Feedback</button>;
+  return <button onClick={open}>Get Started</button>;
 }
 ```
 
@@ -61,7 +61,7 @@ function App() {
 
   return (
     <>
-      <button onClick={open}>Take Survey</button>
+      <button onClick={open}>Start Conversation</button>
       {isOpen && <span>Survey is open</span>}
     </>
   );
@@ -107,7 +107,7 @@ function App() {
     researchId: "your-research-id",
   });
 
-  return <button onClick={open}>Open Feedback Panel</button>;
+  return <button onClick={open}>Open Panel</button>;
 }
 ```
 
@@ -219,7 +219,7 @@ All hooks accept options from `EmbedConfig`:
 
 ```typescript
 interface UsePopupOptions {
-  researchId: string;
+  researchId: string; // The ID of your Perspective agent
   host?: string;
   theme?: "light" | "dark" | "system";
   params?: Record<string, string>;
