@@ -7,6 +7,6 @@ export default defineConfig({
   sourcemap: true,
   target: "es2020",
   clean: true,
-  external: ["react", "react-dom", "@perspective-ai/embed"],
+  external: ["react", "react-dom", "@perspective-ai/sdk"],
   treeshake: true,
 });
