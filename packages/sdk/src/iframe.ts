@@ -284,7 +284,7 @@ export function setupMessageListener(
   config: Partial<EmbedConfig>,
   iframe: HTMLIFrameElement,
   host: string,
-  options?: { skipResize?: boolean }
+  options?: { skipResize?: boolean; hasCloseButton?: boolean }
 ): () => void {
   if (!hasDom()) {
     return () => {};
@@ -320,6 +320,7 @@ export function setupMessageListener(
           version: SDK_VERSION,
           features: CURRENT_FEATURES,
           researchId,
+          hasCloseButton: options?.hasCloseButton ?? false,
         });
         // Layer 2 → Layer 1 relay: on iframe load, send any cached token from
         // parent's first-party localStorage back to the iframe. On Safari this

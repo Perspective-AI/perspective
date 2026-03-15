@@ -193,6 +193,90 @@ describe("openSlider", () => {
     handle.unmount();
   });
 
+  describe("disableClose", () => {
+    it("hides close button when disableClose is true", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        disableClose: true,
+      });
+
+      const closeBtn = document.querySelector(
+        ".perspective-close"
+      ) as HTMLElement;
+      expect(closeBtn.style.display).toBe("none");
+
+      handle.unmount();
+    });
+
+    it("close button click does not close slider when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openSlider({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      const closeBtn = document.querySelector(
+        ".perspective-close"
+      ) as HTMLElement;
+      closeBtn.click();
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("backdrop click does not close slider when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openSlider({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      const backdrop = document.querySelector(
+        ".perspective-slider-backdrop"
+      ) as HTMLElement;
+      backdrop.click();
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("ESC key does not close slider when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openSlider({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("programmatic unmount still works when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openSlider({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      handle.unmount();
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    });
+  });
+
   describe("update() behavior", () => {
     const host = "https://getperspective.ai";
     const researchId = "test-research-id";

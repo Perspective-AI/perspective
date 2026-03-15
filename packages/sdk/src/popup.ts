@@ -51,11 +51,14 @@ export function openPopup(config: EmbedConfig): EmbedHandle {
   const modal = document.createElement("div");
   modal.className = "perspective-modal";
 
-  // Create close button
+  // Create close button (hidden when disableClose is enabled)
   const closeBtn = document.createElement("button");
   closeBtn.className = "perspective-close";
   closeBtn.innerHTML = CLOSE_ICON;
   closeBtn.setAttribute("aria-label", "Close");
+  if (config.disableClose) {
+    closeBtn.style.display = "none";
+  }
 
   // Create loading indicator with theme and brand colors
   const loading = createLoadingIndicator({
@@ -146,22 +149,23 @@ export function openPopup(config: EmbedConfig): EmbedHandle {
     },
     iframe,
     host,
-    { skipResize: true }
+    { skipResize: true, hasCloseButton: !config.disableClose }
   );
 
-  // Close handlers
-  closeBtn.addEventListener("click", destroy);
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) destroy();
-  });
-
-  // ESC key closes
+  // Close handlers (disabled when disableClose is enabled)
   const escHandler = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
       destroy();
     }
   };
-  document.addEventListener("keydown", escHandler);
+
+  if (!config.disableClose) {
+    closeBtn.addEventListener("click", destroy);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) destroy();
+    });
+    document.addEventListener("keydown", escHandler);
+  }
 
   return {
     unmount,

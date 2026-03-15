@@ -389,6 +389,8 @@ function autoInit(): void {
       const params = parseParamsAttr(el);
       const brandConfig = extractBrandConfig(el);
       const autoOpenAttr = el.getAttribute(DATA_ATTRS.autoOpen);
+      const disableClose = el.hasAttribute(DATA_ATTRS.disableClose);
+
       const persistedOpen = getPersistedOpenState({
         researchId,
         type: "popup",
@@ -396,7 +398,13 @@ function autoInit(): void {
 
       if (autoOpenAttr) {
         if (persistedOpen === true) {
-          init({ researchId, type: "popup", params, ...brandConfig });
+          init({
+            researchId,
+            type: "popup",
+            params,
+            disableClose,
+            ...brandConfig,
+          });
         } else if (persistedOpen !== false) {
           // Auto-open mode: trigger-based, no button styling
           try {
@@ -412,7 +420,13 @@ function autoInit(): void {
               const cleanup = setupTrigger(trigger, () => {
                 triggerCleanups.delete(researchId);
                 markShown(researchId, showOnce);
-                init({ researchId, type: "popup", params, ...brandConfig });
+                init({
+                  researchId,
+                  type: "popup",
+                  params,
+                  disableClose,
+                  ...brandConfig,
+                });
               });
               triggerCleanups.set(researchId, cleanup);
             }
@@ -425,14 +439,26 @@ function autoInit(): void {
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", (e) => {
           e.preventDefault();
-          init({ researchId, type: "popup", params, ...brandConfig });
+          init({
+            researchId,
+            type: "popup",
+            params,
+            disableClose,
+            ...brandConfig,
+          });
         });
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
         });
 
         if (persistedOpen === true) {
-          init({ researchId, type: "popup", params, ...brandConfig });
+          init({
+            researchId,
+            type: "popup",
+            params,
+            disableClose,
+            ...brandConfig,
+          });
         }
       }
     });
@@ -448,6 +474,7 @@ function autoInit(): void {
       if (researchId) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        const disableClose = el.hasAttribute(DATA_ATTRS.disableClose);
         const persistedOpen = getPersistedOpenState({
           researchId,
           type: "slider",
@@ -455,14 +482,26 @@ function autoInit(): void {
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", (e) => {
           e.preventDefault();
-          init({ researchId, type: "slider", params, ...brandConfig });
+          init({
+            researchId,
+            type: "slider",
+            params,
+            disableClose,
+            ...brandConfig,
+          });
         });
         fetchConfig(researchId).then((config) => {
           styleButton(el, config, brandConfig);
         });
 
         if (persistedOpen === true) {
-          init({ researchId, type: "slider", params, ...brandConfig });
+          init({
+            researchId,
+            type: "slider",
+            params,
+            disableClose,
+            ...brandConfig,
+          });
         }
       }
     });

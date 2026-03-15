@@ -347,6 +347,157 @@ describe("openPopup", () => {
     });
   });
 
+  describe("disableClose", () => {
+    it("hides close button when disableClose is true", () => {
+      const handle = openPopup({
+        researchId: "test-research-id",
+        disableClose: true,
+      });
+
+      const closeBtn = document.querySelector(
+        ".perspective-close"
+      ) as HTMLElement;
+      expect(closeBtn.style.display).toBe("none");
+
+      handle.unmount();
+    });
+
+    it("close button click does not close popup when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openPopup({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      const closeBtn = document.querySelector(
+        ".perspective-close"
+      ) as HTMLElement;
+      closeBtn.click();
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("overlay click does not close popup when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openPopup({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      const overlay = document.querySelector(
+        ".perspective-overlay"
+      ) as HTMLElement;
+      overlay.click();
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("ESC key does not close popup when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openPopup({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("programmatic unmount still works when disableClose is true", () => {
+      const onClose = vi.fn();
+      const handle = openPopup({
+        researchId: "test-research-id",
+        disableClose: true,
+        onClose,
+      });
+
+      handle.unmount();
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    });
+
+    it("sends hasCloseButton: false in init message when disableClose is true", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const postMessageSpy = vi.fn();
+
+      const handle = openPopup({
+        researchId,
+        host,
+        disableClose: true,
+      });
+
+      // Spy on postMessage to the iframe
+      handle.iframe!.contentWindow!.postMessage = postMessageSpy;
+
+      // Simulate iframe ready
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:ready", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      const initCall = postMessageSpy.mock.calls.find(
+        (args: unknown[]) =>
+          (args[0] as { type: string }).type === "perspective:init"
+      );
+      expect(initCall).toBeTruthy();
+      expect((initCall![0] as { hasCloseButton: boolean }).hasCloseButton).toBe(
+        false
+      );
+
+      handle.unmount();
+    });
+
+    it("sends hasCloseButton: true in init message when disableClose is not set", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+      const postMessageSpy = vi.fn();
+
+      const handle = openPopup({
+        researchId,
+        host,
+      });
+
+      handle.iframe!.contentWindow!.postMessage = postMessageSpy;
+
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:ready", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
+      );
+
+      const initCall = postMessageSpy.mock.calls.find(
+        (args: unknown[]) =>
+          (args[0] as { type: string }).type === "perspective:init"
+      );
+      expect(initCall).toBeTruthy();
+      expect((initCall![0] as { hasCloseButton: boolean }).hasCloseButton).toBe(
+        true
+      );
+
+      handle.unmount();
+    });
+  });
+
   it("destroy is idempotent", () => {
     const onClose = vi.fn();
     const handle = openPopup({

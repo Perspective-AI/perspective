@@ -378,7 +378,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       },
       iframe,
       host,
-      { skipResize: true }
+      { skipResize: true, hasCloseButton: true }
     );
 
     // Register iframe for theme change notifications
