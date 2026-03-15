@@ -4,7 +4,7 @@
  * NPM Entry Point - clean exports, no auto-init, SSR-safe
  *
  * Usage:
- *   import { createWidget, openPopup, openSlider, createFloatBubble } from '@perspective-ai/embed';
+ *   import { createWidget, openPopup, openSlider, createFloatBubble } from '@perspective-ai/sdk';
  *
  *   // Inline widget
  *   const widget = createWidget(container, { researchId: 'xxx' });
@@ -19,7 +19,7 @@
  *   const bubble = createFloatBubble({ researchId: 'xxx' });
  *
  * For SSR-safe constants and types:
- *   import { DATA_ATTRS, MESSAGE_TYPES } from '@perspective-ai/embed/constants';
+ *   import { DATA_ATTRS, MESSAGE_TYPES } from '@perspective-ai/sdk/constants';
  */
 
 // Core embed functions
