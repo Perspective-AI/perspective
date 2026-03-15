@@ -1,6 +1,6 @@
 # Perspective
 
-Open source packages for [Perspective AI](https://getperspective.ai) - the AI-powered research platform.
+Open source packages for [Perspective AI](https://getperspective.ai) — AI-powered conversation agents.
 
 ## Packages
 

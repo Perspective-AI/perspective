@@ -562,6 +562,17 @@ declare global {
 if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
   window.__PERSPECTIVE_SDK_INITIALIZED__ = true;
 
+  // Add attribution comment next to the script tag
+  const script = document.currentScript;
+  if (script?.parentNode) {
+    script.parentNode.insertBefore(
+      document.createComment(
+        " Powered by Perspective AI \u2014 https://getperspective.ai "
+      ),
+      script
+    );
+  }
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", autoInit, { once: true });
   } else {
