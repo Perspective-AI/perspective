@@ -126,6 +126,22 @@ describe("useSlider", () => {
     expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 
+  it("passes disableClose to openSlider", () => {
+    const { result } = renderHook(() =>
+      useSlider({ researchId: "test-research-id", disableClose: true })
+    );
+
+    act(() => {
+      result.current.open();
+    });
+
+    expect(mockOpenSlider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disableClose: true,
+      })
+    );
+  });
+
   it("cleans up on unmount without treating it as explicit close", () => {
     const { result, unmount } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })

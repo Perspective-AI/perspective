@@ -80,6 +80,8 @@ export interface EmbedConfig {
   host?: string;
   /** Auto-open trigger configuration (popup only) */
   autoOpen?: AutoOpenConfig;
+  /** When true, prevents the user from closing the popup/slider (hides close button, disables overlay click and ESC key) */
+  disableClose?: boolean;
   /** Callback when embed is ready */
   onReady?: () => void;
   /** Callback when interview is submitted/completed */
@@ -162,6 +164,8 @@ export interface InitMessage {
   version: string;
   features: number;
   researchId: string;
+  /** Whether the SDK rendered a close button over the iframe. Older SDKs (pre-1.4) don't send this field — fall back to embed-type-based logic when undefined. */
+  hasCloseButton?: boolean;
 }
 
 /** Messages sent from iframe to SDK */

@@ -153,6 +153,22 @@ describe("usePopup", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
+  it("passes disableClose to openPopup", () => {
+    const { result } = renderHook(() =>
+      usePopup({ researchId: "test-research-id", disableClose: true })
+    );
+
+    act(() => {
+      result.current.open();
+    });
+
+    expect(mockOpenPopup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        disableClose: true,
+      })
+    );
+  });
+
   it("supports controlled mode with open prop", () => {
     const onOpenChange = vi.fn();
 
