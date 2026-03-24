@@ -90,6 +90,9 @@ export const DATA_ATTRS = {
   autoOpen: "data-perspective-auto-open",
   showOnce: "data-perspective-show-once",
   disableClose: "data-perspective-disable-close",
+  launcherIcon: "data-perspective-launcher-icon",
+  launcherStyle: "data-perspective-launcher-style",
+  launcherClass: "data-perspective-launcher-class",
 } as const;
 
 export type DataAttr = (typeof DATA_ATTRS)[keyof typeof DATA_ATTRS];

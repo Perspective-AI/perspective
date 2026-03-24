@@ -54,6 +54,36 @@ export interface BrandColors {
   text?: string;
 }
 
+// ============================================================================
+// Launcher Customization Types
+// ============================================================================
+
+/** CSS properties for launcher styling */
+export type LauncherStyle = {
+  [K in keyof CSSStyleDeclaration as CSSStyleDeclaration[K] extends string
+    ? K
+    : never]?: string;
+};
+
+/** Icon configuration for the float launcher button */
+export type LauncherIcon =
+  | "default"
+  | "avatar"
+  | { url: string }
+  | { svg: string };
+
+/** Customization options for the float launcher button */
+export interface LauncherConfig {
+  /** Button icon. 'default' uses built-in SVG (mic/chat based on channel).
+   *  'avatar' uses brand avatar from config API. { url } renders an <img>.
+   *  { svg } sets innerHTML (JS API only, not available via data attributes). */
+  icon?: LauncherIcon;
+  /** Inline CSS overrides applied to the launcher button */
+  style?: LauncherStyle;
+  /** CSS class(es) added to the launcher button. Additive — existing SDK classes remain. */
+  className?: string;
+}
+
 export interface EmbedConfig {
   researchId: string;
   type?: EmbedType;
@@ -82,6 +112,8 @@ export interface EmbedConfig {
   autoOpen?: AutoOpenConfig;
   /** When true, prevents the user from closing the popup/slider (hides close button, disables overlay click and ESC key) */
   disableClose?: boolean;
+  /** Customize the floating launcher button appearance. Only used for float-type embeds. */
+  launcher?: LauncherConfig;
   /** Callback when embed is ready */
   onReady?: () => void;
   /** Callback when interview is submitted/completed */
@@ -203,6 +235,7 @@ export interface ThemeConfig {
   allowedChannels?: AIAssistantChannel[] | null;
   channel?: AIAssistantChannel | AIAssistantChannel[] | null;
   welcomeMessage?: string;
+  avatarUrl?: string | null;
 }
 
 /** SDK global configuration */

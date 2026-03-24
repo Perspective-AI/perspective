@@ -109,11 +109,16 @@ interface EmbedConfig {
   // Optional
   host?: string; // Custom API host
   theme?: "light" | "dark" | "system"; // Theme preference (default: "system")
+  channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode (default: from server config)
+  welcomeMessage?: string; // Teaser text next to float button (float-type only)
+  buttonText?: string; // Custom text for popup/slider trigger buttons
   params?: Record<string, string>; // Custom URL parameters for tracking
   brand?: {
     light?: BrandColors; // Light mode brand colors
     dark?: BrandColors; // Dark mode brand colors
   };
+  launcher?: LauncherConfig; // Float button customization (see Launcher Customization section)
+  disableClose?: boolean; // Prevent user from closing popup/slider (hides X, blocks ESC/overlay)
 
   // Callbacks
   onReady?: () => void;
@@ -121,6 +126,7 @@ interface EmbedConfig {
   onClose?: () => void;
   onNavigate?: (url: string) => void; // Handle navigation (default: window.location.href)
   onError?: (error: EmbedError) => void;
+  onAuth?: (data: { researchId: string; token: string }) => void; // Cross-origin auth complete
 }
 
 interface BrandColors {
@@ -160,6 +166,202 @@ interface FloatHandle extends EmbedHandle {
   readonly type: "float";
 }
 ```
+
+## Launcher Customization (Float Bubble)
+
+Customize the float bubble's icon, size, shape, color, and CSS via the `launcher` config:
+
+### Icon Options
+
+```typescript
+import { createFloatBubble } from "@perspective-ai/sdk";
+
+// Default — channel-based SVG (mic for voice, chat for text)
+createFloatBubble({ researchId: "xxx" });
+
+// Brand avatar — fetched from the embed config API
+createFloatBubble({
+  researchId: "xxx",
+  launcher: { icon: "avatar" },
+});
+
+// Custom image URL
+createFloatBubble({
+  researchId: "xxx",
+  launcher: { icon: { url: "https://example.com/icon.png" } },
+});
+
+// Inline SVG
+createFloatBubble({
+  researchId: "xxx",
+  launcher: { icon: { svg: '<svg viewBox="0 0 24 24">...</svg>' } },
+});
+```
+
+### Style & Size
+
+Use `launcher.style` for inline CSS overrides (highest precedence, overrides brand colors):
+
+```typescript
+createFloatBubble({
+  researchId: "xxx",
+  launcher: {
+    style: {
+      width: "64px", // default: 58px
+      height: "64px",
+      borderRadius: "12px", // default: 50% (circle)
+      bottom: "24px", // default: 20px
+      right: "24px", // default: 20px
+      backgroundColor: "#10b981",
+      boxShadow: "0 4px 12px rgba(16, 185, 129, 0.4)",
+    },
+  },
+});
+```
+
+### Custom CSS Class
+
+Use `launcher.className` to add CSS classes (additive — existing SDK classes are preserved):
+
+```typescript
+createFloatBubble({
+  researchId: "xxx",
+  launcher: { className: "my-custom-launcher" },
+});
+```
+
+### CDN Data Attributes
+
+```html
+<!-- Custom icon URL -->
+<div
+  data-perspective-float="your-research-id"
+  data-perspective-launcher-icon="https://example.com/icon.png"
+></div>
+
+<!-- Avatar icon with style overrides -->
+<div
+  data-perspective-float="your-research-id"
+  data-perspective-launcher-icon="avatar"
+  data-perspective-launcher-style="width:64px;height:64px;border-radius:12px"
+  data-perspective-launcher-class="my-class"
+></div>
+```
+
+### Launcher Config Reference
+
+```typescript
+interface LauncherConfig {
+  icon?:
+    | "default" // Channel-based SVG (default)
+    | "avatar" // Brand avatar from config API
+    | { url: string } // Custom image URL
+    | { svg: string }; // Inline SVG markup (JS API only)
+  style?: LauncherStyle; // CSS overrides (e.g. width, borderRadius, backgroundColor)
+  className?: string; // CSS class(es) to add to the button
+}
+```
+
+| Data Attribute                    | Description                                      |
+| --------------------------------- | ------------------------------------------------ |
+| `data-perspective-launcher-icon`  | Icon: `"avatar"`, `"default"`, or an image URL   |
+| `data-perspective-launcher-style` | CSS overrides: `"width:64px;border-radius:12px"` |
+| `data-perspective-launcher-class` | CSS class(es) to add to the button               |
+
+### Style Precedence
+
+Highest wins:
+
+1. `launcher.style` (e.g. `backgroundColor`)
+2. `brand.light.primary` / `brand.dark.primary`
+3. Server-configured theme colors
+4. SDK default (`#7629C8`)
+
+### Image Error Fallback
+
+When `icon` is `{ url }` or `"avatar"` and the image fails to load, the button automatically falls back to the default channel-based SVG icon.
+
+## Channel & Welcome Message
+
+### Channel
+
+Control which interaction mode the embed uses:
+
+```typescript
+// Voice only (default)
+createFloatBubble({ researchId: "xxx" });
+
+// Text only — shows chat icon instead of mic
+createFloatBubble({ researchId: "xxx", channel: "TEXT" });
+
+// Both channels enabled
+createFloatBubble({ researchId: "xxx", channel: ["TEXT", "VOICE"] });
+```
+
+If not set, the channel defaults to the server-configured value for the research.
+
+### Welcome Message
+
+Show a teaser bubble next to the float button with a typewriter animation:
+
+```typescript
+createFloatBubble({
+  researchId: "xxx",
+  welcomeMessage: "Have a question? I'm here to help.",
+});
+```
+
+The teaser appears after 3 seconds with a chime sound. Click the teaser or the float button to open the chat. Only applies to float-type embeds.
+
+## Disable Close
+
+Prevent users from closing the popup or slider (hides the close button, disables ESC key and overlay click):
+
+```typescript
+openPopup({
+  researchId: "xxx",
+  disableClose: true,
+});
+```
+
+```html
+<button
+  data-perspective-popup="your-research-id"
+  data-perspective-disable-close
+>
+  Start
+</button>
+```
+
+Useful for mandatory onboarding flows or required interviews.
+
+## Embed Auth (onAuth)
+
+Handle cross-origin authentication tokens from embedded interviews:
+
+```typescript
+openPopup({
+  researchId: "xxx",
+  onAuth: ({ researchId, token }) => {
+    // Store or forward the auth token
+    console.log("Auth token received:", token);
+  },
+});
+```
+
+The `onAuth` callback fires when the embedded interview completes an authentication flow. The token can be used for custom session management or API calls.
+
+## State Persistence
+
+The SDK automatically persists the open/closed state of popup, slider, and float embeds across page navigations within the same session.
+
+- Uses `sessionStorage` (resets when the tab/window closes)
+- Key format: `perspective-embed-state:{host}:{type}:{researchId}`
+- On page load, if a previous embed was open, it auto-restores to the open state
+- `handle.destroy()` persists a "closed" state (won't auto-restore)
+- `handle.unmount()` cleans up without affecting persisted state (for framework cleanup)
+
+This happens automatically — no configuration needed.
 
 ## Global Configuration
 
@@ -330,20 +532,24 @@ For non-module environments, use the browser bundle:
 
 ### Data Attributes Reference
 
-| Attribute                     | Description                                             |
-| ----------------------------- | ------------------------------------------------------- |
-| `data-perspective-widget`     | Inline widget embed                                     |
-| `data-perspective-popup`      | Popup trigger button                                    |
-| `data-perspective-slider`     | Slider trigger button                                   |
-| `data-perspective-float`      | Floating chat bubble                                    |
-| `data-perspective-fullpage`   | Full page embed                                         |
-| `data-perspective-params`     | Custom params: `"key1=value1,key2=value2"`              |
-| `data-perspective-theme`      | Theme: `"light"`, `"dark"`, or `"system"`               |
-| `data-perspective-brand`      | Light mode colors: `"primary=#xxx,bg=#yyy"`             |
-| `data-perspective-brand-dark` | Dark mode colors                                        |
-| `data-perspective-no-style`   | Disable auto-styling on trigger buttons                 |
-| `data-perspective-auto-open`  | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`  |
-| `data-perspective-show-once`  | Show-once dedup: `"session"`, `"visitor"`, or `"false"` |
+| Attribute                         | Description                                             |
+| --------------------------------- | ------------------------------------------------------- |
+| `data-perspective-widget`         | Inline widget embed                                     |
+| `data-perspective-popup`          | Popup trigger button                                    |
+| `data-perspective-slider`         | Slider trigger button                                   |
+| `data-perspective-float`          | Floating chat bubble                                    |
+| `data-perspective-fullpage`       | Full page embed                                         |
+| `data-perspective-params`         | Custom params: `"key1=value1,key2=value2"`              |
+| `data-perspective-theme`          | Theme: `"light"`, `"dark"`, or `"system"`               |
+| `data-perspective-brand`          | Light mode colors: `"primary=#xxx,bg=#yyy"`             |
+| `data-perspective-brand-dark`     | Dark mode colors                                        |
+| `data-perspective-no-style`       | Disable auto-styling on trigger buttons                 |
+| `data-perspective-disable-close`  | Prevent user from closing popup/slider                  |
+| `data-perspective-auto-open`      | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`  |
+| `data-perspective-show-once`      | Show-once dedup: `"session"`, `"visitor"`, or `"false"` |
+| `data-perspective-launcher-icon`  | Launcher icon: `"avatar"`, `"default"`, or image URL    |
+| `data-perspective-launcher-style` | Launcher CSS: `"width:64px;border-radius:12px"`         |
+| `data-perspective-launcher-class` | CSS class(es) for the launcher button                   |
 
 ### Auto-Trigger (Data Attributes)
 

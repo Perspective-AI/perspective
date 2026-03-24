@@ -430,6 +430,229 @@ describe("createFloatBubble", () => {
       expect(onSubmit).not.toHaveBeenCalled();
     });
   });
+
+  describe("launcher config", () => {
+    afterEach(() => {
+      document.body.innerHTML = "";
+    });
+
+    it("icon defaults to channel-based SVG when launcher is omitted", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        channel: "TEXT",
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.innerHTML).toContain("lucide-messages-square");
+
+      handle.unmount();
+    });
+
+    it("icon 'default' uses channel-based SVG", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        channel: "VOICE",
+        launcher: { icon: "default" },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.innerHTML).not.toContain("lucide-messages-square");
+      expect(bubble.querySelector("svg")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("icon 'avatar' renders <img> when avatarUrl is available", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        launcher: { icon: "avatar" },
+        _themeConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+          avatarUrl: "https://example.com/avatar.png",
+        },
+      } as any);
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      const img = bubble.querySelector("img");
+      expect(img).toBeTruthy();
+      expect(img!.src).toBe("https://example.com/avatar.png");
+      expect(img!.style.width).toBe("100%");
+      expect(img!.style.height).toBe("100%");
+      expect(img!.style.objectFit).toBe("cover");
+      expect(img!.style.borderRadius).toBe("inherit");
+
+      handle.unmount();
+    });
+
+    it("icon 'avatar' falls back to default SVG when no avatarUrl", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        launcher: { icon: "avatar" },
+        _themeConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+          avatarUrl: null,
+        },
+      } as any);
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.querySelector("img")).toBeFalsy();
+      expect(bubble.querySelector("svg")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("icon { url } renders <img> with that URL", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        launcher: { icon: { url: "https://example.com/custom-icon.png" } },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      const img = bubble.querySelector("img");
+      expect(img).toBeTruthy();
+      expect(img!.src).toBe("https://example.com/custom-icon.png");
+
+      handle.unmount();
+    });
+
+    it("icon { url } falls back to default SVG on image error", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        channel: "TEXT",
+        launcher: { icon: { url: "https://example.com/broken.png" } },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      const img = bubble.querySelector("img");
+      expect(img).toBeTruthy();
+
+      // Simulate image load error
+      img!.dispatchEvent(new Event("error"));
+
+      expect(bubble.querySelector("img")).toBeFalsy();
+      expect(bubble.innerHTML).toContain("lucide-messages-square");
+
+      handle.unmount();
+    });
+
+    it("icon { svg } sets innerHTML to the SVG string", () => {
+      const customSvg =
+        '<svg class="custom-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>';
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        launcher: { icon: { svg: customSvg } },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.innerHTML).toContain("custom-icon");
+      expect(bubble.querySelector("svg.custom-icon")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("style overrides are applied to bubble element", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        launcher: {
+          style: {
+            width: "64px",
+            height: "64px",
+            borderRadius: "12px",
+            bottom: "40px",
+            right: "40px",
+          },
+        },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.style.width).toBe("64px");
+      expect(bubble.style.height).toBe("64px");
+      expect(bubble.style.borderRadius).toBe("12px");
+      expect(bubble.style.bottom).toBe("40px");
+      expect(bubble.style.right).toBe("40px");
+
+      handle.unmount();
+    });
+
+    it("style backgroundColor overrides brand primary", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        brand: { light: { primary: "#ff0000" } },
+        launcher: {
+          style: { backgroundColor: "#00ff00" },
+        },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.style.backgroundColor).toBe("#00ff00");
+
+      handle.unmount();
+    });
+
+    it("className is added to bubble classList", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        launcher: { className: "my-custom-class another-class" },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.classList.contains("my-custom-class")).toBe(true);
+      expect(bubble.classList.contains("another-class")).toBe(true);
+      // Existing classes preserved
+      expect(bubble.classList.contains("perspective-float-bubble")).toBe(true);
+
+      handle.unmount();
+    });
+
+    it("icon reverts to custom icon on close (not default SVG)", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        launcher: { icon: { url: "https://example.com/icon.png" } },
+      });
+
+      handle.open();
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      // While open, shows close icon
+      expect(bubble.innerHTML).toContain("lucide-x");
+
+      handle.close();
+      // After close, reverts to custom icon (not default SVG)
+      expect(bubble.querySelector("img")).toBeTruthy();
+      expect(bubble.querySelector("img")!.src).toBe(
+        "https://example.com/icon.png"
+      );
+
+      handle.unmount();
+    });
+  });
 });
 
 describe("createChatBubble", () => {
