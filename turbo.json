@@ -21,6 +21,7 @@
       "inputs": ["$TURBO_DEFAULT$", "src/**", "tsconfig.json"]
     },
     "test": {
+      "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "src/**", "vitest.config.ts"]
     },
     "test:e2e": {
