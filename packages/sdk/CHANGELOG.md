@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.5.0
+
+### Minor Changes
+
+- f9f9f02: Add launcher customization for float bubble — icon, style, className support
+
 ## 1.4.0
 
 ### Minor Changes
