@@ -236,6 +236,18 @@ export interface ThemeConfig {
   channel?: AIAssistantChannel | AIAssistantChannel[] | null;
   welcomeMessage?: string;
   avatarUrl?: string | null;
+  embedSettings?: {
+    appearance?: {
+      hideProgress?: boolean;
+      hideGreeting?: boolean;
+      hideBranding?: boolean;
+      enableFullScreen?: boolean;
+    };
+    launcher?: {
+      icon?: LauncherIcon;
+      style?: LauncherStyle;
+    };
+  };
 }
 
 /** SDK global configuration */

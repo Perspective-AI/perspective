@@ -14,10 +14,35 @@ import {
 } from "./browser";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 
+const DEFAULT_CONFIG = {
+  primaryColor: "#7c3aed",
+  textColor: "#ffffff",
+  darkPrimaryColor: "#a78bfa",
+  darkTextColor: "#ffffff",
+  allowedChannels: null,
+  welcomeMessage: "",
+  avatarUrl: null,
+};
+
+/** Flush microtask queue to resolve fetchConfig promises */
+async function flushConfigFetch() {
+  await Promise.resolve(); // fetch resolves
+  await Promise.resolve(); // .json() resolves
+  await Promise.resolve(); // .then() callback runs
+}
+
 describe("browser entry", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     sessionStorage.clear();
+    // Default fetch mock for autoInit config fetching
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => DEFAULT_CONFIG,
+      })
+    );
   });
 
   afterEach(() => {
@@ -225,58 +250,65 @@ describe("browser entry", () => {
       expect(document.querySelector("iframe")).toBeFalsy();
     });
 
-    it("treats whitespace-only widget attribute as truthy (creates iframe with empty researchId)", () => {
+    it("treats whitespace-only widget attribute as truthy (creates iframe with empty researchId)", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="   "></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles malformed params attribute gracefully", () => {
+    it("handles malformed params attribute gracefully", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-params="malformed,,=value,key="></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles empty params attribute", () => {
+    it("handles empty params attribute", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-params=""></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles invalid theme attribute value", () => {
+    it("handles invalid theme attribute value", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-theme="invalid-theme"></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles malformed brand attribute", () => {
+    it("handles malformed brand attribute", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-brand="not-valid-format"></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("calling autoInit twice does not duplicate widgets", () => {
+    it("calling autoInit twice does not duplicate widgets", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test-widget"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
       autoInit();
+      await flushConfigFetch();
 
       const iframes = document.querySelectorAll("iframe[data-perspective]");
       expect(iframes.length).toBe(1);
@@ -298,13 +330,14 @@ describe("browser entry", () => {
       expect(document.querySelectorAll(".perspective-overlay").length).toBe(1);
     });
 
-    it("multiple elements with same researchId - second element does not create iframe (dedupe)", () => {
+    it("multiple elements with same researchId - second element does not create iframe (dedupe)", async () => {
       document.body.innerHTML = `
         <div id="widget1" data-perspective-widget="same-research-id"></div>
         <div id="widget2" data-perspective-widget="same-research-id"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       const widget1Iframe = document.querySelector("#widget1 iframe");
       const widget2Iframe = document.querySelector("#widget2 iframe");
@@ -328,24 +361,26 @@ describe("browser entry", () => {
   });
 
   describe("autoInit", () => {
-    it("initializes widget from data-perspective-widget", () => {
+    it("initializes widget from data-perspective-widget", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test-widget"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(
         document.querySelector("[data-perspective-widget] iframe")
       ).toBeTruthy();
     });
 
-    it("initializes fullpage from data-perspective-fullpage", () => {
+    it("initializes fullpage from data-perspective-fullpage", async () => {
       document.body.innerHTML = `
         <div data-perspective-fullpage="test-fullpage"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-fullpage")).toBeTruthy();
     });
@@ -367,7 +402,7 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-overlay")).toBeTruthy();
     });
 
-    it("restores popup open state from sessionStorage", () => {
+    it("restores popup open state from sessionStorage", async () => {
       setPersistedOpenState({
         researchId: "test-popup",
         type: "popup",
@@ -378,6 +413,7 @@ describe("browser entry", () => {
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-overlay")).toBeTruthy();
     });
@@ -399,7 +435,7 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });
 
-    it("restores slider open state from sessionStorage", () => {
+    it("restores slider open state from sessionStorage", async () => {
       setPersistedOpenState({
         researchId: "test-slider",
         type: "slider",
@@ -410,6 +446,7 @@ describe("browser entry", () => {
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });
@@ -471,12 +508,13 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
     });
 
-    it("parses params from data-perspective-params", () => {
+    it("parses params from data-perspective-params", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-params="source=test,user=abc"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       const iframe = document.querySelector(
         "[data-perspective-widget] iframe"
@@ -486,12 +524,13 @@ describe("browser entry", () => {
       expect(url.searchParams.get("user")).toBe("abc");
     });
 
-    it("parses theme from data-perspective-theme", () => {
+    it("parses theme from data-perspective-theme", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-theme="dark"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       const wrapper = document.querySelector(".perspective-embed-root");
       expect(wrapper?.classList.contains("perspective-dark-theme")).toBe(true);

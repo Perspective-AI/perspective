@@ -8,6 +8,7 @@ import type {
   EmbedConfig,
   EmbedMessage,
   EmbedType,
+  ThemeConfig,
 } from "./types";
 import { hasDom } from "./config";
 import {
@@ -245,13 +246,28 @@ function buildIframeUrl(
   return url.toString();
 }
 
+/** Convert embedSettings.appearance to URL query params */
+export function appearanceToParams(
+  embedSettings?: ThemeConfig["embedSettings"]
+): Record<string, string> | undefined {
+  const a = embedSettings?.appearance;
+  if (!a) return undefined;
+  const params: Record<string, string> = {};
+  if (a.hideProgress) params.hideProgress = "true";
+  if (a.hideGreeting) params.hideGreeting = "true";
+  if (a.hideBranding) params.hideBranding = "true";
+  if (a.enableFullScreen === false) params.enableFullScreen = "false";
+  return Object.keys(params).length > 0 ? params : undefined;
+}
+
 export function createIframe(
   researchId: string,
   type: EmbedType,
   host: string,
   params?: Record<string, string>,
   brand?: { light?: BrandColors; dark?: BrandColors },
-  themeOverride?: "dark" | "light" | "system"
+  themeOverride?: "dark" | "light" | "system",
+  appearanceOverrides?: Record<string, string>
 ): HTMLIFrameElement {
   if (!hasDom()) {
     // Return a stub for SSR
@@ -267,6 +283,16 @@ export function createIframe(
     brand,
     themeOverride
   );
+
+  // Apply appearance overrides from API config (API wins over embed code)
+  if (appearanceOverrides && Object.keys(appearanceOverrides).length > 0) {
+    const url = new URL(iframe.src);
+    for (const [key, value] of Object.entries(appearanceOverrides)) {
+      url.searchParams.set(key, value);
+    }
+    iframe.src = url.toString();
+  }
+
   iframe.setAttribute("allow", "microphone; camera");
   iframe.setAttribute("allowfullscreen", "true");
   iframe.setAttribute(

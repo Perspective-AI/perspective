@@ -409,7 +409,17 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        mount(el, { researchId, type: "widget", params, ...brandConfig });
+        fetchConfig(researchId).then((config) => {
+          if (!instances.has(researchId)) {
+            mount(el, {
+              researchId,
+              type: "widget",
+              params,
+              ...brandConfig,
+              _themeConfig: config,
+            } as EmbedConfig & { _themeConfig: ThemeConfig });
+          }
+        });
       }
     });
 
@@ -421,7 +431,17 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        init({ researchId, type: "fullpage", params, ...brandConfig });
+        fetchConfig(researchId).then((config) => {
+          if (!instances.has(researchId)) {
+            init({
+              researchId,
+              type: "fullpage",
+              params,
+              ...brandConfig,
+              _themeConfig: config,
+            } as EmbedConfig & { _themeConfig: ThemeConfig });
+          }
+        });
       }
     });
 
@@ -445,14 +465,23 @@ function autoInit(): void {
         type: "popup",
       });
 
+      // Capture fetched config for passing _themeConfig to init calls
+      let cachedConfig: EmbedApiConfig | undefined;
+      const initPopup = () =>
+        init({
+          researchId,
+          type: "popup",
+          params,
+          disableClose,
+          ...brandConfig,
+          ...(cachedConfig && { _themeConfig: cachedConfig }),
+        } as EmbedConfig & { _themeConfig: ThemeConfig });
+
       if (autoOpenAttr) {
         if (persistedOpen === true) {
-          init({
-            researchId,
-            type: "popup",
-            params,
-            disableClose,
-            ...brandConfig,
+          fetchConfig(researchId).then((config) => {
+            cachedConfig = config;
+            initPopup();
           });
         } else if (persistedOpen !== false) {
           // Auto-open mode: trigger-based, no button styling
@@ -466,16 +495,15 @@ function autoInit(): void {
               // Clean up any existing trigger for this researchId
               triggerCleanups.get(researchId)?.();
 
+              // Pre-fetch config so it's ready when trigger fires
+              fetchConfig(researchId).then((config) => {
+                cachedConfig = config;
+              });
+
               const cleanup = setupTrigger(trigger, () => {
                 triggerCleanups.delete(researchId);
                 markShown(researchId, showOnce);
-                init({
-                  researchId,
-                  type: "popup",
-                  params,
-                  disableClose,
-                  ...brandConfig,
-                });
+                initPopup();
               });
               triggerCleanups.set(researchId, cleanup);
             }
@@ -488,25 +516,17 @@ function autoInit(): void {
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", (e) => {
           e.preventDefault();
-          init({
-            researchId,
-            type: "popup",
-            params,
-            disableClose,
-            ...brandConfig,
-          });
+          initPopup();
         });
         fetchConfig(researchId).then((config) => {
+          cachedConfig = config;
           styleButton(el, config, brandConfig);
         });
 
         if (persistedOpen === true) {
-          init({
-            researchId,
-            type: "popup",
-            params,
-            disableClose,
-            ...brandConfig,
+          fetchConfig(researchId).then((config) => {
+            cachedConfig = config;
+            initPopup();
           });
         }
       }
@@ -528,28 +548,32 @@ function autoInit(): void {
           researchId,
           type: "slider",
         });
-        styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", (e) => {
-          e.preventDefault();
+
+        let sliderConfig: EmbedApiConfig | undefined;
+        const initSlider = () =>
           init({
             researchId,
             type: "slider",
             params,
             disableClose,
             ...brandConfig,
-          });
+            ...(sliderConfig && { _themeConfig: sliderConfig }),
+          } as EmbedConfig & { _themeConfig: ThemeConfig });
+
+        styleButton(el, DEFAULT_THEME, brandConfig);
+        el.addEventListener("click", (e) => {
+          e.preventDefault();
+          initSlider();
         });
         fetchConfig(researchId).then((config) => {
+          sliderConfig = config;
           styleButton(el, config, brandConfig);
         });
 
         if (persistedOpen === true) {
-          init({
-            researchId,
-            type: "slider",
-            params,
-            disableClose,
-            ...brandConfig,
+          fetchConfig(researchId).then((config) => {
+            sliderConfig = config;
+            initSlider();
           });
         }
       }

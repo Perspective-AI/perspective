@@ -3,10 +3,11 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle } from "./types";
+import type { EmbedConfig, EmbedHandle, ThemeConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
+  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -28,7 +29,9 @@ function createNoOpHandle(researchId: string): EmbedHandle {
   };
 }
 
-export function openPopup(config: EmbedConfig): EmbedHandle {
+type PopupConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
+
+export function openPopup(config: PopupConfig): EmbedHandle {
   const { researchId } = config;
 
   // SSR safety: return no-op handle
@@ -68,13 +71,15 @@ export function openPopup(config: EmbedConfig): EmbedHandle {
   loading.style.borderRadius = "16px";
 
   // Create iframe (hidden initially)
+  const overrides = appearanceToParams(config._themeConfig?.embedSettings);
   const iframe = createIframe(
     researchId,
     "popup",
     host,
     config.params,
     config.brand,
-    config.theme
+    config.theme,
+    overrides
   );
   iframe.style.opacity = "0";
   iframe.style.transition = "opacity 0.3s ease";

@@ -3,10 +3,11 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle } from "./types";
+import type { EmbedConfig, EmbedHandle, ThemeConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
+  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -28,7 +29,9 @@ function createNoOpHandle(researchId: string): EmbedHandle {
   };
 }
 
-export function openSlider(config: EmbedConfig): EmbedHandle {
+type SliderConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
+
+export function openSlider(config: SliderConfig): EmbedHandle {
   const { researchId } = config;
 
   // SSR safety: return no-op handle
@@ -70,13 +73,15 @@ export function openSlider(config: EmbedConfig): EmbedHandle {
   });
 
   // Create iframe (hidden initially)
+  const overrides = appearanceToParams(config._themeConfig?.embedSettings);
   const iframe = createIframe(
     researchId,
     "slider",
     host,
     config.params,
     config.brand,
-    config.theme
+    config.theme,
+    overrides
   );
   iframe.style.opacity = "0";
   iframe.style.transition = "opacity 0.3s ease";

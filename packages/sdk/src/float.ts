@@ -13,6 +13,7 @@ import type {
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
+  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -208,14 +209,32 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     bubble.style.boxShadow = `0 4px 12px ${bg}66`;
   }
 
+  // Merge API launcher config over customer config (API is source of truth)
+  let mergedConfig = config;
+  const initialApiLauncher = _themeConfig?.embedSettings?.launcher;
+  if (initialApiLauncher) {
+    const customerLauncher = config.launcher ?? {};
+    mergedConfig = {
+      ...config,
+      launcher: {
+        ...customerLauncher,
+        ...initialApiLauncher,
+        style: { ...customerLauncher.style, ...initialApiLauncher.style },
+      },
+    };
+    applyBubbleIcon(bubble, mergedConfig);
+  }
+
   // Apply launcher style overrides (highest precedence)
-  if (config.launcher?.style) {
-    Object.assign(bubble.style, config.launcher.style);
+  if (mergedConfig.launcher?.style) {
+    Object.assign(bubble.style, mergedConfig.launcher.style);
   }
 
   // Apply launcher className (additive)
-  if (config.launcher?.className) {
-    for (const cls of config.launcher.className.split(/\s+/).filter(Boolean)) {
+  if (mergedConfig.launcher?.className) {
+    for (const cls of mergedConfig.launcher.className
+      .split(/\s+/)
+      .filter(Boolean)) {
       bubble.classList.add(cls);
     }
   }
@@ -271,7 +290,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     }) === true;
 
   // Mutable config reference for updates
-  let currentConfig = { ...config };
+  let currentConfig = { ...mergedConfig };
 
   const setBubbleClosedState = () => {
     applyBubbleIcon(bubble, currentConfig);
@@ -427,13 +446,17 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     loading.style.borderRadius = "16px";
 
     // Create iframe (hidden initially)
+    const overrides = appearanceToParams(
+      currentConfig._themeConfig?.embedSettings
+    );
     iframe = createIframe(
       researchId,
       "float",
       host,
       currentConfig.params,
       currentConfig.brand,
-      currentConfig.theme
+      currentConfig.theme,
+      overrides
     );
     iframe.style.opacity = "0";
     iframe.style.transition = "opacity 0.3s ease";
@@ -541,6 +564,25 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       }
     ) => {
       currentConfig = { ...currentConfig, ...options };
+
+      // Apply API launcher config when _themeConfig is updated (e.g. from async config fetch)
+      const updatedApiLauncher =
+        currentConfig._themeConfig?.embedSettings?.launcher;
+      if (updatedApiLauncher) {
+        const customerLauncher = config.launcher ?? {};
+        currentConfig = {
+          ...currentConfig,
+          launcher: {
+            ...customerLauncher,
+            ...updatedApiLauncher,
+            style: {
+              ...customerLauncher.style,
+              ...updatedApiLauncher.style,
+            },
+          },
+        };
+      }
+
       if (!isOpen) {
         setBubbleClosedState();
       }
