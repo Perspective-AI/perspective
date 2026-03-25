@@ -239,6 +239,55 @@ function extractBrandConfig(
 }
 
 /**
+ * Extract launcher config from element data attributes
+ */
+function extractLauncherConfig(
+  el: HTMLElement
+): EmbedConfig["launcher"] | undefined {
+  const iconAttr = el.getAttribute(DATA_ATTRS.launcherIcon);
+  const styleAttr = el.getAttribute(DATA_ATTRS.launcherStyle);
+  const classAttr = el.getAttribute(DATA_ATTRS.launcherClass);
+
+  if (!iconAttr && !styleAttr && !classAttr) return undefined;
+
+  const launcher: NonNullable<EmbedConfig["launcher"]> = {};
+
+  if (iconAttr) {
+    if (iconAttr.startsWith("http") || iconAttr.startsWith("/")) {
+      launcher.icon = { url: iconAttr };
+    } else if (iconAttr === "avatar" || iconAttr === "default") {
+      launcher.icon = iconAttr;
+    }
+  }
+
+  if (styleAttr) {
+    const style: Record<string, string> = {};
+    for (const pair of styleAttr.split(";")) {
+      const colonIdx = pair.indexOf(":");
+      if (colonIdx === -1) continue;
+      const prop = pair.slice(0, colonIdx).trim();
+      const value = pair.slice(colonIdx + 1).trim();
+      if (prop && value) {
+        // Convert kebab-case to camelCase (e.g., border-radius -> borderRadius)
+        const camelProp = prop.replace(/-([a-z])/g, (_, c: string) =>
+          c.toUpperCase()
+        );
+        style[camelProp] = value;
+      }
+    }
+    if (Object.keys(style).length > 0) {
+      launcher.style = style;
+    }
+  }
+
+  if (classAttr) {
+    launcher.className = classAttr;
+  }
+
+  return launcher;
+}
+
+/**
  * Initialize an embed programmatically
  */
 function init(config: EmbedConfig): EmbedHandle | FloatHandle {
@@ -516,11 +565,13 @@ function autoInit(): void {
     if (researchId && !instances.has(researchId)) {
       const params = parseParamsAttr(floatEl);
       const brandConfig = extractBrandConfig(floatEl);
+      const launcherConfig = extractLauncherConfig(floatEl);
       const floatHandle = init({
         researchId,
         type: "float",
         params,
         ...brandConfig,
+        ...(launcherConfig && { launcher: launcherConfig }),
         _themeConfig: DEFAULT_THEME,
       } as EmbedConfig & { _themeConfig: ThemeConfig });
 
@@ -530,21 +581,24 @@ function autoInit(): void {
           '[data-perspective="float-bubble"]'
         );
         if (bubble && !floatEl.hasAttribute(DATA_ATTRS.noStyle)) {
-          const isDark = resolveIsDark(brandConfig.theme);
-          const bg = isDark
-            ? (brandConfig.brand?.dark?.primary ?? config.darkPrimaryColor)
-            : (brandConfig.brand?.light?.primary ?? config.primaryColor);
-          bubble.style.setProperty("--perspective-float-bg", bg);
-          bubble.style.setProperty(
-            "--perspective-float-shadow",
-            `0 4px 12px ${bg}66`
-          );
-          bubble.style.setProperty(
-            "--perspective-float-shadow-hover",
-            `0 6px 16px ${bg}80`
-          );
-          bubble.style.backgroundColor = bg;
-          bubble.style.boxShadow = `0 4px 12px ${bg}66`;
+          // Only apply theme colors if launcher.style didn't override backgroundColor
+          if (!launcherConfig?.style?.backgroundColor) {
+            const isDark = resolveIsDark(brandConfig.theme);
+            const bg = isDark
+              ? (brandConfig.brand?.dark?.primary ?? config.darkPrimaryColor)
+              : (brandConfig.brand?.light?.primary ?? config.primaryColor);
+            bubble.style.setProperty("--perspective-float-bg", bg);
+            bubble.style.setProperty(
+              "--perspective-float-shadow",
+              `0 4px 12px ${bg}66`
+            );
+            bubble.style.setProperty(
+              "--perspective-float-shadow-hover",
+              `0 6px 16px ${bg}80`
+            );
+            bubble.style.backgroundColor = bg;
+            bubble.style.boxShadow = `0 4px 12px ${bg}66`;
+          }
         }
 
         if (
@@ -553,9 +607,11 @@ function autoInit(): void {
         ) {
           const channels =
             config.channel ?? config.allowedChannels ?? undefined;
-          floatHandle.update({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (floatHandle.update as any)({
             channel: channels,
             welcomeMessage: config.welcomeMessage,
+            _themeConfig: config,
           });
         }
       });

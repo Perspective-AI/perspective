@@ -1,10 +1,18 @@
 import { useEffect, type RefObject } from "react";
 import { type EmbedConfig, type FloatHandle } from "@perspective-ai/sdk";
-import { useFloatBubble } from "./hooks/useFloatBubble";
+import {
+  useFloatBubble,
+  type LauncherConfigReact,
+} from "./hooks/useFloatBubble";
 
-export interface FloatBubbleProps extends Omit<EmbedConfig, "type"> {
+export interface FloatBubbleProps extends Omit<
+  EmbedConfig,
+  "type" | "launcher"
+> {
   /** Ref to access the handle for programmatic control */
   embedRef?: RefObject<FloatHandle | null>;
+  /** Customize the floating launcher button appearance */
+  launcher?: LauncherConfigReact;
 }
 
 /**
@@ -22,6 +30,9 @@ export function FloatBubble({
   brand,
   theme,
   host,
+  channel,
+  welcomeMessage,
+  launcher,
   onReady,
   onSubmit,
   onNavigate,
@@ -35,6 +46,9 @@ export function FloatBubble({
     brand,
     theme,
     host,
+    channel,
+    welcomeMessage,
+    launcher,
     onReady,
     onSubmit,
     onNavigate,

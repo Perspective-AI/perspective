@@ -7,6 +7,7 @@ import type {
   AIAssistantChannel,
   EmbedConfig,
   FloatHandle,
+  LauncherIcon,
   ThemeConfig,
 } from "./types";
 import { hasDom, getHost } from "./config";
@@ -58,10 +59,68 @@ function resolveWelcomeMessage(config: FloatConfig): string {
   return trimmed.length > 0 ? trimmed : DEFAULT_WELCOME_MESSAGE;
 }
 
-function resolveBubbleIcon(config: FloatConfig): string {
+export function getDefaultIconHtml(config: FloatConfig): string {
   return getChannelMode(resolveChannel(config)) === "text"
     ? MESSAGES_ICON
     : MIC_ICON;
+}
+
+export function createIconImg(
+  src: string,
+  fallbackHtml: string
+): HTMLImageElement {
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "";
+  img.style.width = "100%";
+  img.style.height = "100%";
+  img.style.objectFit = "cover";
+  img.style.borderRadius = "inherit";
+  img.onerror = () => {
+    const parent = img.parentElement;
+    if (parent) {
+      img.remove();
+      parent.innerHTML = fallbackHtml;
+    }
+  };
+  return img;
+}
+
+function applyBubbleIcon(bubble: HTMLButtonElement, config: FloatConfig): void {
+  const icon: LauncherIcon = config.launcher?.icon ?? "default";
+  const fallbackHtml = getDefaultIconHtml(config);
+
+  if (icon === "default") {
+    bubble.innerHTML = fallbackHtml;
+    return;
+  }
+
+  if (icon === "avatar") {
+    const avatarUrl = config._themeConfig?.avatarUrl;
+    if (avatarUrl) {
+      bubble.innerHTML = "";
+      bubble.appendChild(createIconImg(avatarUrl, fallbackHtml));
+    } else {
+      bubble.innerHTML = fallbackHtml;
+    }
+    return;
+  }
+
+  if (typeof icon === "object" && icon !== null) {
+    if ("url" in icon) {
+      bubble.innerHTML = "";
+      bubble.appendChild(createIconImg(icon.url, fallbackHtml));
+      return;
+    }
+
+    if ("svg" in icon) {
+      bubble.innerHTML = icon.svg;
+      return;
+    }
+  }
+
+  // Exhaustive — should never reach here
+  bubble.innerHTML = fallbackHtml;
 }
 
 function createChimeSound(audioCtx: AudioContext): void {
@@ -126,7 +185,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     "perspective-float-bubble perspective-embed-root",
     getThemeClass(config.theme)
   );
-  bubble.innerHTML = resolveBubbleIcon(config);
+  applyBubbleIcon(bubble, config);
   bubble.setAttribute("aria-label", "Open chat");
   bubble.setAttribute("data-perspective", "float-bubble");
 
@@ -149,7 +208,40 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     bubble.style.boxShadow = `0 4px 12px ${bg}66`;
   }
 
+  // Apply launcher style overrides (highest precedence)
+  if (config.launcher?.style) {
+    Object.assign(bubble.style, config.launcher.style);
+  }
+
+  // Apply launcher className (additive)
+  if (config.launcher?.className) {
+    for (const cls of config.launcher.className.split(/\s+/).filter(Boolean)) {
+      bubble.classList.add(cls);
+    }
+  }
+
   document.body.appendChild(bubble);
+
+  // Auto-fetch config when avatar icon is requested but no _themeConfig provided
+  // (programmatic API — browser.ts auto-init handles this separately)
+  if (config.launcher?.icon === "avatar" && !_themeConfig?.avatarUrl) {
+    fetch(`${host}/api/v1/embed/config/${researchId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((fetchedConfig) => {
+        if (fetchedConfig?.avatarUrl) {
+          currentConfig = {
+            ...currentConfig,
+            _themeConfig: { ...currentConfig._themeConfig, ...fetchedConfig },
+          };
+          if (!isOpen) {
+            applyBubbleIcon(bubble, currentConfig);
+          }
+        }
+      })
+      .catch(() => {
+        // Silently fall back to default icon
+      });
+  }
 
   let floatWindow: HTMLElement | null = null;
   let iframe: HTMLIFrameElement | null = null;
@@ -182,7 +274,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   let currentConfig = { ...config };
 
   const setBubbleClosedState = () => {
-    bubble.innerHTML = resolveBubbleIcon(currentConfig);
+    applyBubbleIcon(bubble, currentConfig);
     bubble.setAttribute("aria-label", "Open chat");
     bubble.classList.remove("perspective-float-bubble-open");
   };
@@ -443,7 +535,11 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
 
   return {
     unmount,
-    update: (options: Parameters<FloatHandle["update"]>[0]) => {
+    update: (
+      options: Parameters<FloatHandle["update"]>[0] & {
+        _themeConfig?: ThemeConfig;
+      }
+    ) => {
       currentConfig = { ...currentConfig, ...options };
       if (!isOpen) {
         setBubbleClosedState();

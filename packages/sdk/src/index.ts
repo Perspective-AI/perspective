@@ -59,6 +59,9 @@ export type {
   TriggerConfig,
   ShowOnce,
   AutoOpenConfig,
+  LauncherConfig,
+  LauncherIcon,
+  LauncherStyle,
 } from "./types";
 
 // Re-export commonly used constants and types

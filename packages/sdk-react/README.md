@@ -176,6 +176,27 @@ function App() {
 }
 ```
 
+**With launcher customization:**
+
+```tsx
+import { HeadphonesIcon } from "lucide-react";
+
+const { open, close } = useFloatBubble({
+  researchId: "your-research-id",
+  launcher: {
+    icon: <HeadphonesIcon className="w-6 h-6" />, // React component as icon
+    style: {
+      width: "64px",
+      height: "64px",
+      borderRadius: "12px",
+      backgroundColor: "#0ea5e9",
+    },
+  },
+});
+```
+
+React components passed as `icon` are converted to static SVG via `renderToStaticMarkup`. See the [core SDK docs](../sdk/README.md#launcher-customization-float-bubble) for all `launcher` options.
+
 ## Components
 
 ### Widget
@@ -213,6 +234,19 @@ import { FloatBubble } from "@perspective-ai/sdk-react";
 <FloatBubble researchId="your-research-id" />;
 ```
 
+**With launcher customization:**
+
+```tsx
+<FloatBubble
+  researchId="your-research-id"
+  launcher={{
+    icon: "avatar",
+    style: { width: "64px", height: "64px", borderRadius: "12px" },
+    className: "my-custom-launcher",
+  }}
+/>
+```
+
 ## Hook Options
 
 All hooks accept options from `EmbedConfig`:
@@ -222,6 +256,9 @@ interface UsePopupOptions {
   researchId: string; // The ID of your Perspective agent
   host?: string;
   theme?: "light" | "dark" | "system";
+  channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode
+  welcomeMessage?: string; // Teaser text (float only)
+  buttonText?: string; // Trigger button text (popup/slider)
   params?: Record<string, string>;
   brand?: {
     light?: {
@@ -232,6 +269,7 @@ interface UsePopupOptions {
     };
     dark?: { primary?: string; secondary?: string; bg?: string; text?: string };
   };
+  disableClose?: boolean; // Prevent closing popup/slider
 
   // Callbacks
   onReady?: () => void;
@@ -239,12 +277,15 @@ interface UsePopupOptions {
   onClose?: () => void;
   onNavigate?: (url: string) => void;
   onError?: (error: EmbedError) => void;
+  onAuth?: (data: { researchId: string; token: string }) => void;
 
   // Controlled mode
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 ```
+
+`useFloatBubble` also accepts `launcher` for button customization — see [Launcher Customization](#with-launcher-customization-1).
 
 ## Hook Return Types
 

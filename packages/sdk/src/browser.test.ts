@@ -513,4 +513,98 @@ describe("browser entry", () => {
       expect(document.querySelectorAll(".perspective-overlay").length).toBe(1);
     });
   });
+
+  describe("float launcher data attributes", () => {
+    beforeEach(() => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            primaryColor: "#7c3aed",
+            textColor: "#ffffff",
+            darkPrimaryColor: "#a78bfa",
+            darkTextColor: "#ffffff",
+            avatarUrl: null,
+          }),
+        })
+      );
+    });
+
+    it("parses launcher-style as CSS overrides", () => {
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id"
+             data-perspective-launcher-style="width:64px;border-radius:12px"></div>
+      `;
+      autoInit();
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLElement;
+      expect(bubble.style.width).toBe("64px");
+      expect(bubble.style.borderRadius).toBe("12px");
+    });
+
+    it("parses launcher-class as className", () => {
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id"
+             data-perspective-launcher-class="my-class"></div>
+      `;
+      autoInit();
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLElement;
+      expect(bubble.classList.contains("my-class")).toBe(true);
+    });
+
+    it("parses launcher-icon URL starting with http", () => {
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id"
+             data-perspective-launcher-icon="https://example.com/icon.png"></div>
+      `;
+      autoInit();
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLElement;
+      const img = bubble.querySelector("img");
+      expect(img).toBeTruthy();
+      expect(img!.src).toBe("https://example.com/icon.png");
+    });
+
+    it("parses launcher-icon='avatar' and renders img after fetch", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            primaryColor: "#7c3aed",
+            textColor: "#ffffff",
+            darkPrimaryColor: "#a78bfa",
+            darkTextColor: "#ffffff",
+            avatarUrl: "https://example.com/avatar.png",
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id-avatar"
+             data-perspective-launcher-icon="avatar"></div>
+      `;
+      autoInit();
+
+      // Flush: fetch() → .json() → .then()
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLElement;
+      const img = bubble.querySelector("img");
+      expect(img).toBeTruthy();
+      expect(img!.src).toBe("https://example.com/avatar.png");
+    });
+  });
 });
