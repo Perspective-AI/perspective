@@ -566,17 +566,18 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       currentConfig = { ...currentConfig, ...options };
 
       // Apply API launcher config when _themeConfig is updated (e.g. from async config fetch)
+      // Use currentConfig.launcher (not original config.launcher) to preserve runtime updates
       const updatedApiLauncher =
         currentConfig._themeConfig?.embedSettings?.launcher;
       if (updatedApiLauncher) {
-        const customerLauncher = config.launcher ?? {};
+        const base = currentConfig.launcher ?? {};
         currentConfig = {
           ...currentConfig,
           launcher: {
-            ...customerLauncher,
+            ...base,
             ...updatedApiLauncher,
             style: {
-              ...customerLauncher.style,
+              ...base.style,
               ...updatedApiLauncher.style,
             },
           },

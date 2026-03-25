@@ -314,7 +314,7 @@ describe("browser entry", () => {
       expect(iframes.length).toBe(1);
     });
 
-    it("calling autoInit twice does not duplicate popup handlers", () => {
+    it("calling autoInit twice does not duplicate popup handlers", async () => {
       document.body.innerHTML = `
         <button data-perspective-popup="test-popup">Open</button>
       `;
@@ -326,6 +326,7 @@ describe("browser entry", () => {
         "[data-perspective-popup]"
       ) as HTMLButtonElement;
       button.click();
+      await flushConfigFetch();
 
       expect(document.querySelectorAll(".perspective-overlay").length).toBe(1);
     });
@@ -385,7 +386,7 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-fullpage")).toBeTruthy();
     });
 
-    it("attaches popup click handler from data-perspective-popup", () => {
+    it("attaches popup click handler from data-perspective-popup", async () => {
       document.body.innerHTML = `
         <button data-perspective-popup="test-popup">Open</button>
       `;
@@ -398,6 +399,7 @@ describe("browser entry", () => {
         "[data-perspective-popup]"
       ) as HTMLButtonElement;
       button.click();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-overlay")).toBeTruthy();
     });
@@ -418,7 +420,7 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-overlay")).toBeTruthy();
     });
 
-    it("attaches slider click handler from data-perspective-slider", () => {
+    it("attaches slider click handler from data-perspective-slider", async () => {
       document.body.innerHTML = `
         <button data-perspective-slider="test-slider">Open</button>
       `;
@@ -431,6 +433,7 @@ describe("browser entry", () => {
         "[data-perspective-slider]"
       ) as HTMLButtonElement;
       button.click();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });
@@ -494,10 +497,9 @@ describe("browser entry", () => {
 
       autoInit();
 
-      // flush: fetch() resolve → .json() resolve → .then() callback
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
+      // flush: async IIFE → fetch() resolve → .json() resolve → cache set → .then() callback
+      await flushConfigFetch();
+      await flushConfigFetch();
 
       const bubble = document.querySelector(
         ".perspective-float-bubble"
@@ -536,7 +538,7 @@ describe("browser entry", () => {
       expect(wrapper?.classList.contains("perspective-dark-theme")).toBe(true);
     });
 
-    it("does not reinitialize popup buttons", () => {
+    it("does not reinitialize popup buttons", async () => {
       document.body.innerHTML = `
         <button data-perspective-popup="test">Open</button>
       `;
@@ -549,6 +551,7 @@ describe("browser entry", () => {
       ) as HTMLButtonElement;
 
       button.click();
+      await flushConfigFetch();
       expect(document.querySelectorAll(".perspective-overlay").length).toBe(1);
     });
   });
@@ -633,10 +636,9 @@ describe("browser entry", () => {
       `;
       autoInit();
 
-      // Flush: fetch() → .json() → .then()
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
+      // Flush: async IIFE → fetch() → .json() → cache set → .then()
+      await flushConfigFetch();
+      await flushConfigFetch();
 
       const bubble = document.querySelector(
         ".perspective-float-bubble"

@@ -246,17 +246,29 @@ function buildIframeUrl(
   return url.toString();
 }
 
-/** Convert embedSettings.appearance to URL query params */
+/** Known appearance param keys — only these are allowed as overrides */
+const APPEARANCE_KEYS = new Set([
+  "hideProgress",
+  "hideGreeting",
+  "hideBranding",
+  "enableFullScreen",
+]);
+
+/** Convert embedSettings.appearance to URL query params. Emits both true/false so API can override embed code in either direction. */
 export function appearanceToParams(
   embedSettings?: ThemeConfig["embedSettings"]
 ): Record<string, string> | undefined {
   const a = embedSettings?.appearance;
   if (!a) return undefined;
   const params: Record<string, string> = {};
-  if (a.hideProgress) params.hideProgress = "true";
-  if (a.hideGreeting) params.hideGreeting = "true";
-  if (a.hideBranding) params.hideBranding = "true";
-  if (a.enableFullScreen === false) params.enableFullScreen = "false";
+  if (a.hideProgress !== undefined)
+    params.hideProgress = a.hideProgress ? "true" : "false";
+  if (a.hideGreeting !== undefined)
+    params.hideGreeting = a.hideGreeting ? "true" : "false";
+  if (a.hideBranding !== undefined)
+    params.hideBranding = a.hideBranding ? "true" : "false";
+  if (a.enableFullScreen !== undefined)
+    params.enableFullScreen = a.enableFullScreen ? "true" : "false";
   return Object.keys(params).length > 0 ? params : undefined;
 }
 
@@ -285,10 +297,13 @@ export function createIframe(
   );
 
   // Apply appearance overrides from API config (API wins over embed code)
+  // Restricted to APPEARANCE_KEYS to prevent overwriting reserved params
   if (appearanceOverrides && Object.keys(appearanceOverrides).length > 0) {
     const url = new URL(iframe.src);
     for (const [key, value] of Object.entries(appearanceOverrides)) {
-      url.searchParams.set(key, value);
+      if (APPEARANCE_KEYS.has(key)) {
+        url.searchParams.set(key, value);
+      }
     }
     iframe.src = url.toString();
   }

@@ -52,6 +52,7 @@ type EmbedApiConfig = ThemeConfig & {
   welcomeMessage?: string;
 };
 const configCache: Map<string, EmbedApiConfig> = new Map();
+const configInflight: Map<string, Promise<EmbedApiConfig>> = new Map();
 
 type ButtonStyleConfig = {
   themeConfig: ThemeConfig;
@@ -76,16 +77,28 @@ async function fetchConfig(researchId: string): Promise<EmbedApiConfig> {
     return configCache.get(researchId)!;
   }
 
-  try {
-    const host = getHost();
-    const res = await fetch(`${host}/api/v1/embed/config/${researchId}`);
-    if (!res.ok) return DEFAULT_THEME;
-    const config = (await res.json()) as EmbedApiConfig;
-    configCache.set(researchId, config);
-    return config;
-  } catch {
-    return DEFAULT_THEME;
+  // Deduplicate in-flight requests for the same researchId
+  if (configInflight.has(researchId)) {
+    return configInflight.get(researchId)!;
   }
+
+  const promise = (async () => {
+    try {
+      const host = getHost();
+      const res = await fetch(`${host}/api/v1/embed/config/${researchId}`);
+      if (!res.ok) return DEFAULT_THEME;
+      const config = (await res.json()) as EmbedApiConfig;
+      configCache.set(researchId, config);
+      return config;
+    } catch {
+      return DEFAULT_THEME;
+    } finally {
+      configInflight.delete(researchId);
+    }
+  })();
+
+  configInflight.set(researchId, promise);
+  return promise;
 }
 
 /**
@@ -513,14 +526,18 @@ function autoInit(): void {
         }
       } else {
         // Click-to-open mode: styled button
-        styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", (e) => {
-          e.preventDefault();
-          initPopup();
-        });
-        fetchConfig(researchId).then((config) => {
+        // Pre-fetch config so it's ready when user clicks
+        const configPromise = fetchConfig(researchId);
+        configPromise.then((config) => {
           cachedConfig = config;
           styleButton(el, config, brandConfig);
+        });
+        styleButton(el, DEFAULT_THEME, brandConfig);
+        el.addEventListener("click", async (e) => {
+          e.preventDefault();
+          // Ensure config is loaded before creating the embed (API wins)
+          cachedConfig = cachedConfig ?? (await configPromise);
+          initPopup();
         });
 
         if (persistedOpen === true) {
@@ -560,14 +577,18 @@ function autoInit(): void {
             ...(sliderConfig && { _themeConfig: sliderConfig }),
           } as EmbedConfig & { _themeConfig: ThemeConfig });
 
-        styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", (e) => {
-          e.preventDefault();
-          initSlider();
-        });
-        fetchConfig(researchId).then((config) => {
+        // Pre-fetch config so it's ready when user clicks
+        const sliderConfigPromise = fetchConfig(researchId);
+        sliderConfigPromise.then((config) => {
           sliderConfig = config;
           styleButton(el, config, brandConfig);
+        });
+        styleButton(el, DEFAULT_THEME, brandConfig);
+        el.addEventListener("click", async (e) => {
+          e.preventDefault();
+          // Ensure config is loaded before creating the embed (API wins)
+          sliderConfig = sliderConfig ?? (await sliderConfigPromise);
+          initSlider();
         });
 
         if (persistedOpen === true) {
