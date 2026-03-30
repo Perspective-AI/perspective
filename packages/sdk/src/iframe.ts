@@ -173,7 +173,7 @@ function getParentSearchParams(): Record<string, string> {
 }
 
 /** Build iframe URL with all params */
-function buildIframeUrl(
+export function buildIframeUrl(
   researchId: string,
   type: EmbedType,
   host: string,

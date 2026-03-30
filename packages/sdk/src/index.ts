@@ -28,6 +28,7 @@ export { openPopup } from "./popup";
 export { openSlider } from "./slider";
 export { createFloatBubble, createChatBubble } from "./float";
 export { createFullpage } from "./fullpage";
+export { preload, type PreloadOptions } from "./preload";
 
 // Auto-open triggers
 export {

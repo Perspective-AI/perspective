@@ -36,6 +36,7 @@ import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
+import { preload } from "./preload";
 import { configure, getConfig, hasDom, getHost } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
@@ -352,17 +353,38 @@ function autoInit(): void {
 
   setupButtonThemeListener();
 
-  // Widget embeds
-  document
-    .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.widget}]`)
-    .forEach((el) => {
-      const researchId = el.getAttribute(DATA_ATTRS.widget);
-      if (researchId && !instances.has(researchId)) {
-        const params = parseParamsAttr(el);
-        const brandConfig = extractBrandConfig(el);
-        mount(el, { researchId, type: "widget", params, ...brandConfig });
-      }
-    });
+  // Widget embeds — preload iframe documents first, then mount.
+  // Preloading before mount gives the browser a head start on fetching
+  // while we create DOM wrappers and loading skeletons.
+  const widgetElements = document.querySelectorAll<HTMLElement>(
+    `[${DATA_ATTRS.widget}]`
+  );
+  // Pass 1: preload all iframe documents (dedupe by researchId)
+  const widgetConfigs = new Map<
+    string,
+    {
+      el: HTMLElement;
+      params: Record<string, string> | undefined;
+      brandConfig: Pick<EmbedConfig, "brand" | "theme">;
+    }
+  >();
+  widgetElements.forEach((el) => {
+    const researchId = el.getAttribute(DATA_ATTRS.widget);
+    if (
+      researchId &&
+      !instances.has(researchId) &&
+      !widgetConfigs.has(researchId)
+    ) {
+      const params = parseParamsAttr(el);
+      const brandConfig = extractBrandConfig(el);
+      preload(researchId, { type: "widget", params, ...brandConfig });
+      widgetConfigs.set(researchId, { el, params, brandConfig });
+    }
+  });
+  // Pass 2: mount widgets (reuses preloaded responses)
+  for (const [researchId, { el, params, brandConfig }] of widgetConfigs) {
+    mount(el, { researchId, type: "widget", params, ...brandConfig });
+  }
 
   // Fullpage embeds
   document
@@ -543,6 +565,7 @@ const Perspective = {
   openSlider,
   createFloatBubble,
   createFullpage,
+  preload,
 
   // Legacy alias
   createChatBubble,
@@ -586,6 +609,7 @@ export {
   createFloatBubble,
   createChatBubble,
   createFullpage,
+  preload,
 };
 
 export default Perspective;

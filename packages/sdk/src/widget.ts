@@ -92,6 +92,12 @@ export function createWidget(
 
   const host = getHost(config.host);
 
+  // Note: preload() is NOT called here because createWidget() immediately
+  // creates the iframe in the same synchronous frame — the preload link
+  // would be a no-op. Preloading is valuable earlier in the lifecycle:
+  // - React Widget calls preload() at render time (before useLayoutEffect)
+  // - autoInit() calls preload() before mounting widgets
+
   injectStyles();
   ensureGlobalListeners();
 

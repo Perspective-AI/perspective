@@ -15,6 +15,7 @@ vi.mock("@perspective-ai/sdk", () => ({
     iframe: null,
     container: null,
   })),
+  preload: vi.fn(),
 }));
 
 import { createWidget } from "@perspective-ai/sdk";

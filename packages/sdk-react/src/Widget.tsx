@@ -1,6 +1,7 @@
 import { useRef, useEffect, type HTMLAttributes, type RefObject } from "react";
 import {
   createWidget,
+  preload,
   type EmbedConfig,
   type EmbedHandle,
 } from "@perspective-ai/sdk";
@@ -34,6 +35,11 @@ export function Widget({
   style,
   ...divProps
 }: WidgetProps) {
+  // Preload the iframe document at render time (before useEffect fires).
+  // This is safe because preload() is idempotent and has no visual side effects.
+  // It gives the browser a head start while React finishes rendering and painting.
+  preload(researchId, { type: "widget", params, brand, theme, host });
+
   const containerRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<EmbedHandle | null>(null);
 
