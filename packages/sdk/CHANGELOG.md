@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.5.1
+
+### Patch Changes
+
+- 3d06d75: Make float button expand to fullscreen on mobile screens (≤640px) and hide the bubble when the window is open
+
 ## 1.5.0
 
 ### Minor Changes
