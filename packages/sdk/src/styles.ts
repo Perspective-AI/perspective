@@ -415,32 +415,16 @@ export function injectStyles(): void {
 
       .perspective-float-window,
       .perspective-chat-window {
-        width: calc(100% - 2rem);
-        right: 1rem;
-        bottom: 5.625rem;
-        height: calc(100vh - 7.5rem);
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
       }
 
-      .perspective-float-bubble,
-      .perspective-chat-bubble {
-        bottom: 20px;
-        right: 20px;
-      }
-    }
-
-    @media (max-width: 450px) {
-      .perspective-float-window,
-      .perspective-chat-window {
-        width: calc(100% - 1rem);
-        right: 0.5rem;
-        bottom: 5rem;
-        height: calc(100vh - 6.5rem);
-      }
-
-      .perspective-float-bubble,
-      .perspective-chat-bubble {
-        bottom: 20px;
-        right: 20px;
+      .perspective-float-bubble.perspective-float-bubble-open,
+      .perspective-chat-bubble.perspective-float-bubble-open {
+        display: none;
       }
     }
   `;
