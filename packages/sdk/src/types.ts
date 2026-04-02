@@ -255,7 +255,7 @@ export interface ThemeConfig {
   };
 }
 
-/** EmbedConfig with internal _apiConfig from the config API (not part of public API) */
+/** EmbedConfig with _apiConfig from the config API (internal, subject to change) */
 export type InternalEmbedConfig = EmbedConfig & { _apiConfig?: ThemeConfig };
 
 /** SDK global configuration */

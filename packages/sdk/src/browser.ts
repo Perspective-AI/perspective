@@ -516,11 +516,13 @@ function autoInit(): void {
 
               const cleanup = setupTrigger(trigger, () => {
                 triggerCleanups.delete(researchId);
-                markShown(researchId, showOnce);
-                // Await config before creating iframe (API wins even for immediate triggers)
+                // Await config — skip if API autoTrigger will take over (API wins)
                 configPromise.then((config) => {
                   cachedConfig = config;
-                  initPopup();
+                  if (!config.embedSettings?.autoTrigger?.trigger) {
+                    markShown(researchId, showOnce);
+                    initPopup();
+                  }
                 });
               });
               triggerCleanups.set(researchId, cleanup);

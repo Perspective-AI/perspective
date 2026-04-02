@@ -11,19 +11,21 @@ export function useEmbedConfig(
   host?: string
 ): ThemeConfig | undefined {
   const [state, setState] = useState<
-    { researchId: string; config: ThemeConfig } | undefined
+    { researchId: string; host?: string; config: ThemeConfig } | undefined
   >();
 
   useEffect(() => {
     let cancelled = false;
     fetchEmbedConfig(researchId, host).then((result) => {
-      if (!cancelled) setState({ researchId, config: result });
+      if (!cancelled) setState({ researchId, host, config: result });
     });
     return () => {
       cancelled = true;
     };
   }, [researchId, host]);
 
-  // Return undefined if config is for a different researchId (stale)
-  return state?.researchId === researchId ? state.config : undefined;
+  // Return undefined if config is for different researchId/host (stale)
+  return state?.researchId === researchId && state.host === host
+    ? state.config
+    : undefined;
 }
