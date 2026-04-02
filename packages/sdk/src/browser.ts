@@ -26,6 +26,11 @@ import type {
 } from "./types";
 import { DATA_ATTRS, THEME_VALUES } from "./constants";
 import {
+  fetchEmbedConfig,
+  DEFAULT_THEME,
+  type EmbedApiConfig,
+} from "./embed-api";
+import {
   parseTriggerAttr,
   parseShowOnceAttr,
   setupTrigger,
@@ -37,7 +42,7 @@ import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
-import { configure, getConfig, hasDom, getHost } from "./config";
+import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
 
@@ -47,14 +52,6 @@ const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 // Track auto-open trigger cleanups (keyed by researchId)
 const triggerCleanups: Map<string, () => void> = new Map();
 
-// Theme config cache
-type EmbedApiConfig = ThemeConfig & {
-  allowedChannels?: ThemeConfig["allowedChannels"];
-  welcomeMessage?: string;
-};
-const configCache: Map<string, EmbedApiConfig> = new Map();
-const configInflight: Map<string, Promise<EmbedApiConfig>> = new Map();
-
 type ButtonStyleConfig = {
   themeConfig: ThemeConfig;
   theme?: EmbedConfig["theme"];
@@ -63,44 +60,8 @@ type ButtonStyleConfig = {
 const styledButtons = new Map<HTMLElement, ButtonStyleConfig>();
 let buttonThemeMediaQuery: MediaQueryList | null = null;
 
-const DEFAULT_THEME: ThemeConfig = {
-  primaryColor: "#7c3aed",
-  textColor: "#ffffff",
-  darkPrimaryColor: "#a78bfa",
-  darkTextColor: "#ffffff",
-};
-
-/**
- * Fetch theme config from API (cached)
- */
-async function fetchConfig(researchId: string): Promise<EmbedApiConfig> {
-  if (configCache.has(researchId)) {
-    return configCache.get(researchId)!;
-  }
-
-  // Deduplicate in-flight requests for the same researchId
-  if (configInflight.has(researchId)) {
-    return configInflight.get(researchId)!;
-  }
-
-  const promise = (async () => {
-    try {
-      const host = getHost();
-      const res = await fetch(`${host}/api/v1/embed/config/${researchId}`);
-      if (!res.ok) return DEFAULT_THEME;
-      const config = (await res.json()) as EmbedApiConfig;
-      configCache.set(researchId, config);
-      return config;
-    } catch {
-      return DEFAULT_THEME;
-    } finally {
-      configInflight.delete(researchId);
-    }
-  })();
-
-  configInflight.set(researchId, promise);
-  return promise;
-}
+/** Alias for internal use */
+const fetchConfig = fetchEmbedConfig;
 
 /**
  * Apply theme styles to a button element

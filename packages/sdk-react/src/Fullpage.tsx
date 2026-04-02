@@ -5,6 +5,7 @@ import {
   type EmbedHandle,
 } from "@perspective-ai/sdk";
 import { useStableCallback } from "./hooks/useStableCallback";
+import { useEmbedConfig } from "./hooks/useEmbedConfig";
 
 export interface FullpageProps extends Omit<EmbedConfig, "type"> {
   /** Ref to access the embed handle for programmatic control */
@@ -29,6 +30,7 @@ export function Fullpage({
   embedRef,
 }: FullpageProps) {
   const handleRef = useRef<EmbedHandle | null>(null);
+  const embedConfig = useEmbedConfig(researchId, host);
 
   // Stable callbacks
   const stableOnReady = useStableCallback(onReady);
@@ -38,12 +40,15 @@ export function Fullpage({
   const stableOnError = useStableCallback(onError);
 
   useEffect(() => {
+    if (!embedConfig) return;
+
     const handle = createFullpage({
       researchId,
       params,
       brand,
       theme,
       host,
+      _themeConfig: embedConfig,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,
@@ -70,6 +75,7 @@ export function Fullpage({
     brand,
     theme,
     host,
+    embedConfig,
     stableOnReady,
     stableOnSubmit,
     stableOnNavigate,

@@ -6,6 +6,7 @@ import {
   type EmbedHandle,
 } from "@perspective-ai/sdk";
 import { useStableCallback } from "./useStableCallback";
+import { useEmbedConfig } from "./useEmbedConfig";
 
 /** Options for usePopup hook */
 export interface UsePopupOptions extends Omit<EmbedConfig, "type"> {
@@ -68,6 +69,9 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
   const [handle, setHandle] = useState<EmbedHandle | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const handleRef = useRef<EmbedHandle | null>(null);
+  const embedConfig = useEmbedConfig(researchId, host);
+  const embedConfigRef = useRef(embedConfig);
+  embedConfigRef.current = embedConfig;
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
@@ -107,6 +111,7 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
       theme,
       host,
       disableClose,
+      _themeConfig: embedConfigRef.current,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,

@@ -40,6 +40,7 @@ export {
 
 // Configuration
 export { configure, getConfig } from "./config";
+export { fetchEmbedConfig } from "./embed-api";
 export { getPersistedOpenState } from "./state";
 
 // Types

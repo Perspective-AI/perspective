@@ -21,6 +21,14 @@ vi.mock("@perspective-ai/sdk", () => ({
     iframe: null,
     container: null,
   })),
+  fetchEmbedConfig: vi.fn(() =>
+    Promise.resolve({
+      primaryColor: "#7c3aed",
+      textColor: "#ffffff",
+      darkPrimaryColor: "#a78bfa",
+      darkTextColor: "#ffffff",
+    })
+  ),
 }));
 
 import { openPopup } from "@perspective-ai/sdk";
@@ -36,10 +44,11 @@ describe("usePopup", () => {
     cleanup();
   });
 
-  it("returns open, close, toggle functions and isOpen state", () => {
+  it("returns open, close, toggle functions and isOpen state", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.open).toBeInstanceOf(Function);
     expect(result.current.close).toBeInstanceOf(Function);
@@ -48,16 +57,18 @@ describe("usePopup", () => {
     expect(result.current.handle).toBeNull();
   });
 
-  it("does not call openPopup on mount", () => {
+  it("does not call openPopup on mount", async () => {
     renderHook(() => usePopup({ researchId: "test-research-id" }));
+    await act(async () => {});
 
     expect(mockOpenPopup).not.toHaveBeenCalled();
   });
 
-  it("calls openPopup when open() is called", () => {
+  it("calls openPopup when open() is called", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -71,10 +82,11 @@ describe("usePopup", () => {
     );
   });
 
-  it("sets isOpen to true when open() is called", () => {
+  it("sets isOpen to true when open() is called", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.isOpen).toBe(false);
 
@@ -85,10 +97,11 @@ describe("usePopup", () => {
     expect(result.current.isOpen).toBe(true);
   });
 
-  it("calls destroy and sets isOpen to false when close() is called", () => {
+  it("calls destroy and sets isOpen to false when close() is called", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -104,10 +117,11 @@ describe("usePopup", () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  it("toggles open state", () => {
+  it("toggles open state", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.isOpen).toBe(false);
 
@@ -126,7 +140,7 @@ describe("usePopup", () => {
     expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 
-  it("passes config to openPopup", () => {
+  it("passes config to openPopup", async () => {
     const onReady = vi.fn();
     const onSubmit = vi.fn();
 
@@ -140,6 +154,7 @@ describe("usePopup", () => {
         onSubmit,
       })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -153,10 +168,11 @@ describe("usePopup", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("passes disableClose to openPopup", () => {
+  it("passes disableClose to openPopup", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id", disableClose: true })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -169,7 +185,7 @@ describe("usePopup", () => {
     );
   });
 
-  it("supports controlled mode with open prop", () => {
+  it("supports controlled mode with open prop", async () => {
     const onOpenChange = vi.fn();
 
     const { result, rerender } = renderHook(
@@ -181,6 +197,7 @@ describe("usePopup", () => {
         }),
       { initialProps: { open: false } }
     );
+    await act(async () => {});
 
     expect(result.current.isOpen).toBe(false);
 
@@ -193,7 +210,7 @@ describe("usePopup", () => {
     expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onOpenChange in controlled mode when open() is called", () => {
+  it("calls onOpenChange in controlled mode when open() is called", async () => {
     const onOpenChange = vi.fn();
 
     const { result } = renderHook(() =>
@@ -203,6 +220,7 @@ describe("usePopup", () => {
         onOpenChange,
       })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -211,10 +229,11 @@ describe("usePopup", () => {
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
-  it("cleans up on unmount without treating it as explicit close", () => {
+  it("cleans up on unmount without treating it as explicit close", async () => {
     const { result, unmount } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -226,10 +245,11 @@ describe("usePopup", () => {
     expect(mockDestroy).not.toHaveBeenCalled();
   });
 
-  it("makes handle reactive - handle is available after open", () => {
+  it("makes handle reactive - handle is available after open", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.handle).toBeNull();
 
@@ -240,12 +260,33 @@ describe("usePopup", () => {
     expect(result.current.handle).not.toBeNull();
   });
 
-  it("restores persisted open state on mount in uncontrolled mode", () => {
+  it("passes _themeConfig from fetched embed config to openPopup", async () => {
+    const { result } = renderHook(() =>
+      usePopup({ researchId: "test-research-id" })
+    );
+    await act(async () => {}); // flush fetchEmbedConfig
+
+    act(() => {
+      result.current.open();
+    });
+
+    expect(mockOpenPopup).toHaveBeenCalledTimes(1);
+    const config = mockOpenPopup.mock.calls[0]![0];
+    expect(config._themeConfig).toEqual({
+      primaryColor: "#7c3aed",
+      textColor: "#ffffff",
+      darkPrimaryColor: "#a78bfa",
+      darkTextColor: "#ffffff",
+    });
+  });
+
+  it("restores persisted open state on mount in uncontrolled mode", async () => {
     mockGetPersistedOpenState.mockReturnValue(true);
 
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(mockOpenPopup).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(true);

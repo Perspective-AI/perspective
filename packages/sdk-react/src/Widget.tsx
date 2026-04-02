@@ -5,6 +5,7 @@ import {
   type EmbedHandle,
 } from "@perspective-ai/sdk";
 import { useStableCallback } from "./hooks/useStableCallback";
+import { useEmbedConfig } from "./hooks/useEmbedConfig";
 
 export interface WidgetProps
   extends
@@ -36,6 +37,7 @@ export function Widget({
 }: WidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<EmbedHandle | null>(null);
+  const embedConfig = useEmbedConfig(researchId, host);
 
   // Stable callbacks to avoid re-mounting on callback changes
   const stableOnReady = useStableCallback(onReady);
@@ -46,7 +48,7 @@ export function Widget({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !embedConfig) return;
 
     const handle = createWidget(container, {
       researchId,
@@ -54,6 +56,7 @@ export function Widget({
       brand,
       theme,
       host,
+      _themeConfig: embedConfig,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,
@@ -80,6 +83,7 @@ export function Widget({
     brand,
     theme,
     host,
+    embedConfig,
     stableOnReady,
     stableOnSubmit,
     stableOnNavigate,

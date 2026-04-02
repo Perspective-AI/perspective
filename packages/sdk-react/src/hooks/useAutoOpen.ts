@@ -7,6 +7,7 @@ import {
 } from "@perspective-ai/sdk";
 import type { EmbedConfig, TriggerConfig, ShowOnce } from "@perspective-ai/sdk";
 import { useStableCallback } from "./useStableCallback";
+import { useEmbedConfig } from "./useEmbedConfig";
 
 export interface UseAutoOpenOptions extends Omit<
   EmbedConfig,
@@ -28,11 +29,18 @@ export function useAutoOpen(options: UseAutoOpenOptions): UseAutoOpenReturn {
   const cleanupRef = useRef<(() => void) | null>(null);
   const [triggered, setTriggered] = useState(false);
   const triggerDelay = trigger.type === "timeout" ? trigger.delay : undefined;
+  const themeConfig = useEmbedConfig(researchId, embedConfig.host);
+  const themeConfigRef = useRef(themeConfig);
+  themeConfigRef.current = themeConfig;
 
   // Fix #5: useStableCallback so the trigger always calls with latest config
   const stableOnTrigger = useStableCallback(() => {
     markShown(researchId, showOnce);
-    openPopup({ researchId, ...embedConfig });
+    openPopup({
+      researchId,
+      ...embedConfig,
+      _themeConfig: themeConfigRef.current,
+    });
   });
 
   useEffect(() => {

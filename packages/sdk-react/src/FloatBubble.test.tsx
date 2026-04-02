@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, act } from "@testing-library/react";
 import { FloatBubble } from "./FloatBubble";
 
 const mockUnmount = vi.fn();
@@ -7,6 +7,14 @@ const mockOpen = vi.fn();
 const mockClose = vi.fn();
 const mockToggle = vi.fn();
 const mockUpdate = vi.fn();
+
+// Stable reference so useEmbedConfig doesn't trigger extra effect runs
+const mockEmbedConfig = {
+  primaryColor: "#7c3aed",
+  textColor: "#ffffff",
+  darkPrimaryColor: "#a78bfa",
+  darkTextColor: "#ffffff",
+};
 
 vi.mock("@perspective-ai/sdk", () => ({
   createFloatBubble: vi.fn(() => ({
@@ -22,6 +30,7 @@ vi.mock("@perspective-ai/sdk", () => ({
     container: null,
     isOpen: false,
   })),
+  fetchEmbedConfig: vi.fn(() => Promise.resolve(mockEmbedConfig)),
 }));
 
 import { createFloatBubble } from "@perspective-ai/sdk";
@@ -36,14 +45,16 @@ describe("FloatBubble", () => {
     cleanup();
   });
 
-  it("renders nothing (bubble is added to document.body)", () => {
+  it("renders nothing (bubble is added to document.body)", async () => {
     const { container } = render(<FloatBubble researchId="test-research-id" />);
+    await act(async () => {});
 
     expect(container.innerHTML).toBe("");
   });
 
-  it("calls createFloatBubble on mount", () => {
+  it("calls createFloatBubble on mount", async () => {
     render(<FloatBubble researchId="test-research-id" />);
+    await act(async () => {});
 
     expect(mockCreateFloatBubble).toHaveBeenCalledTimes(1);
     expect(mockCreateFloatBubble).toHaveBeenCalledWith(
@@ -53,8 +64,9 @@ describe("FloatBubble", () => {
     );
   });
 
-  it("calls unmount on cleanup", () => {
+  it("calls unmount on cleanup", async () => {
     const { unmount } = render(<FloatBubble researchId="test-research-id" />);
+    await act(async () => {});
 
     expect(mockUnmount).not.toHaveBeenCalled();
 
@@ -63,7 +75,7 @@ describe("FloatBubble", () => {
     expect(mockUnmount).toHaveBeenCalledTimes(1);
   });
 
-  it("passes config to createFloatBubble", () => {
+  it("passes config to createFloatBubble", async () => {
     const onReady = vi.fn();
     const onSubmit = vi.fn();
     const onClose = vi.fn();
@@ -81,6 +93,7 @@ describe("FloatBubble", () => {
         onError={onError}
       />
     );
+    await act(async () => {});
 
     expect(mockCreateFloatBubble).toHaveBeenCalledTimes(1);
     const config = mockCreateFloatBubble.mock.calls[0]![0];
@@ -90,31 +103,35 @@ describe("FloatBubble", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("re-creates float bubble when researchId changes", () => {
+  it("re-creates float bubble when researchId changes", async () => {
     const { rerender } = render(<FloatBubble researchId="research-1" />);
+    await act(async () => {});
 
     expect(mockCreateFloatBubble).toHaveBeenCalledTimes(1);
 
     rerender(<FloatBubble researchId="research-2" />);
+    await act(async () => {});
 
     expect(mockUnmount).toHaveBeenCalledTimes(1);
     expect(mockCreateFloatBubble).toHaveBeenCalledTimes(2);
   });
 
-  it("re-creates float bubble when theme changes", () => {
+  it("re-creates float bubble when theme changes", async () => {
     const { rerender } = render(
       <FloatBubble researchId="test-research-id" theme="light" />
     );
+    await act(async () => {});
 
     expect(mockCreateFloatBubble).toHaveBeenCalledTimes(1);
 
     rerender(<FloatBubble researchId="test-research-id" theme="dark" />);
+    await act(async () => {});
 
     expect(mockUnmount).toHaveBeenCalledTimes(1);
     expect(mockCreateFloatBubble).toHaveBeenCalledTimes(2);
   });
 
-  it("passes brand colors to createFloatBubble", () => {
+  it("passes brand colors to createFloatBubble", async () => {
     render(
       <FloatBubble
         researchId="test-research-id"
@@ -124,6 +141,7 @@ describe("FloatBubble", () => {
         }}
       />
     );
+    await act(async () => {});
 
     const config = mockCreateFloatBubble.mock.calls[0]![0];
     expect(config.brand).toEqual({

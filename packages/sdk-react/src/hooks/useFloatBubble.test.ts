@@ -25,6 +25,14 @@ const stableMockHandle = {
 
 vi.mock("@perspective-ai/sdk", () => ({
   createFloatBubble: vi.fn(() => stableMockHandle),
+  fetchEmbedConfig: vi.fn(() =>
+    Promise.resolve({
+      primaryColor: "#7c3aed",
+      textColor: "#ffffff",
+      darkPrimaryColor: "#a78bfa",
+      darkTextColor: "#ffffff",
+    })
+  ),
 }));
 
 import { createFloatBubble } from "@perspective-ai/sdk";
@@ -40,10 +48,11 @@ describe("useFloatBubble", () => {
     cleanup();
   });
 
-  it("creates bubble on mount and cleans up on unmount", () => {
+  it("creates bubble on mount and cleans up on unmount", async () => {
     const { unmount } = renderHook(() =>
       useFloatBubble({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(mockCreateFloatBubble).toHaveBeenCalledTimes(1);
     expect(mockCreateFloatBubble).toHaveBeenCalledWith(
@@ -55,10 +64,11 @@ describe("useFloatBubble", () => {
     expect(mockUnmount).toHaveBeenCalledTimes(1);
   });
 
-  it("returns expected interface", () => {
+  it("returns expected interface", async () => {
     const { result, unmount } = renderHook(() =>
       useFloatBubble({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.open).toBeInstanceOf(Function);
     expect(result.current.close).toBeInstanceOf(Function);
@@ -70,10 +80,11 @@ describe("useFloatBubble", () => {
     unmount();
   });
 
-  it("manual unmount clears handle and prevents double cleanup", () => {
+  it("manual unmount clears handle and prevents double cleanup", async () => {
     const { result, unmount } = renderHook(() =>
       useFloatBubble({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.handle).not.toBeNull();
 
@@ -87,5 +98,22 @@ describe("useFloatBubble", () => {
     unmount();
 
     expect(mockUnmount).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates float with _themeConfig when embed config loads", async () => {
+    const { unmount } = renderHook(() =>
+      useFloatBubble({ researchId: "test-research-id" })
+    );
+    await act(async () => {}); // flush fetchEmbedConfig
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _themeConfig: expect.objectContaining({
+          primaryColor: "#7c3aed",
+        }),
+      })
+    );
+
+    unmount();
   });
 });
