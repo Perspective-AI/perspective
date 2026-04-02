@@ -6,10 +6,7 @@
 import type { ThemeConfig } from "./types";
 import { getHost } from "./config";
 
-export type EmbedApiConfig = ThemeConfig & {
-  allowedChannels?: ThemeConfig["allowedChannels"];
-  welcomeMessage?: string;
-};
+export type EmbedApiConfig = ThemeConfig;
 
 export const DEFAULT_THEME: ThemeConfig = {
   primaryColor: "#7c3aed",

@@ -70,6 +70,7 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
   const [handle, setHandle] = useState<EmbedHandle | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const handleRef = useRef<EmbedHandle | null>(null);
+  const creatingRef = useRef<Promise<EmbedHandle> | null>(null);
   const embedConfig = useEmbedConfig(researchId, host);
   const embedConfigRef = useRef(embedConfig);
   embedConfigRef.current = embedConfig;
@@ -104,29 +105,36 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
 
   const createPopup = useCallback(async () => {
     if (handleRef.current) return handleRef.current;
+    if (creatingRef.current) return creatingRef.current;
 
-    // Ensure config is loaded before creating (API wins)
-    const config =
-      embedConfigRef.current ?? (await fetchEmbedConfig(researchId, host));
+    const promise = (async () => {
+      // Ensure config is loaded before creating (API wins)
+      const config =
+        embedConfigRef.current ?? (await fetchEmbedConfig(researchId, host));
 
-    const newHandle = openPopup({
-      researchId,
-      params,
-      brand,
-      theme,
-      host,
-      disableClose,
-      _apiConfig: config,
-      onReady: stableOnReady,
-      onSubmit: stableOnSubmit,
-      onNavigate: stableOnNavigate,
-      onClose: stableOnClose,
-      onError: stableOnError,
-    });
+      const newHandle = openPopup({
+        researchId,
+        params,
+        brand,
+        theme,
+        host,
+        disableClose,
+        _apiConfig: config,
+        onReady: stableOnReady,
+        onSubmit: stableOnSubmit,
+        onNavigate: stableOnNavigate,
+        onClose: stableOnClose,
+        onError: stableOnError,
+      });
 
-    handleRef.current = newHandle;
-    setHandle(newHandle);
-    return newHandle;
+      handleRef.current = newHandle;
+      setHandle(newHandle);
+      creatingRef.current = null;
+      return newHandle;
+    })();
+
+    creatingRef.current = promise;
+    return promise;
   }, [
     researchId,
     params,
