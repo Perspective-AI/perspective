@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   openPopup,
+  fetchEmbedConfig,
   setupTrigger,
   shouldShow,
   markShown,
@@ -34,12 +35,16 @@ export function useAutoOpen(options: UseAutoOpenOptions): UseAutoOpenReturn {
   themeConfigRef.current = themeConfig;
 
   // Fix #5: useStableCallback so the trigger always calls with latest config
-  const stableOnTrigger = useStableCallback(() => {
+  const stableOnTrigger = useStableCallback(async () => {
     markShown(researchId, showOnce);
+    // Ensure config is loaded before creating popup (API wins even for immediate triggers)
+    const config =
+      themeConfigRef.current ??
+      (await fetchEmbedConfig(researchId, embedConfig.host));
     openPopup({
       researchId,
       ...embedConfig,
-      _themeConfig: themeConfigRef.current,
+      _themeConfig: config,
     });
   });
 

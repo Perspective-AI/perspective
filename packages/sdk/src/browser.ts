@@ -508,7 +508,8 @@ function autoInit(): void {
 
               // Pre-fetch config so it's ready when trigger fires
               // API autoTrigger overrides embed code trigger
-              fetchConfig(researchId).then((config) => {
+              const configPromise = fetchConfig(researchId);
+              configPromise.then((config) => {
                 cachedConfig = config;
                 setupApiAutoTrigger(researchId, config, initPopup);
               });
@@ -516,7 +517,11 @@ function autoInit(): void {
               const cleanup = setupTrigger(trigger, () => {
                 triggerCleanups.delete(researchId);
                 markShown(researchId, showOnce);
-                initPopup();
+                // Await config before creating iframe (API wins even for immediate triggers)
+                configPromise.then((config) => {
+                  cachedConfig = config;
+                  initPopup();
+                });
               });
               triggerCleanups.set(researchId, cleanup);
             }

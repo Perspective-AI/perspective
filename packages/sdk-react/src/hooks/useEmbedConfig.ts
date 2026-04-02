@@ -10,17 +10,20 @@ export function useEmbedConfig(
   researchId: string,
   host?: string
 ): ThemeConfig | undefined {
-  const [config, setConfig] = useState<ThemeConfig | undefined>();
+  const [state, setState] = useState<
+    { researchId: string; config: ThemeConfig } | undefined
+  >();
 
   useEffect(() => {
     let cancelled = false;
     fetchEmbedConfig(researchId, host).then((result) => {
-      if (!cancelled) setConfig(result);
+      if (!cancelled) setState({ researchId, config: result });
     });
     return () => {
       cancelled = true;
     };
   }, [researchId, host]);
 
-  return config;
+  // Return undefined if config is for a different researchId (stale)
+  return state?.researchId === researchId ? state.config : undefined;
 }

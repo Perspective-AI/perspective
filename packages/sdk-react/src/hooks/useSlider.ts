@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import {
   getPersistedOpenState,
+  fetchEmbedConfig,
   openSlider,
   type EmbedConfig,
   type EmbedHandle,
@@ -92,8 +93,12 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
 
   const stableOnClose = useStableCallback(handleClose);
 
-  const createSlider = useCallback(() => {
+  const createSlider = useCallback(async () => {
     if (handleRef.current) return handleRef.current;
+
+    // Ensure config is loaded before creating (API wins)
+    const config =
+      embedConfigRef.current ?? (await fetchEmbedConfig(researchId, host));
 
     const newHandle = openSlider({
       researchId,
@@ -102,7 +107,7 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
       theme,
       host,
       disableClose,
-      _themeConfig: embedConfigRef.current,
+      _themeConfig: config,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,

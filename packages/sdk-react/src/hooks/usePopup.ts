@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import {
   getPersistedOpenState,
+  fetchEmbedConfig,
   openPopup,
   type EmbedConfig,
   type EmbedHandle,
@@ -101,8 +102,12 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
 
   const stableOnClose = useStableCallback(handleClose);
 
-  const createPopup = useCallback(() => {
+  const createPopup = useCallback(async () => {
     if (handleRef.current) return handleRef.current;
+
+    // Ensure config is loaded before creating (API wins)
+    const config =
+      embedConfigRef.current ?? (await fetchEmbedConfig(researchId, host));
 
     const newHandle = openPopup({
       researchId,
@@ -111,7 +116,7 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
       theme,
       host,
       disableClose,
-      _themeConfig: embedConfigRef.current,
+      _themeConfig: config,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,
