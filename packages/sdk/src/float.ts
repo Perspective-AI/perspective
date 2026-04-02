@@ -582,6 +582,11 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
         currentConfig._themeConfig?.embedSettings?.launcher
       );
 
+      // Re-apply launcher style to bubble DOM (e.g. borderRadius from API)
+      if (currentConfig.launcher?.style) {
+        Object.assign(bubble.style, currentConfig.launcher.style);
+      }
+
       if (!isOpen) {
         setBubbleClosedState();
       }

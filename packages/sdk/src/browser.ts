@@ -22,7 +22,9 @@ import type {
   EmbedHandle,
   FloatHandle,
   InternalEmbedConfig,
+  ShowOnce,
   ThemeConfig,
+  TriggerConfig,
 } from "./types";
 import { DATA_ATTRS, THEME_VALUES } from "./constants";
 import {
@@ -51,6 +53,40 @@ const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 
 // Track auto-open trigger cleanups (keyed by researchId)
 const triggerCleanups: Map<string, () => void> = new Map();
+
+/**
+ * Set up auto-trigger from API embedSettings.autoTrigger config.
+ * Replaces any existing trigger for this researchId (API wins over embed code).
+ */
+function setupApiAutoTrigger(
+  researchId: string,
+  config: EmbedApiConfig,
+  initFn: () => void
+): void {
+  const api = config.embedSettings?.autoTrigger;
+  if (!api?.trigger) return;
+
+  const trigger: TriggerConfig =
+    api.trigger === "timeout"
+      ? { type: "timeout", delay: api.delay ?? 5000 }
+      : { type: "exit-intent" };
+  const showOnce: ShowOnce =
+    api.showOnce === "false"
+      ? false
+      : ((api.showOnce as ShowOnce) ?? "session");
+
+  if (!shouldShow(researchId, showOnce)) return;
+
+  // Clean up any existing trigger (embed code or previous API trigger)
+  triggerCleanups.get(researchId)?.();
+
+  const cleanup = setupTrigger(trigger, () => {
+    triggerCleanups.delete(researchId);
+    markShown(researchId, showOnce);
+    initFn();
+  });
+  triggerCleanups.set(researchId, cleanup);
+}
 
 type ButtonStyleConfig = {
   themeConfig: ThemeConfig;
@@ -471,8 +507,10 @@ function autoInit(): void {
               triggerCleanups.get(researchId)?.();
 
               // Pre-fetch config so it's ready when trigger fires
+              // API autoTrigger overrides embed code trigger
               fetchConfig(researchId).then((config) => {
                 cachedConfig = config;
+                setupApiAutoTrigger(researchId, config, initPopup);
               });
 
               const cleanup = setupTrigger(trigger, () => {
@@ -493,6 +531,8 @@ function autoInit(): void {
         configPromise.then((config) => {
           cachedConfig = config;
           styleButton(el, config, brandConfig);
+          // API autoTrigger: enable auto-open even without data attribute
+          setupApiAutoTrigger(researchId, config, initPopup);
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", async (e) => {
@@ -544,6 +584,8 @@ function autoInit(): void {
         sliderConfigPromise.then((config) => {
           sliderConfig = config;
           styleButton(el, config, brandConfig);
+          // API autoTrigger: enable auto-open even without data attribute
+          setupApiAutoTrigger(researchId, config, initSlider);
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", async (e) => {

@@ -247,6 +247,11 @@ export interface ThemeConfig {
       icon?: LauncherIcon;
       style?: LauncherStyle;
     };
+    autoTrigger?: {
+      trigger?: "timeout" | "exit-intent";
+      delay?: number;
+      showOnce?: "session" | "visitor" | "false";
+    };
   };
 }
 
