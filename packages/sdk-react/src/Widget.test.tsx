@@ -102,23 +102,8 @@ describe("Widget", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("passes _apiConfig from fetched embed config", async () => {
+  it("creates widget immediately without waiting for config", () => {
     render(<Widget researchId="test-research-id" />);
-    await act(async () => {});
-
-    expect(mockCreateWidget).toHaveBeenCalledTimes(1);
-    const [, config] = mockCreateWidget.mock.calls[0]!;
-    expect(config._apiConfig).toEqual(mockEmbedConfig);
-  });
-
-  it("does not create widget until embed config loads", async () => {
-    render(<Widget researchId="test-research-id" />);
-
-    // Before promise flushes, widget should NOT be created
-    expect(mockCreateWidget).not.toHaveBeenCalled();
-
-    await act(async () => {});
-
     expect(mockCreateWidget).toHaveBeenCalledTimes(1);
   });
 

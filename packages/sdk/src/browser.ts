@@ -412,7 +412,7 @@ function autoInit(): void {
 
   setupButtonThemeListener();
 
-  // Widget embeds
+  // Widget embeds — mount immediately for instant skeleton, no config wait
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.widget}]`)
     .forEach((el) => {
@@ -420,21 +420,11 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        fetchConfig(researchId).then((config) => {
-          if (!instances.has(researchId)) {
-            mount(el, {
-              researchId,
-              type: "widget",
-              params,
-              ...brandConfig,
-              _apiConfig: config,
-            } as InternalEmbedConfig);
-          }
-        });
+        mount(el, { researchId, type: "widget", params, ...brandConfig });
       }
     });
 
-  // Fullpage embeds
+  // Fullpage embeds — init immediately for instant skeleton, no config wait
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.fullpage}]`)
     .forEach((el) => {
@@ -442,17 +432,7 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        fetchConfig(researchId).then((config) => {
-          if (!instances.has(researchId)) {
-            init({
-              researchId,
-              type: "fullpage",
-              params,
-              ...brandConfig,
-              _apiConfig: config,
-            } as InternalEmbedConfig);
-          }
-        });
+        init({ researchId, type: "fullpage", params, ...brandConfig });
       }
     });
 
