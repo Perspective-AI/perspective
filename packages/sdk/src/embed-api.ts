@@ -15,41 +15,55 @@ export const DEFAULT_THEME: ThemeConfig = {
   darkTextColor: "#ffffff",
 };
 
+/** Timeout before falling back to defaults (ms) */
+const CONFIG_TIMEOUT_MS = 3000;
+
 const configCache: Map<string, EmbedApiConfig> = new Map();
 const configInflight: Map<string, Promise<EmbedApiConfig>> = new Map();
 
+function cacheKey(researchId: string, host?: string): string {
+  return `${getHost(host)}::${researchId}`;
+}
+
 /**
- * Fetch embed config from API (cached, deduplicates in-flight requests)
+ * Fetch embed config from API (cached, deduplicates in-flight requests).
+ * Falls back to DEFAULT_THEME on timeout, network error, or non-200 response.
  */
 export async function fetchEmbedConfig(
   researchId: string,
   host?: string
 ): Promise<EmbedApiConfig> {
-  if (configCache.has(researchId)) {
-    return configCache.get(researchId)!;
+  const key = cacheKey(researchId, host);
+
+  if (configCache.has(key)) {
+    return configCache.get(key)!;
   }
 
-  if (configInflight.has(researchId)) {
-    return configInflight.get(researchId)!;
+  if (configInflight.has(key)) {
+    return configInflight.get(key)!;
   }
 
   const promise = (async () => {
     try {
       const resolvedHost = getHost(host);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), CONFIG_TIMEOUT_MS);
       const res = await fetch(
-        `${resolvedHost}/api/v1/embed/config/${researchId}`
+        `${resolvedHost}/api/v1/embed/config/${researchId}`,
+        { signal: controller.signal }
       );
+      clearTimeout(timeout);
       if (!res.ok) return DEFAULT_THEME;
       const config = (await res.json()) as EmbedApiConfig;
-      configCache.set(researchId, config);
+      configCache.set(key, config);
       return config;
     } catch {
       return DEFAULT_THEME;
     } finally {
-      configInflight.delete(researchId);
+      configInflight.delete(key);
     }
   })();
 
-  configInflight.set(researchId, promise);
+  configInflight.set(key, promise);
   return promise;
 }

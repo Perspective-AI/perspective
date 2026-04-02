@@ -61,7 +61,8 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
   const [handle, setHandle] = useState<EmbedHandle | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const handleRef = useRef<EmbedHandle | null>(null);
-  const creatingRef = useRef<Promise<EmbedHandle> | null>(null);
+  const creatingRef = useRef<Promise<EmbedHandle | null> | null>(null);
+  const cancelledRef = useRef(false);
   const embedConfig = useEmbedConfig(researchId, host);
   const embedConfigRef = useRef(embedConfig);
   embedConfigRef.current = embedConfig;
@@ -98,10 +99,15 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
     if (handleRef.current) return handleRef.current;
     if (creatingRef.current) return creatingRef.current;
 
+    cancelledRef.current = false;
+
     const promise = (async () => {
       // Ensure config is loaded before creating (API wins)
       const config =
         embedConfigRef.current ?? (await fetchEmbedConfig(researchId, host));
+
+      // Bail if closed/unmounted while waiting for config
+      if (cancelledRef.current) return null;
 
       const newHandle = openSlider({
         researchId,
@@ -143,6 +149,7 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
   ]);
 
   const destroySlider = useCallback((mode: "destroy" | "unmount") => {
+    cancelledRef.current = true;
     if (handleRef.current) {
       if (mode === "destroy") {
         handleRef.current.destroy();
@@ -203,6 +210,7 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
 
   useEffect(() => {
     return () => {
+      cancelledRef.current = true;
       if (handleRef.current) {
         handleRef.current.unmount();
         handleRef.current = null;
