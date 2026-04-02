@@ -52,6 +52,10 @@ import { resolveIsDark } from "./utils";
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 
+// Track pending auto-init skeletons so destroy/destroyAll can cancel them
+const pendingInits: Map<string, { cancelled: boolean; skeleton: HTMLElement }> =
+  new Map();
+
 // Track auto-open trigger cleanups (keyed by researchId)
 const triggerCleanups: Map<string, () => void> = new Map();
 
@@ -388,11 +392,24 @@ function destroy(researchId: string): void {
     instance.destroy();
     instances.delete(researchId);
   }
+  // Cancel any pending auto-init for this researchId
+  const pending = pendingInits.get(researchId);
+  if (pending) {
+    pending.cancelled = true;
+    pending.skeleton.remove();
+    pendingInits.delete(researchId);
+  }
 }
 
 function destroyAll(): void {
   instances.forEach((instance) => instance.unmount());
   instances.clear();
+  // Cancel all pending auto-inits
+  pendingInits.forEach((pending) => {
+    pending.cancelled = true;
+    pending.skeleton.remove();
+  });
+  pendingInits.clear();
   triggerCleanups.forEach((cleanup) => cleanup());
   triggerCleanups.clear();
   styledButtons.clear();
@@ -429,18 +446,22 @@ function autoInit(): void {
         skeleton.style.position = "relative";
         skeleton.style.minHeight = "500px";
         el.appendChild(skeleton);
+        const pending = { cancelled: false, skeleton };
+        pendingInits.set(researchId, pending);
         // Config + mount in parallel — skeleton covers the wait
         fetchConfig(researchId).then((config) => {
+          pendingInits.delete(researchId);
           skeleton.remove();
-          if (!instances.has(researchId)) {
-            mount(el, {
-              researchId,
-              type: "widget",
-              params,
-              ...brandConfig,
-              _apiConfig: config,
-            } as InternalEmbedConfig);
-          }
+          // Bail if cancelled by destroy(), element removed, or instance exists
+          if (pending.cancelled || !el.isConnected || instances.has(researchId))
+            return;
+          mount(el, {
+            researchId,
+            type: "widget",
+            params,
+            ...brandConfig,
+            _apiConfig: config,
+          } as InternalEmbedConfig);
         });
       }
     });
@@ -462,18 +483,22 @@ function autoInit(): void {
         skeleton.style.inset = "0";
         skeleton.style.zIndex = "2147483647";
         document.body.appendChild(skeleton);
+        const pending = { cancelled: false, skeleton };
+        pendingInits.set(researchId, pending);
         // Config + init in parallel — skeleton covers the wait
         fetchConfig(researchId).then((config) => {
+          pendingInits.delete(researchId);
           skeleton.remove();
-          if (!instances.has(researchId)) {
-            init({
-              researchId,
-              type: "fullpage",
-              params,
-              ...brandConfig,
-              _apiConfig: config,
-            } as InternalEmbedConfig);
-          }
+          // Bail if cancelled by destroy(), element removed, or instance exists
+          if (pending.cancelled || !el.isConnected || instances.has(researchId))
+            return;
+          init({
+            researchId,
+            type: "fullpage",
+            params,
+            ...brandConfig,
+            _apiConfig: config,
+          } as InternalEmbedConfig);
         });
       }
     });
@@ -560,18 +585,23 @@ function autoInit(): void {
         configPromise.then((config) => {
           cachedConfig = config;
           styleButton(el, config, brandConfig);
-          // API autoTrigger: enable auto-open even without data attribute
-          setupApiAutoTrigger(researchId, config, initPopup);
+          // Only arm auto-trigger if popup wasn't already opened manually or restored
+          if (!instances.has(researchId)) {
+            setupApiAutoTrigger(researchId, config, initPopup);
+          }
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", async (e) => {
+        el.addEventListener("click", (e) => {
           e.preventDefault();
-          // Ensure config is loaded before creating the embed (API wins)
-          cachedConfig = cachedConfig ?? (await configPromise);
+          // Cancel any pending API auto-trigger (manual open takes precedence)
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
           initPopup();
         });
 
         if (persistedOpen === true) {
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
           fetchConfig(researchId).then((config) => {
             cachedConfig = config;
             initPopup();
@@ -613,18 +643,23 @@ function autoInit(): void {
         sliderConfigPromise.then((config) => {
           sliderConfig = config;
           styleButton(el, config, brandConfig);
-          // API autoTrigger: enable auto-open even without data attribute
-          setupApiAutoTrigger(researchId, config, initSlider);
+          // Only arm auto-trigger if slider wasn't already opened manually or restored
+          if (!instances.has(researchId)) {
+            setupApiAutoTrigger(researchId, config, initSlider);
+          }
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
-        el.addEventListener("click", async (e) => {
+        el.addEventListener("click", (e) => {
           e.preventDefault();
-          // Ensure config is loaded before creating the embed (API wins)
-          sliderConfig = sliderConfig ?? (await sliderConfigPromise);
+          // Cancel any pending API auto-trigger (manual open takes precedence)
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
           initSlider();
         });
 
         if (persistedOpen === true) {
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
           fetchConfig(researchId).then((config) => {
             sliderConfig = config;
             initSlider();
