@@ -3,7 +3,7 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle, ThemeConfig } from "./types";
+import type { EmbedHandle, InternalEmbedConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
@@ -75,11 +75,9 @@ function createExistingWidgetHandle(
   };
 }
 
-type WidgetConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
-
 export function createWidget(
   container: HTMLElement | null,
-  config: WidgetConfig
+  config: InternalEmbedConfig
 ): EmbedHandle {
   const { researchId } = config;
 

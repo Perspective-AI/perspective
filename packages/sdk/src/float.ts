@@ -5,8 +5,8 @@
 
 import type {
   AIAssistantChannel,
-  EmbedConfig,
   FloatHandle,
+  InternalEmbedConfig,
   LauncherIcon,
   ThemeConfig,
 } from "./types";
@@ -23,7 +23,22 @@ import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
 
-type FloatConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
+/** Merge API launcher config over a base launcher (API is source of truth) */
+function mergeApiLauncher(
+  base: InternalEmbedConfig,
+  apiLauncher: NonNullable<ThemeConfig["embedSettings"]>["launcher"]
+): InternalEmbedConfig {
+  if (!apiLauncher) return base;
+  const customerLauncher = base.launcher ?? {};
+  return {
+    ...base,
+    launcher: {
+      ...customerLauncher,
+      ...apiLauncher,
+      style: { ...customerLauncher.style, ...apiLauncher.style },
+    },
+  };
+}
 type ChannelMode = "voice" | "text" | "both";
 
 const SOUND_DELAY_MS = 2000;
@@ -44,7 +59,7 @@ function getChannelMode(
 }
 
 function resolveChannel(
-  config: FloatConfig
+  config: InternalEmbedConfig
 ): AIAssistantChannel | AIAssistantChannel[] | undefined {
   return (
     config.channel ??
@@ -54,13 +69,13 @@ function resolveChannel(
   );
 }
 
-function resolveWelcomeMessage(config: FloatConfig): string {
+function resolveWelcomeMessage(config: InternalEmbedConfig): string {
   const message = config.welcomeMessage ?? config._themeConfig?.welcomeMessage;
   const trimmed = typeof message === "string" ? message.trim() : "";
   return trimmed.length > 0 ? trimmed : DEFAULT_WELCOME_MESSAGE;
 }
 
-export function getDefaultIconHtml(config: FloatConfig): string {
+export function getDefaultIconHtml(config: InternalEmbedConfig): string {
   return getChannelMode(resolveChannel(config)) === "text"
     ? MESSAGES_ICON
     : MIC_ICON;
@@ -87,7 +102,10 @@ export function createIconImg(
   return img;
 }
 
-function applyBubbleIcon(bubble: HTMLButtonElement, config: FloatConfig): void {
+function applyBubbleIcon(
+  bubble: HTMLButtonElement,
+  config: InternalEmbedConfig
+): void {
   const icon: LauncherIcon = config.launcher?.icon ?? "default";
   const fallbackHtml = getDefaultIconHtml(config);
 
@@ -168,7 +186,7 @@ function createNoOpHandle(researchId: string): FloatHandle {
   };
 }
 
-export function createFloatBubble(config: FloatConfig): FloatHandle {
+export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   const { researchId, _themeConfig, theme, brand } = config;
 
   // SSR safety: return no-op handle
@@ -210,18 +228,11 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   }
 
   // Merge API launcher config over customer config (API is source of truth)
-  let mergedConfig = config;
-  const initialApiLauncher = _themeConfig?.embedSettings?.launcher;
-  if (initialApiLauncher) {
-    const customerLauncher = config.launcher ?? {};
-    mergedConfig = {
-      ...config,
-      launcher: {
-        ...customerLauncher,
-        ...initialApiLauncher,
-        style: { ...customerLauncher.style, ...initialApiLauncher.style },
-      },
-    };
+  let mergedConfig = mergeApiLauncher(
+    config,
+    _themeConfig?.embedSettings?.launcher
+  );
+  if (mergedConfig !== config) {
     applyBubbleIcon(bubble, mergedConfig);
   }
 
@@ -566,23 +577,10 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
       currentConfig = { ...currentConfig, ...options };
 
       // Apply API launcher config when _themeConfig is updated (e.g. from async config fetch)
-      // Use currentConfig.launcher (not original config.launcher) to preserve runtime updates
-      const updatedApiLauncher =
-        currentConfig._themeConfig?.embedSettings?.launcher;
-      if (updatedApiLauncher) {
-        const base = currentConfig.launcher ?? {};
-        currentConfig = {
-          ...currentConfig,
-          launcher: {
-            ...base,
-            ...updatedApiLauncher,
-            style: {
-              ...base.style,
-              ...updatedApiLauncher.style,
-            },
-          },
-        };
-      }
+      currentConfig = mergeApiLauncher(
+        currentConfig,
+        currentConfig._themeConfig?.embedSettings?.launcher
+      );
 
       if (!isOpen) {
         setBubbleClosedState();

@@ -21,6 +21,7 @@ import type {
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
+  InternalEmbedConfig,
   ThemeConfig,
 } from "./types";
 import { DATA_ATTRS, THEME_VALUES } from "./constants";
@@ -430,7 +431,7 @@ function autoInit(): void {
               params,
               ...brandConfig,
               _themeConfig: config,
-            } as EmbedConfig & { _themeConfig: ThemeConfig });
+            } as InternalEmbedConfig);
           }
         });
       }
@@ -452,7 +453,7 @@ function autoInit(): void {
               params,
               ...brandConfig,
               _themeConfig: config,
-            } as EmbedConfig & { _themeConfig: ThemeConfig });
+            } as InternalEmbedConfig);
           }
         });
       }
@@ -488,7 +489,7 @@ function autoInit(): void {
           disableClose,
           ...brandConfig,
           ...(cachedConfig && { _themeConfig: cachedConfig }),
-        } as EmbedConfig & { _themeConfig: ThemeConfig });
+        } as InternalEmbedConfig);
 
       if (autoOpenAttr) {
         if (persistedOpen === true) {
@@ -575,7 +576,7 @@ function autoInit(): void {
             disableClose,
             ...brandConfig,
             ...(sliderConfig && { _themeConfig: sliderConfig }),
-          } as EmbedConfig & { _themeConfig: ThemeConfig });
+          } as InternalEmbedConfig);
 
         // Pre-fetch config so it's ready when user clicks
         const sliderConfigPromise = fetchConfig(researchId);
@@ -618,7 +619,7 @@ function autoInit(): void {
         ...brandConfig,
         ...(launcherConfig && { launcher: launcherConfig }),
         _themeConfig: DEFAULT_THEME,
-      } as EmbedConfig & { _themeConfig: ThemeConfig });
+      } as InternalEmbedConfig);
 
       fetchConfig(researchId).then((config) => {
         // Update bubble color with fetched theme

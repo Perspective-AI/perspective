@@ -250,6 +250,9 @@ export interface ThemeConfig {
   };
 }
 
+/** EmbedConfig with internal _themeConfig from the config API (not part of public API) */
+export type InternalEmbedConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
+
 /** SDK global configuration */
 export interface SDKConfig {
   /** Override the default host */

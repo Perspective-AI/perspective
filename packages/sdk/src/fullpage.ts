@@ -3,7 +3,7 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle, ThemeConfig } from "./types";
+import type { EmbedHandle, InternalEmbedConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
@@ -28,9 +28,7 @@ function createNoOpHandle(researchId: string): EmbedHandle {
   };
 }
 
-type FullpageConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
-
-export function createFullpage(config: FullpageConfig): EmbedHandle {
+export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   const { researchId } = config;
 
   // SSR safety: return no-op handle
