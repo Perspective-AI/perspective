@@ -51,6 +51,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   const loading = createLoadingIndicator({
     theme: config.theme,
     brand: config.brand,
+    appearance: config._apiConfig?.embedSettings?.appearance,
   });
   container.appendChild(loading);
 

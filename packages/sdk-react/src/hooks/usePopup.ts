@@ -129,11 +129,13 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
 
       handleRef.current = newHandle;
       setHandle(newHandle);
-      creatingRef.current = null;
       return newHandle;
     })();
 
     creatingRef.current = promise;
+    promise.finally(() => {
+      creatingRef.current = null;
+    });
     return promise;
   }, [
     researchId,

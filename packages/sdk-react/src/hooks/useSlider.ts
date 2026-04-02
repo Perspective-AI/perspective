@@ -120,11 +120,13 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
 
       handleRef.current = newHandle;
       setHandle(newHandle);
-      creatingRef.current = null;
       return newHandle;
     })();
 
     creatingRef.current = promise;
+    promise.finally(() => {
+      creatingRef.current = null;
+    });
     return promise;
   }, [
     researchId,
