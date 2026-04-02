@@ -26,6 +26,11 @@ vi.mock("@perspective-ai/sdk", () => ({
     container: null,
   })),
   fetchEmbedConfig: vi.fn(() => Promise.resolve(mockEmbedConfig)),
+  createLoadingIndicator: vi.fn(() => {
+    const el = document.createElement("div");
+    el.className = "perspective-loading";
+    return el;
+  }),
 }));
 
 import { createFullpage } from "@perspective-ai/sdk";
@@ -100,8 +105,12 @@ describe("Fullpage", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("creates fullpage immediately without waiting for config", () => {
+  it("shows skeleton immediately, creates fullpage after config loads", async () => {
     render(<Fullpage researchId="test-research-id" />);
+    expect(mockCreateFullpage).not.toHaveBeenCalled();
+
+    await act(async () => {});
+
     expect(mockCreateFullpage).toHaveBeenCalledTimes(1);
   });
 

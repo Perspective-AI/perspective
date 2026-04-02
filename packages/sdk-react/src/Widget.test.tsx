@@ -24,6 +24,11 @@ vi.mock("@perspective-ai/sdk", () => ({
     container: null,
   })),
   fetchEmbedConfig: vi.fn(() => Promise.resolve(mockEmbedConfig)),
+  createLoadingIndicator: vi.fn(() => {
+    const el = document.createElement("div");
+    el.className = "perspective-loading";
+    return el;
+  }),
 }));
 
 import { createWidget } from "@perspective-ai/sdk";
@@ -102,8 +107,16 @@ describe("Widget", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("creates widget immediately without waiting for config", () => {
+  it("shows skeleton immediately, creates widget after config loads", async () => {
     render(<Widget researchId="test-research-id" />);
+    // Skeleton shown instantly, widget not yet created
+    expect(mockCreateWidget).not.toHaveBeenCalled();
+    const container = screen.getByTestId("perspective-widget");
+    expect(container.querySelector(".perspective-loading")).toBeTruthy();
+
+    await act(async () => {});
+
+    // After config loads, widget is created and skeleton removed
     expect(mockCreateWidget).toHaveBeenCalledTimes(1);
   });
 

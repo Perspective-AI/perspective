@@ -28,6 +28,7 @@ export { openPopup } from "./popup";
 export { openSlider } from "./slider";
 export { createFloatBubble, createChatBubble } from "./float";
 export { createFullpage } from "./fullpage";
+export { createLoadingIndicator } from "./loading";
 
 // Auto-open triggers
 export {

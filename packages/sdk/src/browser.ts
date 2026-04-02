@@ -40,6 +40,7 @@ import {
   markShown,
 } from "./triggers";
 import { createWidget } from "./widget";
+import { createLoadingIndicator } from "./loading";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
@@ -412,7 +413,7 @@ function autoInit(): void {
 
   setupButtonThemeListener();
 
-  // Widget embeds — mount immediately for instant skeleton, no config wait
+  // Widget embeds — skeleton immediately, config + iframe in parallel
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.widget}]`)
     .forEach((el) => {
@@ -420,11 +421,31 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        mount(el, { researchId, type: "widget", params, ...brandConfig });
+        // Show skeleton instantly while config fetches
+        const skeleton = createLoadingIndicator({
+          theme: brandConfig.theme,
+          brand: brandConfig.brand,
+        });
+        skeleton.style.position = "relative";
+        skeleton.style.minHeight = "500px";
+        el.appendChild(skeleton);
+        // Config + mount in parallel — skeleton covers the wait
+        fetchConfig(researchId).then((config) => {
+          skeleton.remove();
+          if (!instances.has(researchId)) {
+            mount(el, {
+              researchId,
+              type: "widget",
+              params,
+              ...brandConfig,
+              _apiConfig: config,
+            } as InternalEmbedConfig);
+          }
+        });
       }
     });
 
-  // Fullpage embeds — init immediately for instant skeleton, no config wait
+  // Fullpage embeds — skeleton immediately, config + iframe in parallel
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.fullpage}]`)
     .forEach((el) => {
@@ -432,7 +453,28 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        init({ researchId, type: "fullpage", params, ...brandConfig });
+        // Show skeleton instantly while config fetches
+        const skeleton = createLoadingIndicator({
+          theme: brandConfig.theme,
+          brand: brandConfig.brand,
+        });
+        skeleton.style.position = "fixed";
+        skeleton.style.inset = "0";
+        skeleton.style.zIndex = "2147483647";
+        document.body.appendChild(skeleton);
+        // Config + init in parallel — skeleton covers the wait
+        fetchConfig(researchId).then((config) => {
+          skeleton.remove();
+          if (!instances.has(researchId)) {
+            init({
+              researchId,
+              type: "fullpage",
+              params,
+              ...brandConfig,
+              _apiConfig: config,
+            } as InternalEmbedConfig);
+          }
+        });
       }
     });
 

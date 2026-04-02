@@ -1,6 +1,8 @@
 import { useRef, useEffect, type RefObject } from "react";
 import {
   createFullpage,
+  createLoadingIndicator,
+  fetchEmbedConfig,
   type EmbedConfig,
   type EmbedHandle,
 } from "@perspective-ai/sdk";
@@ -38,28 +40,47 @@ export function Fullpage({
   const stableOnError = useStableCallback(onError);
 
   useEffect(() => {
-    const handle = createFullpage({
-      researchId,
-      params,
-      brand,
-      theme,
-      host,
-      onReady: stableOnReady,
-      onSubmit: stableOnSubmit,
-      onNavigate: stableOnNavigate,
-      onClose: stableOnClose,
-      onError: stableOnError,
+    // Show skeleton instantly while config fetches in parallel
+    const skeleton = createLoadingIndicator({ theme, brand });
+    skeleton.style.position = "fixed";
+    skeleton.style.inset = "0";
+    skeleton.style.zIndex = "2147483647";
+    document.body.appendChild(skeleton);
+
+    let cancelled = false;
+
+    fetchEmbedConfig(researchId, host).then((config) => {
+      if (cancelled) return;
+      skeleton.remove();
+
+      const handle = createFullpage({
+        researchId,
+        params,
+        brand,
+        theme,
+        host,
+        _apiConfig: config,
+        onReady: stableOnReady,
+        onSubmit: stableOnSubmit,
+        onNavigate: stableOnNavigate,
+        onClose: stableOnClose,
+        onError: stableOnError,
+      });
+
+      handleRef.current = handle;
+
+      if (embedRef) {
+        embedRef.current = handle;
+      }
     });
 
-    handleRef.current = handle;
-
-    if (embedRef) {
-      embedRef.current = handle;
-    }
-
     return () => {
-      handle.unmount();
-      handleRef.current = null;
+      cancelled = true;
+      skeleton.remove();
+      if (handleRef.current) {
+        handleRef.current.unmount();
+        handleRef.current = null;
+      }
       if (embedRef) {
         embedRef.current = null;
       }
