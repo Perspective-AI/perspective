@@ -187,7 +187,7 @@ export function useFloatBubble(
     (handleRef.current.update as any)({
       channel: embedConfig.channel ?? embedConfig.allowedChannels ?? undefined,
       welcomeMessage: embedConfig.welcomeMessage,
-      _themeConfig: embedConfig,
+      _apiConfig: embedConfig,
     });
   }, [embedConfig]);
 

@@ -427,7 +427,7 @@ function autoInit(): void {
               type: "widget",
               params,
               ...brandConfig,
-              _themeConfig: config,
+              _apiConfig: config,
             } as InternalEmbedConfig);
           }
         });
@@ -449,7 +449,7 @@ function autoInit(): void {
               type: "fullpage",
               params,
               ...brandConfig,
-              _themeConfig: config,
+              _apiConfig: config,
             } as InternalEmbedConfig);
           }
         });
@@ -476,7 +476,7 @@ function autoInit(): void {
         type: "popup",
       });
 
-      // Capture fetched config for passing _themeConfig to init calls
+      // Capture fetched config for passing _apiConfig to init calls
       let cachedConfig: EmbedApiConfig | undefined;
       const initPopup = () =>
         init({
@@ -485,7 +485,7 @@ function autoInit(): void {
           params,
           disableClose,
           ...brandConfig,
-          ...(cachedConfig && { _themeConfig: cachedConfig }),
+          ...(cachedConfig && { _apiConfig: cachedConfig }),
         } as InternalEmbedConfig);
 
       if (autoOpenAttr) {
@@ -581,7 +581,7 @@ function autoInit(): void {
             params,
             disableClose,
             ...brandConfig,
-            ...(sliderConfig && { _themeConfig: sliderConfig }),
+            ...(sliderConfig && { _apiConfig: sliderConfig }),
           } as InternalEmbedConfig);
 
         // Pre-fetch config so it's ready when user clicks
@@ -626,7 +626,7 @@ function autoInit(): void {
         params,
         ...brandConfig,
         ...(launcherConfig && { launcher: launcherConfig }),
-        _themeConfig: DEFAULT_THEME,
+        _apiConfig: DEFAULT_THEME,
       } as InternalEmbedConfig);
 
       fetchConfig(researchId).then((config) => {
@@ -665,7 +665,7 @@ function autoInit(): void {
           (floatHandle.update as any)({
             channel: channels,
             welcomeMessage: config.welcomeMessage,
-            _themeConfig: config,
+            _apiConfig: config,
           });
         }
       });

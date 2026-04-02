@@ -102,13 +102,13 @@ describe("Widget", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("passes _themeConfig from fetched embed config", async () => {
+  it("passes _apiConfig from fetched embed config", async () => {
     render(<Widget researchId="test-research-id" />);
     await act(async () => {});
 
     expect(mockCreateWidget).toHaveBeenCalledTimes(1);
     const [, config] = mockCreateWidget.mock.calls[0]!;
-    expect(config._themeConfig).toEqual(mockEmbedConfig);
+    expect(config._apiConfig).toEqual(mockEmbedConfig);
   });
 
   it("does not create widget until embed config loads", async () => {

@@ -69,7 +69,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   loading.style.borderRadius = "16px";
 
   // Create iframe (hidden initially)
-  const overrides = appearanceToParams(config._themeConfig?.embedSettings);
+  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
   const iframe = createIframe(
     researchId,
     "popup",

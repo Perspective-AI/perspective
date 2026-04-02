@@ -63,14 +63,14 @@ function resolveChannel(
 ): AIAssistantChannel | AIAssistantChannel[] | undefined {
   return (
     config.channel ??
-    config._themeConfig?.allowedChannels ??
-    config._themeConfig?.channel ??
+    config._apiConfig?.allowedChannels ??
+    config._apiConfig?.channel ??
     undefined
   );
 }
 
 function resolveWelcomeMessage(config: InternalEmbedConfig): string {
-  const message = config.welcomeMessage ?? config._themeConfig?.welcomeMessage;
+  const message = config.welcomeMessage ?? config._apiConfig?.welcomeMessage;
   const trimmed = typeof message === "string" ? message.trim() : "";
   return trimmed.length > 0 ? trimmed : DEFAULT_WELCOME_MESSAGE;
 }
@@ -115,7 +115,7 @@ function applyBubbleIcon(
   }
 
   if (icon === "avatar") {
-    const avatarUrl = config._themeConfig?.avatarUrl;
+    const avatarUrl = config._apiConfig?.avatarUrl;
     if (avatarUrl) {
       bubble.innerHTML = "";
       bubble.appendChild(createIconImg(avatarUrl, fallbackHtml));
@@ -187,7 +187,7 @@ function createNoOpHandle(researchId: string): FloatHandle {
 }
 
 export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
-  const { researchId, _themeConfig, theme, brand } = config;
+  const { researchId, _apiConfig, theme, brand } = config;
 
   // SSR safety: return no-op handle
   if (!hasDom()) {
@@ -209,11 +209,11 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   bubble.setAttribute("data-perspective", "float-bubble");
 
   // Apply theme color if available
-  if (_themeConfig || brand) {
+  if (_apiConfig || brand) {
     const isDark = resolveIsDark(theme);
     const bg = isDark
-      ? (brand?.dark?.primary ?? _themeConfig?.darkPrimaryColor ?? "#a78bfa")
-      : (brand?.light?.primary ?? _themeConfig?.primaryColor ?? "#7c3aed");
+      ? (brand?.dark?.primary ?? _apiConfig?.darkPrimaryColor ?? "#a78bfa")
+      : (brand?.light?.primary ?? _apiConfig?.primaryColor ?? "#7c3aed");
     bubble.style.setProperty("--perspective-float-bg", bg);
     bubble.style.setProperty(
       "--perspective-float-shadow",
@@ -230,7 +230,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   // Merge API launcher config over customer config (API is source of truth)
   let mergedConfig = mergeApiLauncher(
     config,
-    _themeConfig?.embedSettings?.launcher
+    _apiConfig?.embedSettings?.launcher
   );
   if (mergedConfig !== config) {
     applyBubbleIcon(bubble, mergedConfig);
@@ -252,16 +252,16 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
 
   document.body.appendChild(bubble);
 
-  // Auto-fetch config when avatar icon is requested but no _themeConfig provided
+  // Auto-fetch config when avatar icon is requested but no _apiConfig provided
   // (programmatic API — browser.ts auto-init handles this separately)
-  if (config.launcher?.icon === "avatar" && !_themeConfig?.avatarUrl) {
+  if (config.launcher?.icon === "avatar" && !_apiConfig?.avatarUrl) {
     fetch(`${host}/api/v1/embed/config/${researchId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((fetchedConfig) => {
         if (fetchedConfig?.avatarUrl) {
           currentConfig = {
             ...currentConfig,
-            _themeConfig: { ...currentConfig._themeConfig, ...fetchedConfig },
+            _apiConfig: { ...currentConfig._apiConfig, ...fetchedConfig },
           };
           if (!isOpen) {
             applyBubbleIcon(bubble, currentConfig);
@@ -458,7 +458,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
 
     // Create iframe (hidden initially)
     const overrides = appearanceToParams(
-      currentConfig._themeConfig?.embedSettings
+      currentConfig._apiConfig?.embedSettings
     );
     iframe = createIframe(
       researchId,
@@ -571,15 +571,15 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     unmount,
     update: (
       options: Parameters<FloatHandle["update"]>[0] & {
-        _themeConfig?: ThemeConfig;
+        _apiConfig?: ThemeConfig;
       }
     ) => {
       currentConfig = { ...currentConfig, ...options };
 
-      // Apply API launcher config when _themeConfig is updated (e.g. from async config fetch)
+      // Apply API launcher config when _apiConfig is updated (e.g. from async config fetch)
       currentConfig = mergeApiLauncher(
         currentConfig,
-        currentConfig._themeConfig?.embedSettings?.launcher
+        currentConfig._apiConfig?.embedSettings?.launcher
       );
 
       // Re-apply launcher style to bubble DOM (e.g. borderRadius from API)

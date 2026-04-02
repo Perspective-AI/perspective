@@ -470,7 +470,7 @@ describe("createFloatBubble", () => {
       const handle = createFloatBubble({
         researchId: "test-research-id",
         launcher: { icon: "avatar" },
-        _themeConfig: {
+        _apiConfig: {
           primaryColor: "#7c3aed",
           textColor: "#ffffff",
           darkPrimaryColor: "#a78bfa",
@@ -497,7 +497,7 @@ describe("createFloatBubble", () => {
       const handle = createFloatBubble({
         researchId: "test-research-id",
         launcher: { icon: "avatar" },
-        _themeConfig: {
+        _apiConfig: {
           primaryColor: "#7c3aed",
           textColor: "#ffffff",
           darkPrimaryColor: "#a78bfa",

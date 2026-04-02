@@ -48,7 +48,7 @@ export function Fullpage({
       brand,
       theme,
       host,
-      _themeConfig: embedConfig,
+      _apiConfig: embedConfig,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,

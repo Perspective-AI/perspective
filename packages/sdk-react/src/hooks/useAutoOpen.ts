@@ -30,21 +30,21 @@ export function useAutoOpen(options: UseAutoOpenOptions): UseAutoOpenReturn {
   const cleanupRef = useRef<(() => void) | null>(null);
   const [triggered, setTriggered] = useState(false);
   const triggerDelay = trigger.type === "timeout" ? trigger.delay : undefined;
-  const themeConfig = useEmbedConfig(researchId, embedConfig.host);
-  const themeConfigRef = useRef(themeConfig);
-  themeConfigRef.current = themeConfig;
+  const apiConfig = useEmbedConfig(researchId, embedConfig.host);
+  const apiConfigRef = useRef(apiConfig);
+  apiConfigRef.current = apiConfig;
 
   // Fix #5: useStableCallback so the trigger always calls with latest config
   const stableOnTrigger = useStableCallback(async () => {
     markShown(researchId, showOnce);
     // Ensure config is loaded before creating popup (API wins even for immediate triggers)
     const config =
-      themeConfigRef.current ??
+      apiConfigRef.current ??
       (await fetchEmbedConfig(researchId, embedConfig.host));
     openPopup({
       researchId,
       ...embedConfig,
-      _themeConfig: config,
+      _apiConfig: config,
     });
   });
 

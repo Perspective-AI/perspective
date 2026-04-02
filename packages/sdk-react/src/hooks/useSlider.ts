@@ -107,7 +107,7 @@ export function useSlider(options: UseSliderOptions): UseSliderReturn {
       theme,
       host,
       disableClose,
-      _themeConfig: config,
+      _apiConfig: config,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,

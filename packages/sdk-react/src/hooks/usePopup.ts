@@ -116,7 +116,7 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
       theme,
       host,
       disableClose,
-      _themeConfig: config,
+      _apiConfig: config,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,

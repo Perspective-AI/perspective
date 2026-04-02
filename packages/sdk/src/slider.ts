@@ -71,7 +71,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   });
 
   // Create iframe (hidden initially)
-  const overrides = appearanceToParams(config._themeConfig?.embedSettings);
+  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
   const iframe = createIframe(
     researchId,
     "slider",

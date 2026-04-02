@@ -110,7 +110,7 @@ export function createWidget(
   wrapper.appendChild(loading);
 
   // Create iframe (hidden initially)
-  const overrides = appearanceToParams(config._themeConfig?.embedSettings);
+  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
   const iframe = createIframe(
     researchId,
     "widget",

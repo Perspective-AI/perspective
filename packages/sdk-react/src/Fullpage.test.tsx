@@ -100,13 +100,13 @@ describe("Fullpage", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("passes _themeConfig from fetched embed config", async () => {
+  it("passes _apiConfig from fetched embed config", async () => {
     render(<Fullpage researchId="test-research-id" />);
     await act(async () => {});
 
     expect(mockCreateFullpage).toHaveBeenCalledTimes(1);
     const config = mockCreateFullpage.mock.calls[0]![0];
-    expect(config._themeConfig).toEqual(mockEmbedConfig);
+    expect(config._apiConfig).toEqual(mockEmbedConfig);
   });
 
   it("exposes handle via embedRef", async () => {

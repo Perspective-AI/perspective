@@ -260,7 +260,7 @@ describe("usePopup", () => {
     expect(result.current.handle).not.toBeNull();
   });
 
-  it("passes _themeConfig from fetched embed config to openPopup", async () => {
+  it("passes _apiConfig from fetched embed config to openPopup", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })
     );
@@ -272,7 +272,7 @@ describe("usePopup", () => {
 
     expect(mockOpenPopup).toHaveBeenCalledTimes(1);
     const config = mockOpenPopup.mock.calls[0]![0];
-    expect(config._themeConfig).toEqual({
+    expect(config._apiConfig).toEqual({
       primaryColor: "#7c3aed",
       textColor: "#ffffff",
       darkPrimaryColor: "#a78bfa",

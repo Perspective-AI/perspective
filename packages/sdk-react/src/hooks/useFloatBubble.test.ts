@@ -100,7 +100,7 @@ describe("useFloatBubble", () => {
     expect(mockUnmount).toHaveBeenCalledTimes(1);
   });
 
-  it("updates float with _themeConfig when embed config loads", async () => {
+  it("updates float with _apiConfig when embed config loads", async () => {
     const { unmount } = renderHook(() =>
       useFloatBubble({ researchId: "test-research-id" })
     );
@@ -108,7 +108,7 @@ describe("useFloatBubble", () => {
 
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        _themeConfig: expect.objectContaining({
+        _apiConfig: expect.objectContaining({
           primaryColor: "#7c3aed",
         }),
       })
