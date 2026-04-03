@@ -1,5 +1,16 @@
 # @perspective-ai/sdk-react
 
+## 1.6.0
+
+### Minor Changes
+
+- e4bfca7: Apply embedSettings from config API with precedence over embed code
+
+### Patch Changes
+
+- Updated dependencies [e4bfca7]
+  - @perspective-ai/sdk@1.6.0
+
 ## 1.5.1
 
 ### Patch Changes

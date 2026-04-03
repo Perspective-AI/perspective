@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.6.0
+
+### Minor Changes
+
+- e4bfca7: Apply embedSettings from config API with precedence over embed code
+
 ## 1.5.1
 
 ### Patch Changes
