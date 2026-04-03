@@ -59,6 +59,22 @@ const pendingInits: Map<string, { cancelled: boolean; skeleton: HTMLElement }> =
 // Track auto-open trigger cleanups (keyed by researchId)
 const triggerCleanups: Map<string, () => void> = new Map();
 
+// Generation counters to invalidate late popup/slider config callbacks after destroy
+let globalDestroyGen = 0;
+const idDestroyGen: Map<string, number> = new Map();
+
+/** Check if a destroy happened since the given generations were captured */
+function wasDestroyed(
+  researchId: string,
+  globalGen: number,
+  idGen: number
+): boolean {
+  return (
+    globalDestroyGen !== globalGen ||
+    (idDestroyGen.get(researchId) ?? 0) !== idGen
+  );
+}
+
 /**
  * Set up auto-trigger from API embedSettings.autoTrigger config.
  * Replaces any existing trigger for this researchId (API wins over embed code).
@@ -85,8 +101,13 @@ function setupApiAutoTrigger(
   // Clean up any existing trigger (embed code or previous API trigger)
   triggerCleanups.get(researchId)?.();
 
+  // Capture generation so trigger callback bails if destroy happens after setup
+  const dg = globalDestroyGen;
+  const ig = idDestroyGen.get(researchId) ?? 0;
+
   const cleanup = setupTrigger(trigger, () => {
     triggerCleanups.delete(researchId);
+    if (wasDestroyed(researchId, dg, ig)) return;
     markShown(researchId, showOnce);
     initFn();
   });
@@ -399,9 +420,15 @@ function destroy(researchId: string): void {
     pending.skeleton.remove();
     pendingInits.delete(researchId);
   }
+  // Cancel any trigger for this researchId
+  triggerCleanups.get(researchId)?.();
+  triggerCleanups.delete(researchId);
+  // Invalidate any in-flight config callbacks for this researchId
+  idDestroyGen.set(researchId, (idDestroyGen.get(researchId) ?? 0) + 1);
 }
 
 function destroyAll(): void {
+  globalDestroyGen++;
   instances.forEach((instance) => instance.unmount());
   instances.clear();
   // Cancel all pending auto-inits
@@ -535,9 +562,13 @@ function autoInit(): void {
           ...(cachedConfig && { _apiConfig: cachedConfig }),
         } as InternalEmbedConfig);
 
+      const dg = globalDestroyGen;
+      const ig = idDestroyGen.get(researchId) ?? 0;
+
       if (autoOpenAttr) {
         if (persistedOpen === true) {
           fetchConfig(researchId).then((config) => {
+            if (wasDestroyed(researchId, dg, ig)) return;
             cachedConfig = config;
             initPopup();
           });
@@ -557,6 +588,7 @@ function autoInit(): void {
               // API autoTrigger overrides embed code trigger
               const configPromise = fetchConfig(researchId);
               configPromise.then((config) => {
+                if (wasDestroyed(researchId, dg, ig)) return;
                 cachedConfig = config;
                 setupApiAutoTrigger(researchId, config, initPopup);
               });
@@ -565,6 +597,7 @@ function autoInit(): void {
                 triggerCleanups.delete(researchId);
                 // Await config — skip if API autoTrigger will take over (API wins)
                 configPromise.then((config) => {
+                  if (wasDestroyed(researchId, dg, ig)) return;
                   cachedConfig = config;
                   if (!config.embedSettings?.autoTrigger?.trigger) {
                     markShown(researchId, showOnce);
@@ -585,7 +618,8 @@ function autoInit(): void {
         configPromise.then((config) => {
           cachedConfig = config;
           styleButton(el, config, brandConfig);
-          // Only arm auto-trigger if popup wasn't already opened manually or restored
+          // Only arm auto-trigger if not destroyed and popup wasn't already opened
+          if (wasDestroyed(researchId, dg, ig)) return;
           if (!instances.has(researchId)) {
             setupApiAutoTrigger(researchId, config, initPopup);
           }
@@ -603,6 +637,7 @@ function autoInit(): void {
           triggerCleanups.get(researchId)?.();
           triggerCleanups.delete(researchId);
           fetchConfig(researchId).then((config) => {
+            if (wasDestroyed(researchId, dg, ig)) return;
             cachedConfig = config;
             initPopup();
           });
@@ -638,12 +673,16 @@ function autoInit(): void {
             ...(sliderConfig && { _apiConfig: sliderConfig }),
           } as InternalEmbedConfig);
 
+        const dg = globalDestroyGen;
+        const ig = idDestroyGen.get(researchId) ?? 0;
+
         // Pre-fetch config so it's ready when user clicks
         const sliderConfigPromise = fetchConfig(researchId);
         sliderConfigPromise.then((config) => {
           sliderConfig = config;
           styleButton(el, config, brandConfig);
-          // Only arm auto-trigger if slider wasn't already opened manually or restored
+          // Only arm auto-trigger if not destroyed and slider wasn't already opened
+          if (wasDestroyed(researchId, dg, ig)) return;
           if (!instances.has(researchId)) {
             setupApiAutoTrigger(researchId, config, initSlider);
           }
@@ -661,6 +700,7 @@ function autoInit(): void {
           triggerCleanups.get(researchId)?.();
           triggerCleanups.delete(researchId);
           fetchConfig(researchId).then((config) => {
+            if (wasDestroyed(researchId, dg, ig)) return;
             sliderConfig = config;
             initSlider();
           });

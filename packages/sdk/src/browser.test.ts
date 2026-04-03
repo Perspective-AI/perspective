@@ -171,9 +171,172 @@ describe("browser entry", () => {
     it("is no-op for unknown researchId", () => {
       expect(() => destroy("unknown")).not.toThrow();
     });
+
+    it("prevents late popup config callback from arming auto-trigger after destroy", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 1000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+      `;
+      autoInit();
+
+      // Destroy before config fetch resolves
+      destroy("popup1");
+
+      // Flush config fetch — late callback should NOT arm auto-trigger
+      await flushConfigFetch();
+
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+
+      // No popup should have been opened by the auto-trigger
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    });
+
+    it("prevents late slider config callback from arming auto-trigger after destroy", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 1000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-slider="slider1">Open</button>
+      `;
+      autoInit();
+
+      destroy("slider1");
+      await flushConfigFetch();
+
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+
+      expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    });
+
+    it("API auto-trigger callback bails if destroy called after trigger armed but before fire", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 5000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+      `;
+      autoInit();
+
+      // Let config fetch resolve — this arms the API auto-trigger
+      await flushConfigFetch();
+
+      // Destroy after trigger is armed but before it fires
+      destroy("popup1");
+
+      // Advance past the trigger delay
+      vi.advanceTimersByTime(6000);
+
+      // Trigger callback should bail — no popup opened
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    });
+
+    it("still caches config for popup click after destroy before config resolves", async () => {
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+      `;
+      autoInit();
+
+      // Destroy before config fetch resolves
+      destroy("popup1");
+
+      // Config fetch resolves — should still cache config
+      await flushConfigFetch();
+
+      // Manual click should still work and have config available
+      const button = document.querySelector(
+        "[data-perspective-popup]"
+      ) as HTMLButtonElement;
+      button.click();
+
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+    });
+
+    it("still caches config for slider click after destroy before config resolves", async () => {
+      document.body.innerHTML = `
+        <button data-perspective-slider="slider1">Open</button>
+      `;
+      autoInit();
+
+      destroy("slider1");
+      await flushConfigFetch();
+
+      const button = document.querySelector(
+        "[data-perspective-slider]"
+      ) as HTMLButtonElement;
+      button.click();
+
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+    });
   });
 
   describe("destroyAll", () => {
+    it("invalidates all pending popup/slider config callbacks", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 1000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+        <button data-perspective-slider="slider1">Slide</button>
+      `;
+      autoInit();
+
+      // destroyAll before config fetches resolve
+      destroyAll();
+      await flushConfigFetch();
+
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+
+      // Neither popup nor slider should have been opened by auto-trigger
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+      expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    });
+
     it("destroys all instances", () => {
       init({ researchId: "test1", type: "popup" });
       init({ researchId: "test2", type: "slider" });

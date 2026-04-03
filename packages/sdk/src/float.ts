@@ -577,11 +577,41 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     ) => {
       currentConfig = { ...currentConfig, ...options };
 
+      // Recompute bubble color from updated API config or brand
+      const apiCfg = currentConfig._apiConfig;
+      if (apiCfg || currentConfig.brand) {
+        const isDark = resolveIsDark(currentConfig.theme);
+        const bg = isDark
+          ? (currentConfig.brand?.dark?.primary ??
+            apiCfg?.darkPrimaryColor ??
+            "#a78bfa")
+          : (currentConfig.brand?.light?.primary ??
+            apiCfg?.primaryColor ??
+            "#7c3aed");
+        // Only update if launcher.style didn't override backgroundColor
+        if (!currentConfig.launcher?.style?.backgroundColor) {
+          bubble.style.setProperty("--perspective-float-bg", bg);
+          bubble.style.setProperty(
+            "--perspective-float-shadow",
+            `0 4px 12px ${bg}66`
+          );
+          bubble.style.setProperty(
+            "--perspective-float-shadow-hover",
+            `0 6px 16px ${bg}80`
+          );
+          bubble.style.backgroundColor = bg;
+          bubble.style.boxShadow = `0 4px 12px ${bg}66`;
+        }
+      }
+
       // Apply API launcher config when _apiConfig is updated (e.g. from async config fetch)
       currentConfig = mergeApiLauncher(
         currentConfig,
         currentConfig._apiConfig?.embedSettings?.launcher
       );
+
+      // Re-apply bubble icon from merged launcher config
+      applyBubbleIcon(bubble, currentConfig);
 
       // Re-apply launcher style to bubble DOM (e.g. borderRadius from API)
       if (currentConfig.launcher?.style) {
