@@ -15,6 +15,7 @@ import {
 } from "@perspective-ai/sdk";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useStableCallback } from "./useStableCallback";
+import { useEmbedConfig } from "./useEmbedConfig";
 
 /** Launcher config with React support — icon accepts ReactNode in addition to SDK types */
 export interface LauncherConfigReact extends Omit<LauncherConfig, "icon"> {
@@ -89,6 +90,7 @@ export function useFloatBubble(
   const [handle, setHandle] = useState<FloatHandle | null>(null);
   const [internalOpen, setInternalOpen] = useState(false);
   const handleRef = useRef<FloatHandle | null>(null);
+  const embedConfig = useEmbedConfig(researchId, host);
 
   const isControlled = controlledOpen !== undefined;
 
@@ -177,6 +179,17 @@ export function useFloatBubble(
     stableOnClose,
     stableOnError,
   ]);
+
+  // Update float with API config when it arrives (appearance, launcher, channels, welcome)
+  useEffect(() => {
+    if (!embedConfig || !handleRef.current) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (handleRef.current.update as any)({
+      channel: embedConfig.channel ?? embedConfig.allowedChannels ?? undefined,
+      welcomeMessage: embedConfig.welcomeMessage,
+      _apiConfig: embedConfig,
+    });
+  }, [embedConfig]);
 
   useEffect(() => {
     if (!isControlled || !handle) return;

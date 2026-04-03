@@ -5,14 +5,15 @@
 
 import type {
   AIAssistantChannel,
-  EmbedConfig,
   FloatHandle,
+  InternalEmbedConfig,
   LauncherIcon,
   ThemeConfig,
 } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
+  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -22,7 +23,22 @@ import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
 
-type FloatConfig = EmbedConfig & { _themeConfig?: ThemeConfig };
+/** Merge API launcher config over a base launcher (API is source of truth) */
+function mergeApiLauncher(
+  base: InternalEmbedConfig,
+  apiLauncher: NonNullable<ThemeConfig["embedSettings"]>["launcher"]
+): InternalEmbedConfig {
+  if (!apiLauncher) return base;
+  const customerLauncher = base.launcher ?? {};
+  return {
+    ...base,
+    launcher: {
+      ...customerLauncher,
+      ...apiLauncher,
+      style: { ...customerLauncher.style, ...apiLauncher.style },
+    },
+  };
+}
 type ChannelMode = "voice" | "text" | "both";
 
 const SOUND_DELAY_MS = 2000;
@@ -43,23 +59,23 @@ function getChannelMode(
 }
 
 function resolveChannel(
-  config: FloatConfig
+  config: InternalEmbedConfig
 ): AIAssistantChannel | AIAssistantChannel[] | undefined {
   return (
     config.channel ??
-    config._themeConfig?.allowedChannels ??
-    config._themeConfig?.channel ??
+    config._apiConfig?.allowedChannels ??
+    config._apiConfig?.channel ??
     undefined
   );
 }
 
-function resolveWelcomeMessage(config: FloatConfig): string {
-  const message = config.welcomeMessage ?? config._themeConfig?.welcomeMessage;
+function resolveWelcomeMessage(config: InternalEmbedConfig): string {
+  const message = config.welcomeMessage ?? config._apiConfig?.welcomeMessage;
   const trimmed = typeof message === "string" ? message.trim() : "";
   return trimmed.length > 0 ? trimmed : DEFAULT_WELCOME_MESSAGE;
 }
 
-export function getDefaultIconHtml(config: FloatConfig): string {
+export function getDefaultIconHtml(config: InternalEmbedConfig): string {
   return getChannelMode(resolveChannel(config)) === "text"
     ? MESSAGES_ICON
     : MIC_ICON;
@@ -86,7 +102,10 @@ export function createIconImg(
   return img;
 }
 
-function applyBubbleIcon(bubble: HTMLButtonElement, config: FloatConfig): void {
+function applyBubbleIcon(
+  bubble: HTMLButtonElement,
+  config: InternalEmbedConfig
+): void {
   const icon: LauncherIcon = config.launcher?.icon ?? "default";
   const fallbackHtml = getDefaultIconHtml(config);
 
@@ -96,7 +115,7 @@ function applyBubbleIcon(bubble: HTMLButtonElement, config: FloatConfig): void {
   }
 
   if (icon === "avatar") {
-    const avatarUrl = config._themeConfig?.avatarUrl;
+    const avatarUrl = config._apiConfig?.avatarUrl;
     if (avatarUrl) {
       bubble.innerHTML = "";
       bubble.appendChild(createIconImg(avatarUrl, fallbackHtml));
@@ -167,8 +186,8 @@ function createNoOpHandle(researchId: string): FloatHandle {
   };
 }
 
-export function createFloatBubble(config: FloatConfig): FloatHandle {
-  const { researchId, _themeConfig, theme, brand } = config;
+export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
+  const { researchId, _apiConfig, theme, brand } = config;
 
   // SSR safety: return no-op handle
   if (!hasDom()) {
@@ -190,11 +209,11 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
   bubble.setAttribute("data-perspective", "float-bubble");
 
   // Apply theme color if available
-  if (_themeConfig || brand) {
+  if (_apiConfig || brand) {
     const isDark = resolveIsDark(theme);
     const bg = isDark
-      ? (brand?.dark?.primary ?? _themeConfig?.darkPrimaryColor ?? "#a78bfa")
-      : (brand?.light?.primary ?? _themeConfig?.primaryColor ?? "#7c3aed");
+      ? (brand?.dark?.primary ?? _apiConfig?.darkPrimaryColor ?? "#a78bfa")
+      : (brand?.light?.primary ?? _apiConfig?.primaryColor ?? "#7c3aed");
     bubble.style.setProperty("--perspective-float-bg", bg);
     bubble.style.setProperty(
       "--perspective-float-shadow",
@@ -208,30 +227,41 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     bubble.style.boxShadow = `0 4px 12px ${bg}66`;
   }
 
+  // Merge API launcher config over customer config (API is source of truth)
+  let mergedConfig = mergeApiLauncher(
+    config,
+    _apiConfig?.embedSettings?.launcher
+  );
+  if (mergedConfig !== config) {
+    applyBubbleIcon(bubble, mergedConfig);
+  }
+
   // Apply launcher style overrides (highest precedence)
-  if (config.launcher?.style) {
-    Object.assign(bubble.style, config.launcher.style);
+  if (mergedConfig.launcher?.style) {
+    Object.assign(bubble.style, mergedConfig.launcher.style);
   }
 
   // Apply launcher className (additive)
-  if (config.launcher?.className) {
-    for (const cls of config.launcher.className.split(/\s+/).filter(Boolean)) {
+  if (mergedConfig.launcher?.className) {
+    for (const cls of mergedConfig.launcher.className
+      .split(/\s+/)
+      .filter(Boolean)) {
       bubble.classList.add(cls);
     }
   }
 
   document.body.appendChild(bubble);
 
-  // Auto-fetch config when avatar icon is requested but no _themeConfig provided
+  // Auto-fetch config when avatar icon is requested but no _apiConfig provided
   // (programmatic API — browser.ts auto-init handles this separately)
-  if (config.launcher?.icon === "avatar" && !_themeConfig?.avatarUrl) {
+  if (config.launcher?.icon === "avatar" && !_apiConfig?.avatarUrl) {
     fetch(`${host}/api/v1/embed/config/${researchId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((fetchedConfig) => {
         if (fetchedConfig?.avatarUrl) {
           currentConfig = {
             ...currentConfig,
-            _themeConfig: { ...currentConfig._themeConfig, ...fetchedConfig },
+            _apiConfig: { ...currentConfig._apiConfig, ...fetchedConfig },
           };
           if (!isOpen) {
             applyBubbleIcon(bubble, currentConfig);
@@ -271,7 +301,7 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     }) === true;
 
   // Mutable config reference for updates
-  let currentConfig = { ...config };
+  let currentConfig = { ...mergedConfig };
 
   const setBubbleClosedState = () => {
     applyBubbleIcon(bubble, currentConfig);
@@ -423,17 +453,22 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     const loading = createLoadingIndicator({
       theme: currentConfig.theme,
       brand: currentConfig.brand,
+      appearance: currentConfig._apiConfig?.embedSettings?.appearance,
     });
     loading.style.borderRadius = "16px";
 
     // Create iframe (hidden initially)
+    const overrides = appearanceToParams(
+      currentConfig._apiConfig?.embedSettings
+    );
     iframe = createIframe(
       researchId,
       "float",
       host,
       currentConfig.params,
       currentConfig.brand,
-      currentConfig.theme
+      currentConfig.theme,
+      overrides
     );
     iframe.style.opacity = "0";
     iframe.style.transition = "opacity 0.3s ease";
@@ -537,10 +572,52 @@ export function createFloatBubble(config: FloatConfig): FloatHandle {
     unmount,
     update: (
       options: Parameters<FloatHandle["update"]>[0] & {
-        _themeConfig?: ThemeConfig;
+        _apiConfig?: ThemeConfig;
       }
     ) => {
       currentConfig = { ...currentConfig, ...options };
+
+      // Recompute bubble color from updated API config or brand
+      const apiCfg = currentConfig._apiConfig;
+      if (apiCfg || currentConfig.brand) {
+        const isDark = resolveIsDark(currentConfig.theme);
+        const bg = isDark
+          ? (currentConfig.brand?.dark?.primary ??
+            apiCfg?.darkPrimaryColor ??
+            "#a78bfa")
+          : (currentConfig.brand?.light?.primary ??
+            apiCfg?.primaryColor ??
+            "#7c3aed");
+        // Only update if launcher.style didn't override backgroundColor
+        if (!currentConfig.launcher?.style?.backgroundColor) {
+          bubble.style.setProperty("--perspective-float-bg", bg);
+          bubble.style.setProperty(
+            "--perspective-float-shadow",
+            `0 4px 12px ${bg}66`
+          );
+          bubble.style.setProperty(
+            "--perspective-float-shadow-hover",
+            `0 6px 16px ${bg}80`
+          );
+          bubble.style.backgroundColor = bg;
+          bubble.style.boxShadow = `0 4px 12px ${bg}66`;
+        }
+      }
+
+      // Apply API launcher config when _apiConfig is updated (e.g. from async config fetch)
+      currentConfig = mergeApiLauncher(
+        currentConfig,
+        currentConfig._apiConfig?.embedSettings?.launcher
+      );
+
+      // Re-apply bubble icon from merged launcher config
+      applyBubbleIcon(bubble, currentConfig);
+
+      // Re-apply launcher style to bubble DOM (e.g. borderRadius from API)
+      if (currentConfig.launcher?.style) {
+        Object.assign(bubble.style, currentConfig.launcher.style);
+      }
+
       if (!isOpen) {
         setBubbleClosedState();
       }

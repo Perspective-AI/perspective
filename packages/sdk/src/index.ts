@@ -28,6 +28,7 @@ export { openPopup } from "./popup";
 export { openSlider } from "./slider";
 export { createFloatBubble, createChatBubble } from "./float";
 export { createFullpage } from "./fullpage";
+export { createLoadingIndicator } from "./loading";
 
 // Auto-open triggers
 export {
@@ -40,6 +41,7 @@ export {
 
 // Configuration
 export { configure, getConfig } from "./config";
+export { fetchEmbedConfig } from "./embed-api";
 export { getPersistedOpenState } from "./state";
 
 // Types

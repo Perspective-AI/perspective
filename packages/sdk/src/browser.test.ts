@@ -14,10 +14,35 @@ import {
 } from "./browser";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 
+const DEFAULT_CONFIG = {
+  primaryColor: "#7c3aed",
+  textColor: "#ffffff",
+  darkPrimaryColor: "#a78bfa",
+  darkTextColor: "#ffffff",
+  allowedChannels: null,
+  welcomeMessage: "",
+  avatarUrl: null,
+};
+
+/** Flush microtask queue to resolve fetchConfig promises */
+async function flushConfigFetch() {
+  await Promise.resolve(); // fetch resolves
+  await Promise.resolve(); // .json() resolves
+  await Promise.resolve(); // .then() callback runs
+}
+
 describe("browser entry", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     sessionStorage.clear();
+    // Default fetch mock for autoInit config fetching
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => DEFAULT_CONFIG,
+      })
+    );
   });
 
   afterEach(() => {
@@ -146,9 +171,172 @@ describe("browser entry", () => {
     it("is no-op for unknown researchId", () => {
       expect(() => destroy("unknown")).not.toThrow();
     });
+
+    it("prevents late popup config callback from arming auto-trigger after destroy", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 1000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+      `;
+      autoInit();
+
+      // Destroy before config fetch resolves
+      destroy("popup1");
+
+      // Flush config fetch — late callback should NOT arm auto-trigger
+      await flushConfigFetch();
+
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+
+      // No popup should have been opened by the auto-trigger
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    });
+
+    it("prevents late slider config callback from arming auto-trigger after destroy", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 1000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-slider="slider1">Open</button>
+      `;
+      autoInit();
+
+      destroy("slider1");
+      await flushConfigFetch();
+
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+
+      expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    });
+
+    it("API auto-trigger callback bails if destroy called after trigger armed but before fire", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 5000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+      `;
+      autoInit();
+
+      // Let config fetch resolve — this arms the API auto-trigger
+      await flushConfigFetch();
+
+      // Destroy after trigger is armed but before it fires
+      destroy("popup1");
+
+      // Advance past the trigger delay
+      vi.advanceTimersByTime(6000);
+
+      // Trigger callback should bail — no popup opened
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+    });
+
+    it("still caches config for popup click after destroy before config resolves", async () => {
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+      `;
+      autoInit();
+
+      // Destroy before config fetch resolves
+      destroy("popup1");
+
+      // Config fetch resolves — should still cache config
+      await flushConfigFetch();
+
+      // Manual click should still work and have config available
+      const button = document.querySelector(
+        "[data-perspective-popup]"
+      ) as HTMLButtonElement;
+      button.click();
+
+      expect(document.querySelector(".perspective-overlay")).toBeTruthy();
+    });
+
+    it("still caches config for slider click after destroy before config resolves", async () => {
+      document.body.innerHTML = `
+        <button data-perspective-slider="slider1">Open</button>
+      `;
+      autoInit();
+
+      destroy("slider1");
+      await flushConfigFetch();
+
+      const button = document.querySelector(
+        "[data-perspective-slider]"
+      ) as HTMLButtonElement;
+      button.click();
+
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+    });
   });
 
   describe("destroyAll", () => {
+    it("invalidates all pending popup/slider config callbacks", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...DEFAULT_CONFIG,
+            embedSettings: {
+              autoTrigger: { trigger: "timeout", delay: 1000 },
+            },
+          }),
+        })
+      );
+
+      document.body.innerHTML = `
+        <button data-perspective-popup="popup1">Open</button>
+        <button data-perspective-slider="slider1">Slide</button>
+      `;
+      autoInit();
+
+      // destroyAll before config fetches resolve
+      destroyAll();
+      await flushConfigFetch();
+
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2000);
+
+      // Neither popup nor slider should have been opened by auto-trigger
+      expect(document.querySelector(".perspective-overlay")).toBeFalsy();
+      expect(document.querySelector(".perspective-slider")).toBeFalsy();
+    });
+
     it("destroys all instances", () => {
       init({ researchId: "test1", type: "popup" });
       init({ researchId: "test2", type: "slider" });
@@ -225,64 +413,71 @@ describe("browser entry", () => {
       expect(document.querySelector("iframe")).toBeFalsy();
     });
 
-    it("treats whitespace-only widget attribute as truthy (creates iframe with empty researchId)", () => {
+    it("treats whitespace-only widget attribute as truthy (creates iframe with empty researchId)", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="   "></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles malformed params attribute gracefully", () => {
+    it("handles malformed params attribute gracefully", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-params="malformed,,=value,key="></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles empty params attribute", () => {
+    it("handles empty params attribute", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-params=""></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles invalid theme attribute value", () => {
+    it("handles invalid theme attribute value", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-theme="invalid-theme"></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("handles malformed brand attribute", () => {
+    it("handles malformed brand attribute", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-brand="not-valid-format"></div>
       `;
 
       expect(() => autoInit()).not.toThrow();
+      await flushConfigFetch();
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
-    it("calling autoInit twice does not duplicate widgets", () => {
+    it("calling autoInit twice does not duplicate widgets", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test-widget"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
       autoInit();
+      await flushConfigFetch();
 
       const iframes = document.querySelectorAll("iframe[data-perspective]");
       expect(iframes.length).toBe(1);
     });
 
-    it("calling autoInit twice does not duplicate popup handlers", () => {
+    it("calling autoInit twice does not duplicate popup handlers", async () => {
       document.body.innerHTML = `
         <button data-perspective-popup="test-popup">Open</button>
       `;
@@ -294,17 +489,19 @@ describe("browser entry", () => {
         "[data-perspective-popup]"
       ) as HTMLButtonElement;
       button.click();
+      await flushConfigFetch();
 
       expect(document.querySelectorAll(".perspective-overlay").length).toBe(1);
     });
 
-    it("multiple elements with same researchId - second element does not create iframe (dedupe)", () => {
+    it("multiple elements with same researchId - second element does not create iframe (dedupe)", async () => {
       document.body.innerHTML = `
         <div id="widget1" data-perspective-widget="same-research-id"></div>
         <div id="widget2" data-perspective-widget="same-research-id"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       const widget1Iframe = document.querySelector("#widget1 iframe");
       const widget2Iframe = document.querySelector("#widget2 iframe");
@@ -328,29 +525,31 @@ describe("browser entry", () => {
   });
 
   describe("autoInit", () => {
-    it("initializes widget from data-perspective-widget", () => {
+    it("initializes widget from data-perspective-widget", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test-widget"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(
         document.querySelector("[data-perspective-widget] iframe")
       ).toBeTruthy();
     });
 
-    it("initializes fullpage from data-perspective-fullpage", () => {
+    it("initializes fullpage from data-perspective-fullpage", async () => {
       document.body.innerHTML = `
         <div data-perspective-fullpage="test-fullpage"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-fullpage")).toBeTruthy();
     });
 
-    it("attaches popup click handler from data-perspective-popup", () => {
+    it("attaches popup click handler from data-perspective-popup", async () => {
       document.body.innerHTML = `
         <button data-perspective-popup="test-popup">Open</button>
       `;
@@ -363,11 +562,12 @@ describe("browser entry", () => {
         "[data-perspective-popup]"
       ) as HTMLButtonElement;
       button.click();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-overlay")).toBeTruthy();
     });
 
-    it("restores popup open state from sessionStorage", () => {
+    it("restores popup open state from sessionStorage", async () => {
       setPersistedOpenState({
         researchId: "test-popup",
         type: "popup",
@@ -378,11 +578,12 @@ describe("browser entry", () => {
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-overlay")).toBeTruthy();
     });
 
-    it("attaches slider click handler from data-perspective-slider", () => {
+    it("attaches slider click handler from data-perspective-slider", async () => {
       document.body.innerHTML = `
         <button data-perspective-slider="test-slider">Open</button>
       `;
@@ -395,11 +596,12 @@ describe("browser entry", () => {
         "[data-perspective-slider]"
       ) as HTMLButtonElement;
       button.click();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });
 
-    it("restores slider open state from sessionStorage", () => {
+    it("restores slider open state from sessionStorage", async () => {
       setPersistedOpenState({
         researchId: "test-slider",
         type: "slider",
@@ -410,6 +612,7 @@ describe("browser entry", () => {
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });
@@ -457,10 +660,9 @@ describe("browser entry", () => {
 
       autoInit();
 
-      // flush: fetch() resolve → .json() resolve → .then() callback
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
+      // flush: async IIFE → fetch() resolve → .json() resolve → cache set → .then() callback
+      await flushConfigFetch();
+      await flushConfigFetch();
 
       const bubble = document.querySelector(
         ".perspective-float-bubble"
@@ -471,12 +673,13 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
     });
 
-    it("parses params from data-perspective-params", () => {
+    it("parses params from data-perspective-params", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-params="source=test,user=abc"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       const iframe = document.querySelector(
         "[data-perspective-widget] iframe"
@@ -486,18 +689,19 @@ describe("browser entry", () => {
       expect(url.searchParams.get("user")).toBe("abc");
     });
 
-    it("parses theme from data-perspective-theme", () => {
+    it("parses theme from data-perspective-theme", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test" data-perspective-theme="dark"></div>
       `;
 
       autoInit();
+      await flushConfigFetch();
 
       const wrapper = document.querySelector(".perspective-embed-root");
       expect(wrapper?.classList.contains("perspective-dark-theme")).toBe(true);
     });
 
-    it("does not reinitialize popup buttons", () => {
+    it("does not reinitialize popup buttons", async () => {
       document.body.innerHTML = `
         <button data-perspective-popup="test">Open</button>
       `;
@@ -510,6 +714,7 @@ describe("browser entry", () => {
       ) as HTMLButtonElement;
 
       button.click();
+      await flushConfigFetch();
       expect(document.querySelectorAll(".perspective-overlay").length).toBe(1);
     });
   });
@@ -594,10 +799,9 @@ describe("browser entry", () => {
       `;
       autoInit();
 
-      // Flush: fetch() → .json() → .then()
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
+      // Flush: async IIFE → fetch() → .json() → cache set → .then()
+      await flushConfigFetch();
+      await flushConfigFetch();
 
       const bubble = document.querySelector(
         ".perspective-float-bubble"

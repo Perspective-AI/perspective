@@ -21,6 +21,14 @@ vi.mock("@perspective-ai/sdk", () => ({
     iframe: null,
     container: null,
   })),
+  fetchEmbedConfig: vi.fn(() =>
+    Promise.resolve({
+      primaryColor: "#7c3aed",
+      textColor: "#ffffff",
+      darkPrimaryColor: "#a78bfa",
+      darkTextColor: "#ffffff",
+    })
+  ),
 }));
 
 import { openSlider } from "@perspective-ai/sdk";
@@ -36,10 +44,11 @@ describe("useSlider", () => {
     cleanup();
   });
 
-  it("returns open, close, toggle functions and isOpen state", () => {
+  it("returns open, close, toggle functions and isOpen state", async () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.open).toBeInstanceOf(Function);
     expect(result.current.close).toBeInstanceOf(Function);
@@ -48,16 +57,18 @@ describe("useSlider", () => {
     expect(result.current.handle).toBeNull();
   });
 
-  it("does not call openSlider on mount", () => {
+  it("does not call openSlider on mount", async () => {
     renderHook(() => useSlider({ researchId: "test-research-id" }));
+    await act(async () => {});
 
     expect(mockOpenSlider).not.toHaveBeenCalled();
   });
 
-  it("calls openSlider when open() is called", () => {
+  it("calls openSlider when open() is called", async () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -71,10 +82,11 @@ describe("useSlider", () => {
     );
   });
 
-  it("sets isOpen to true when open() is called", () => {
+  it("sets isOpen to true when open() is called", async () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.isOpen).toBe(false);
 
@@ -85,10 +97,11 @@ describe("useSlider", () => {
     expect(result.current.isOpen).toBe(true);
   });
 
-  it("calls destroy and sets isOpen to false when close() is called", () => {
+  it("calls destroy and sets isOpen to false when close() is called", async () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -104,10 +117,11 @@ describe("useSlider", () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  it("toggles open state", () => {
+  it("toggles open state", async () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.isOpen).toBe(false);
 
@@ -126,10 +140,11 @@ describe("useSlider", () => {
     expect(mockDestroy).toHaveBeenCalledTimes(1);
   });
 
-  it("passes disableClose to openSlider", () => {
+  it("passes disableClose to openSlider", async () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id", disableClose: true })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -142,10 +157,11 @@ describe("useSlider", () => {
     );
   });
 
-  it("cleans up on unmount without treating it as explicit close", () => {
+  it("cleans up on unmount without treating it as explicit close", async () => {
     const { result, unmount } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     act(() => {
       result.current.open();
@@ -157,10 +173,11 @@ describe("useSlider", () => {
     expect(mockDestroy).not.toHaveBeenCalled();
   });
 
-  it("makes handle reactive - handle is available after open", () => {
+  it("makes handle reactive - handle is available after open", async () => {
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(result.current.handle).toBeNull();
 
@@ -171,12 +188,13 @@ describe("useSlider", () => {
     expect(result.current.handle).not.toBeNull();
   });
 
-  it("restores persisted open state on mount in uncontrolled mode", () => {
+  it("restores persisted open state on mount in uncontrolled mode", async () => {
     mockGetPersistedOpenState.mockReturnValue(true);
 
     const { result } = renderHook(() =>
       useSlider({ researchId: "test-research-id" })
     );
+    await act(async () => {});
 
     expect(mockOpenSlider).toHaveBeenCalledTimes(1);
     expect(result.current.isOpen).toBe(true);

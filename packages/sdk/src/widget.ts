@@ -3,10 +3,11 @@
  * SSR-safe - returns no-op handle on server
  */
 
-import type { EmbedConfig, EmbedHandle } from "./types";
+import type { EmbedHandle, InternalEmbedConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
+  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -76,7 +77,7 @@ function createExistingWidgetHandle(
 
 export function createWidget(
   container: HTMLElement | null,
-  config: EmbedConfig
+  config: InternalEmbedConfig
 ): EmbedHandle {
   const { researchId } = config;
 
@@ -105,17 +106,20 @@ export function createWidget(
   const loading = createLoadingIndicator({
     theme: config.theme,
     brand: config.brand,
+    appearance: config._apiConfig?.embedSettings?.appearance,
   });
   wrapper.appendChild(loading);
 
   // Create iframe (hidden initially)
+  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
   const iframe = createIframe(
     researchId,
     "widget",
     host,
     config.params,
     config.brand,
-    config.theme
+    config.theme,
+    overrides
   );
   iframe.style.width = "100%";
   iframe.style.height = "100%";

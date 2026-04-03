@@ -236,7 +236,27 @@ export interface ThemeConfig {
   channel?: AIAssistantChannel | AIAssistantChannel[] | null;
   welcomeMessage?: string;
   avatarUrl?: string | null;
+  embedSettings?: {
+    appearance?: {
+      hideProgress?: boolean;
+      hideGreeting?: boolean;
+      hideBranding?: boolean;
+      enableFullScreen?: boolean;
+    };
+    launcher?: {
+      icon?: LauncherIcon;
+      style?: LauncherStyle;
+    };
+    autoTrigger?: {
+      trigger?: "timeout" | "exit-intent";
+      delay?: number;
+      showOnce?: "session" | "visitor" | "false";
+    };
+  };
 }
+
+/** EmbedConfig with _apiConfig from the config API (internal, subject to change) */
+export type InternalEmbedConfig = EmbedConfig & { _apiConfig?: ThemeConfig };
 
 /** SDK global configuration */
 export interface SDKConfig {

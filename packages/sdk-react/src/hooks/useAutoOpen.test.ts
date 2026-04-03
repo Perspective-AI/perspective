@@ -15,6 +15,14 @@ vi.mock("@perspective-ai/sdk", () => ({
   setupTrigger: vi.fn(() => vi.fn()),
   shouldShow: vi.fn(() => true),
   markShown: vi.fn(),
+  fetchEmbedConfig: vi.fn(() =>
+    Promise.resolve({
+      primaryColor: "#7c3aed",
+      textColor: "#ffffff",
+      darkPrimaryColor: "#a78bfa",
+      darkTextColor: "#ffffff",
+    })
+  ),
 }));
 
 // useStableCallback just passes through in tests
@@ -48,13 +56,14 @@ describe("useAutoOpen", () => {
     cleanup();
   });
 
-  it("calls setupTrigger on mount when shouldShow returns true", () => {
+  it("calls setupTrigger on mount when shouldShow returns true", async () => {
     renderHook(() =>
       useAutoOpen({
         researchId: "test-id",
         trigger: { type: "timeout", delay: 5000 },
       })
     );
+    await act(async () => {});
 
     expect(mockShouldShow).toHaveBeenCalledWith("test-id", "session");
     expect(mockSetupTrigger).toHaveBeenCalledWith(
@@ -63,7 +72,7 @@ describe("useAutoOpen", () => {
     );
   });
 
-  it("does not call setupTrigger when shouldShow returns false", () => {
+  it("does not call setupTrigger when shouldShow returns false", async () => {
     mockShouldShow.mockReturnValue(false);
 
     renderHook(() =>
@@ -72,11 +81,12 @@ describe("useAutoOpen", () => {
         trigger: { type: "timeout", delay: 5000 },
       })
     );
+    await act(async () => {});
 
     expect(mockSetupTrigger).not.toHaveBeenCalled();
   });
 
-  it("calls markShown and openPopup when trigger fires", () => {
+  it("calls markShown and openPopup when trigger fires", async () => {
     let triggerCallback: () => void;
     mockSetupTrigger.mockImplementation((_config, cb) => {
       triggerCallback = cb;
@@ -90,6 +100,7 @@ describe("useAutoOpen", () => {
         showOnce: "visitor",
       })
     );
+    await act(async () => {});
 
     expect(result.current.triggered).toBe(false);
 
@@ -102,7 +113,7 @@ describe("useAutoOpen", () => {
     expect(result.current.triggered).toBe(true);
   });
 
-  it("only fires once even if trigger callback called multiple times", () => {
+  it("only fires once even if trigger callback called multiple times", async () => {
     let triggerCallback: () => void;
     mockSetupTrigger.mockImplementation((_config, cb) => {
       triggerCallback = cb;
@@ -115,6 +126,7 @@ describe("useAutoOpen", () => {
         trigger: { type: "timeout", delay: 5000 },
       })
     );
+    await act(async () => {});
 
     act(() => triggerCallback!());
     act(() => triggerCallback!());
@@ -123,18 +135,19 @@ describe("useAutoOpen", () => {
     expect(result.current.triggered).toBe(true);
   });
 
-  it("defaults showOnce to session", () => {
+  it("defaults showOnce to session", async () => {
     renderHook(() =>
       useAutoOpen({
         researchId: "test-id",
         trigger: { type: "exit-intent" },
       })
     );
+    await act(async () => {});
 
     expect(mockShouldShow).toHaveBeenCalledWith("test-id", "session");
   });
 
-  it("calls cleanup on unmount", () => {
+  it("calls cleanup on unmount", async () => {
     const mockCleanup = vi.fn();
     mockSetupTrigger.mockReturnValue(mockCleanup);
 
@@ -144,13 +157,14 @@ describe("useAutoOpen", () => {
         trigger: { type: "timeout", delay: 5000 },
       })
     );
+    await act(async () => {});
 
     unmount();
 
     expect(mockCleanup).toHaveBeenCalled();
   });
 
-  it("cancel() stops the trigger", () => {
+  it("cancel() stops the trigger", async () => {
     const mockCleanup = vi.fn();
     mockSetupTrigger.mockReturnValue(mockCleanup);
 
@@ -160,6 +174,7 @@ describe("useAutoOpen", () => {
         trigger: { type: "timeout", delay: 5000 },
       })
     );
+    await act(async () => {});
 
     result.current.cancel();
 

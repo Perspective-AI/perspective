@@ -126,10 +126,6 @@ export function injectStyles(): void {
       to { opacity: 1; }
     }
 
-    @keyframes perspective-spin {
-      to { transform: rotate(360deg); }
-    }
-
     /* Modal container */
     .perspective-modal {
       position: relative;

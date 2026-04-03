@@ -21,9 +21,17 @@ import type {
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
+  InternalEmbedConfig,
+  ShowOnce,
   ThemeConfig,
+  TriggerConfig,
 } from "./types";
 import { DATA_ATTRS, THEME_VALUES } from "./constants";
+import {
+  fetchEmbedConfig,
+  DEFAULT_THEME,
+  type EmbedApiConfig,
+} from "./embed-api";
 import {
   parseTriggerAttr,
   parseShowOnceAttr,
@@ -32,26 +40,79 @@ import {
   markShown,
 } from "./triggers";
 import { createWidget } from "./widget";
+import { createLoadingIndicator } from "./loading";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
-import { configure, getConfig, hasDom, getHost } from "./config";
+import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
 
+// Track pending auto-init skeletons so destroy/destroyAll can cancel them
+const pendingInits: Map<string, { cancelled: boolean; skeleton: HTMLElement }> =
+  new Map();
+
 // Track auto-open trigger cleanups (keyed by researchId)
 const triggerCleanups: Map<string, () => void> = new Map();
 
-// Theme config cache
-type EmbedApiConfig = ThemeConfig & {
-  allowedChannels?: ThemeConfig["allowedChannels"];
-  welcomeMessage?: string;
-};
-const configCache: Map<string, EmbedApiConfig> = new Map();
+// Generation counters to invalidate late popup/slider config callbacks after destroy
+let globalDestroyGen = 0;
+const idDestroyGen: Map<string, number> = new Map();
+
+/** Check if a destroy happened since the given generations were captured */
+function wasDestroyed(
+  researchId: string,
+  globalGen: number,
+  idGen: number
+): boolean {
+  return (
+    globalDestroyGen !== globalGen ||
+    (idDestroyGen.get(researchId) ?? 0) !== idGen
+  );
+}
+
+/**
+ * Set up auto-trigger from API embedSettings.autoTrigger config.
+ * Replaces any existing trigger for this researchId (API wins over embed code).
+ */
+function setupApiAutoTrigger(
+  researchId: string,
+  config: EmbedApiConfig,
+  initFn: () => void
+): void {
+  const api = config.embedSettings?.autoTrigger;
+  if (!api?.trigger) return;
+
+  const trigger: TriggerConfig =
+    api.trigger === "timeout"
+      ? { type: "timeout", delay: api.delay ?? 5000 }
+      : { type: "exit-intent" };
+  const showOnce: ShowOnce =
+    api.showOnce === "false"
+      ? false
+      : ((api.showOnce as ShowOnce) ?? "session");
+
+  if (!shouldShow(researchId, showOnce)) return;
+
+  // Clean up any existing trigger (embed code or previous API trigger)
+  triggerCleanups.get(researchId)?.();
+
+  // Capture generation so trigger callback bails if destroy happens after setup
+  const dg = globalDestroyGen;
+  const ig = idDestroyGen.get(researchId) ?? 0;
+
+  const cleanup = setupTrigger(trigger, () => {
+    triggerCleanups.delete(researchId);
+    if (wasDestroyed(researchId, dg, ig)) return;
+    markShown(researchId, showOnce);
+    initFn();
+  });
+  triggerCleanups.set(researchId, cleanup);
+}
 
 type ButtonStyleConfig = {
   themeConfig: ThemeConfig;
@@ -61,32 +122,8 @@ type ButtonStyleConfig = {
 const styledButtons = new Map<HTMLElement, ButtonStyleConfig>();
 let buttonThemeMediaQuery: MediaQueryList | null = null;
 
-const DEFAULT_THEME: ThemeConfig = {
-  primaryColor: "#7c3aed",
-  textColor: "#ffffff",
-  darkPrimaryColor: "#a78bfa",
-  darkTextColor: "#ffffff",
-};
-
-/**
- * Fetch theme config from API (cached)
- */
-async function fetchConfig(researchId: string): Promise<EmbedApiConfig> {
-  if (configCache.has(researchId)) {
-    return configCache.get(researchId)!;
-  }
-
-  try {
-    const host = getHost();
-    const res = await fetch(`${host}/api/v1/embed/config/${researchId}`);
-    if (!res.ok) return DEFAULT_THEME;
-    const config = (await res.json()) as EmbedApiConfig;
-    configCache.set(researchId, config);
-    return config;
-  } catch {
-    return DEFAULT_THEME;
-  }
-}
+/** Alias for internal use */
+const fetchConfig = fetchEmbedConfig;
 
 /**
  * Apply theme styles to a button element
@@ -376,11 +413,30 @@ function destroy(researchId: string): void {
     instance.destroy();
     instances.delete(researchId);
   }
+  // Cancel any pending auto-init for this researchId
+  const pending = pendingInits.get(researchId);
+  if (pending) {
+    pending.cancelled = true;
+    pending.skeleton.remove();
+    pendingInits.delete(researchId);
+  }
+  // Cancel any trigger for this researchId
+  triggerCleanups.get(researchId)?.();
+  triggerCleanups.delete(researchId);
+  // Invalidate any in-flight config callbacks for this researchId
+  idDestroyGen.set(researchId, (idDestroyGen.get(researchId) ?? 0) + 1);
 }
 
 function destroyAll(): void {
+  globalDestroyGen++;
   instances.forEach((instance) => instance.unmount());
   instances.clear();
+  // Cancel all pending auto-inits
+  pendingInits.forEach((pending) => {
+    pending.cancelled = true;
+    pending.skeleton.remove();
+  });
+  pendingInits.clear();
   triggerCleanups.forEach((cleanup) => cleanup());
   triggerCleanups.clear();
   styledButtons.clear();
@@ -401,7 +457,7 @@ function autoInit(): void {
 
   setupButtonThemeListener();
 
-  // Widget embeds
+  // Widget embeds — skeleton immediately, config + iframe in parallel
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.widget}]`)
     .forEach((el) => {
@@ -409,11 +465,35 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        mount(el, { researchId, type: "widget", params, ...brandConfig });
+        // Show skeleton instantly while config fetches
+        const skeleton = createLoadingIndicator({
+          theme: brandConfig.theme,
+          brand: brandConfig.brand,
+        });
+        skeleton.style.position = "relative";
+        skeleton.style.minHeight = "500px";
+        el.appendChild(skeleton);
+        const pending = { cancelled: false, skeleton };
+        pendingInits.set(researchId, pending);
+        // Config + mount in parallel — skeleton covers the wait
+        fetchConfig(researchId).then((config) => {
+          pendingInits.delete(researchId);
+          skeleton.remove();
+          // Bail if cancelled by destroy(), element removed, or instance exists
+          if (pending.cancelled || !el.isConnected || instances.has(researchId))
+            return;
+          mount(el, {
+            researchId,
+            type: "widget",
+            params,
+            ...brandConfig,
+            _apiConfig: config,
+          } as InternalEmbedConfig);
+        });
       }
     });
 
-  // Fullpage embeds
+  // Fullpage embeds — skeleton immediately, config + iframe in parallel
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.fullpage}]`)
     .forEach((el) => {
@@ -421,7 +501,32 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        init({ researchId, type: "fullpage", params, ...brandConfig });
+        // Show skeleton instantly while config fetches
+        const skeleton = createLoadingIndicator({
+          theme: brandConfig.theme,
+          brand: brandConfig.brand,
+        });
+        skeleton.style.position = "fixed";
+        skeleton.style.inset = "0";
+        skeleton.style.zIndex = "2147483647";
+        document.body.appendChild(skeleton);
+        const pending = { cancelled: false, skeleton };
+        pendingInits.set(researchId, pending);
+        // Config + init in parallel — skeleton covers the wait
+        fetchConfig(researchId).then((config) => {
+          pendingInits.delete(researchId);
+          skeleton.remove();
+          // Bail if cancelled by destroy(), element removed, or instance exists
+          if (pending.cancelled || !el.isConnected || instances.has(researchId))
+            return;
+          init({
+            researchId,
+            type: "fullpage",
+            params,
+            ...brandConfig,
+            _apiConfig: config,
+          } as InternalEmbedConfig);
+        });
       }
     });
 
@@ -445,14 +550,27 @@ function autoInit(): void {
         type: "popup",
       });
 
+      // Capture fetched config for passing _apiConfig to init calls
+      let cachedConfig: EmbedApiConfig | undefined;
+      const initPopup = () =>
+        init({
+          researchId,
+          type: "popup",
+          params,
+          disableClose,
+          ...brandConfig,
+          ...(cachedConfig && { _apiConfig: cachedConfig }),
+        } as InternalEmbedConfig);
+
+      const dg = globalDestroyGen;
+      const ig = idDestroyGen.get(researchId) ?? 0;
+
       if (autoOpenAttr) {
         if (persistedOpen === true) {
-          init({
-            researchId,
-            type: "popup",
-            params,
-            disableClose,
-            ...brandConfig,
+          fetchConfig(researchId).then((config) => {
+            if (wasDestroyed(researchId, dg, ig)) return;
+            cachedConfig = config;
+            initPopup();
           });
         } else if (persistedOpen !== false) {
           // Auto-open mode: trigger-based, no button styling
@@ -466,15 +584,25 @@ function autoInit(): void {
               // Clean up any existing trigger for this researchId
               triggerCleanups.get(researchId)?.();
 
+              // Pre-fetch config so it's ready when trigger fires
+              // API autoTrigger overrides embed code trigger
+              const configPromise = fetchConfig(researchId);
+              configPromise.then((config) => {
+                if (wasDestroyed(researchId, dg, ig)) return;
+                cachedConfig = config;
+                setupApiAutoTrigger(researchId, config, initPopup);
+              });
+
               const cleanup = setupTrigger(trigger, () => {
                 triggerCleanups.delete(researchId);
-                markShown(researchId, showOnce);
-                init({
-                  researchId,
-                  type: "popup",
-                  params,
-                  disableClose,
-                  ...brandConfig,
+                // Await config — skip if API autoTrigger will take over (API wins)
+                configPromise.then((config) => {
+                  if (wasDestroyed(researchId, dg, ig)) return;
+                  cachedConfig = config;
+                  if (!config.embedSettings?.autoTrigger?.trigger) {
+                    markShown(researchId, showOnce);
+                    initPopup();
+                  }
                 });
               });
               triggerCleanups.set(researchId, cleanup);
@@ -485,28 +613,33 @@ function autoInit(): void {
         }
       } else {
         // Click-to-open mode: styled button
+        // Pre-fetch config so it's ready when user clicks
+        const configPromise = fetchConfig(researchId);
+        configPromise.then((config) => {
+          cachedConfig = config;
+          styleButton(el, config, brandConfig);
+          // Only arm auto-trigger if not destroyed and popup wasn't already opened
+          if (wasDestroyed(researchId, dg, ig)) return;
+          if (!instances.has(researchId)) {
+            setupApiAutoTrigger(researchId, config, initPopup);
+          }
+        });
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", (e) => {
           e.preventDefault();
-          init({
-            researchId,
-            type: "popup",
-            params,
-            disableClose,
-            ...brandConfig,
-          });
-        });
-        fetchConfig(researchId).then((config) => {
-          styleButton(el, config, brandConfig);
+          // Cancel any pending API auto-trigger (manual open takes precedence)
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
+          initPopup();
         });
 
         if (persistedOpen === true) {
-          init({
-            researchId,
-            type: "popup",
-            params,
-            disableClose,
-            ...brandConfig,
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
+          fetchConfig(researchId).then((config) => {
+            if (wasDestroyed(researchId, dg, ig)) return;
+            cachedConfig = config;
+            initPopup();
           });
         }
       }
@@ -528,28 +661,48 @@ function autoInit(): void {
           researchId,
           type: "slider",
         });
+
+        let sliderConfig: EmbedApiConfig | undefined;
+        const initSlider = () =>
+          init({
+            researchId,
+            type: "slider",
+            params,
+            disableClose,
+            ...brandConfig,
+            ...(sliderConfig && { _apiConfig: sliderConfig }),
+          } as InternalEmbedConfig);
+
+        const dg = globalDestroyGen;
+        const ig = idDestroyGen.get(researchId) ?? 0;
+
+        // Pre-fetch config so it's ready when user clicks
+        const sliderConfigPromise = fetchConfig(researchId);
+        sliderConfigPromise.then((config) => {
+          sliderConfig = config;
+          styleButton(el, config, brandConfig);
+          // Only arm auto-trigger if not destroyed and slider wasn't already opened
+          if (wasDestroyed(researchId, dg, ig)) return;
+          if (!instances.has(researchId)) {
+            setupApiAutoTrigger(researchId, config, initSlider);
+          }
+        });
         styleButton(el, DEFAULT_THEME, brandConfig);
         el.addEventListener("click", (e) => {
           e.preventDefault();
-          init({
-            researchId,
-            type: "slider",
-            params,
-            disableClose,
-            ...brandConfig,
-          });
-        });
-        fetchConfig(researchId).then((config) => {
-          styleButton(el, config, brandConfig);
+          // Cancel any pending API auto-trigger (manual open takes precedence)
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
+          initSlider();
         });
 
         if (persistedOpen === true) {
-          init({
-            researchId,
-            type: "slider",
-            params,
-            disableClose,
-            ...brandConfig,
+          triggerCleanups.get(researchId)?.();
+          triggerCleanups.delete(researchId);
+          fetchConfig(researchId).then((config) => {
+            if (wasDestroyed(researchId, dg, ig)) return;
+            sliderConfig = config;
+            initSlider();
           });
         }
       }
@@ -572,8 +725,8 @@ function autoInit(): void {
         params,
         ...brandConfig,
         ...(launcherConfig && { launcher: launcherConfig }),
-        _themeConfig: DEFAULT_THEME,
-      } as EmbedConfig & { _themeConfig: ThemeConfig });
+        _apiConfig: DEFAULT_THEME,
+      } as InternalEmbedConfig);
 
       fetchConfig(researchId).then((config) => {
         // Update bubble color with fetched theme
@@ -611,7 +764,7 @@ function autoInit(): void {
           (floatHandle.update as any)({
             channel: channels,
             welcomeMessage: config.welcomeMessage,
-            _themeConfig: config,
+            _apiConfig: config,
           });
         }
       });

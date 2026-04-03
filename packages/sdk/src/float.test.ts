@@ -429,6 +429,66 @@ describe("createFloatBubble", () => {
 
       expect(onSubmit).not.toHaveBeenCalled();
     });
+
+    it("update with _apiConfig applies bubble theme colors", () => {
+      const handle = createFloatBubble({
+        researchId,
+        host,
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+
+      // Initially no custom background (no brand or _apiConfig)
+      expect(bubble.style.getPropertyValue("--perspective-float-bg")).toBe("");
+
+      // Simulate async config arriving via update
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#ff0000",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#cc0000",
+          darkTextColor: "#ffffff",
+        },
+      });
+
+      expect(bubble.style.getPropertyValue("--perspective-float-bg")).toBe(
+        "#ff0000"
+      );
+      expect(bubble.style.backgroundColor).toBe("#ff0000");
+
+      handle.unmount();
+    });
+
+    it("update with _apiConfig does not override launcher.style.backgroundColor", () => {
+      const handle = createFloatBubble({
+        researchId,
+        host,
+        launcher: { style: { backgroundColor: "#00ff00" } },
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.style.backgroundColor).toBe("#00ff00");
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#ff0000",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#cc0000",
+          darkTextColor: "#ffffff",
+        },
+      });
+
+      // launcher.style.backgroundColor takes precedence
+      expect(bubble.style.backgroundColor).toBe("#00ff00");
+
+      handle.unmount();
+    });
   });
 
   describe("launcher config", () => {
@@ -470,7 +530,7 @@ describe("createFloatBubble", () => {
       const handle = createFloatBubble({
         researchId: "test-research-id",
         launcher: { icon: "avatar" },
-        _themeConfig: {
+        _apiConfig: {
           primaryColor: "#7c3aed",
           textColor: "#ffffff",
           darkPrimaryColor: "#a78bfa",
@@ -497,7 +557,7 @@ describe("createFloatBubble", () => {
       const handle = createFloatBubble({
         researchId: "test-research-id",
         launcher: { icon: "avatar" },
-        _themeConfig: {
+        _apiConfig: {
           primaryColor: "#7c3aed",
           textColor: "#ffffff",
           darkPrimaryColor: "#a78bfa",

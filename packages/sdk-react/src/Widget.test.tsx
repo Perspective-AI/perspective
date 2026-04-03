@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, act } from "@testing-library/react";
 import { createRef, StrictMode } from "react";
 import { Widget } from "./Widget";
 import type { EmbedHandle } from "@perspective-ai/sdk";
+
+// Stable reference so useEmbedConfig doesn't trigger extra effect runs
+const mockEmbedConfig = {
+  primaryColor: "#7c3aed",
+  textColor: "#ffffff",
+  darkPrimaryColor: "#a78bfa",
+  darkTextColor: "#ffffff",
+};
 
 // Mock the core embed package
 vi.mock("@perspective-ai/sdk", () => ({
@@ -15,6 +23,12 @@ vi.mock("@perspective-ai/sdk", () => ({
     iframe: null,
     container: null,
   })),
+  fetchEmbedConfig: vi.fn(() => Promise.resolve(mockEmbedConfig)),
+  createLoadingIndicator: vi.fn(() => {
+    const el = document.createElement("div");
+    el.className = "perspective-loading";
+    return el;
+  }),
 }));
 
 import { createWidget } from "@perspective-ai/sdk";
@@ -29,42 +43,46 @@ describe("Widget", () => {
     cleanup();
   });
 
-  it("renders a div container", () => {
+  it("renders a div container", async () => {
     render(<Widget researchId="test-research-id" />);
+    await act(async () => {});
 
     const container = screen.getByTestId("perspective-widget");
     expect(container).toBeDefined();
     expect(container.tagName).toBe("DIV");
   });
 
-  it("has default minHeight of 500px", () => {
+  it("has default minHeight of 500px", async () => {
     render(<Widget researchId="test-research-id" />);
+    await act(async () => {});
 
     const container = screen.getByTestId("perspective-widget");
     expect(container.style.minHeight).toBe("500px");
   });
 
-  it("accepts custom className", () => {
+  it("accepts custom className", async () => {
     render(<Widget researchId="test-research-id" className="custom-class" />);
+    await act(async () => {});
 
     const container = screen.getByTestId("perspective-widget");
     expect(container.classList.contains("custom-class")).toBe(true);
   });
 
-  it("accepts custom style", () => {
+  it("accepts custom style", async () => {
     render(
       <Widget
         researchId="test-research-id"
         style={{ backgroundColor: "red", minHeight: 600 }}
       />
     );
+    await act(async () => {});
 
     const container = screen.getByTestId("perspective-widget");
     expect(container.style.backgroundColor).toBe("red");
     expect(container.style.minHeight).toBe("600px"); // Custom overrides default
   });
 
-  it("calls createWidget with correct config", () => {
+  it("calls createWidget with correct config", async () => {
     const onReady = vi.fn();
     const onSubmit = vi.fn();
 
@@ -78,6 +96,7 @@ describe("Widget", () => {
         onSubmit={onSubmit}
       />
     );
+    await act(async () => {});
 
     expect(mockCreateWidget).toHaveBeenCalledTimes(1);
     const [container, config] = mockCreateWidget.mock.calls[0]!;
@@ -88,7 +107,20 @@ describe("Widget", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("calls unmount on cleanup", () => {
+  it("shows skeleton immediately, creates widget after config loads", async () => {
+    render(<Widget researchId="test-research-id" />);
+    // Skeleton shown instantly, widget not yet created
+    expect(mockCreateWidget).not.toHaveBeenCalled();
+    const container = screen.getByTestId("perspective-widget");
+    expect(container.querySelector(".perspective-loading")).toBeTruthy();
+
+    await act(async () => {});
+
+    // After config loads, widget is created and skeleton removed
+    expect(mockCreateWidget).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls unmount on cleanup", async () => {
     const mockUnmount = vi.fn();
     mockCreateWidget.mockReturnValueOnce({
       unmount: mockUnmount,
@@ -101,6 +133,7 @@ describe("Widget", () => {
     });
 
     const { unmount } = render(<Widget researchId="test-research-id" />);
+    await act(async () => {});
 
     expect(mockUnmount).not.toHaveBeenCalled();
 
@@ -109,7 +142,7 @@ describe("Widget", () => {
     expect(mockUnmount).toHaveBeenCalled();
   });
 
-  it("exposes handle via embedRef", () => {
+  it("exposes handle via embedRef", async () => {
     const mockHandle: EmbedHandle = {
       unmount: vi.fn(),
       update: vi.fn(),
@@ -124,16 +157,18 @@ describe("Widget", () => {
     const embedRef = createRef<EmbedHandle | null>();
 
     render(<Widget researchId="test-research-id" embedRef={embedRef} />);
+    await act(async () => {});
 
     expect(embedRef.current).toBe(mockHandle);
   });
 
-  it("clears embedRef on unmount", () => {
+  it("clears embedRef on unmount", async () => {
     const embedRef = createRef<EmbedHandle | null>();
 
     const { unmount } = render(
       <Widget researchId="test-research-id" embedRef={embedRef} />
     );
+    await act(async () => {});
 
     expect(embedRef.current).not.toBeNull();
 
@@ -142,17 +177,19 @@ describe("Widget", () => {
     expect(embedRef.current).toBeNull();
   });
 
-  it("re-creates widget when researchId changes", () => {
+  it("re-creates widget when researchId changes", async () => {
     const { rerender } = render(<Widget researchId="research-1" />);
+    await act(async () => {});
 
     expect(mockCreateWidget).toHaveBeenCalledTimes(1);
 
     rerender(<Widget researchId="research-2" />);
+    await act(async () => {});
 
     expect(mockCreateWidget).toHaveBeenCalledTimes(2);
   });
 
-  it("passes additional div props", () => {
+  it("passes additional div props", async () => {
     render(
       <Widget
         researchId="test-research-id"
@@ -160,6 +197,7 @@ describe("Widget", () => {
         role="region"
       />
     );
+    await act(async () => {});
 
     const container = screen.getByTestId("perspective-widget");
     expect(container.getAttribute("aria-label")).toBe("Interview widget");
@@ -167,7 +205,7 @@ describe("Widget", () => {
   });
 
   describe("StrictMode behavior", () => {
-    it("creates only one iframe in StrictMode (mock inserts real DOM)", () => {
+    it("creates only one iframe in StrictMode (mock inserts real DOM)", async () => {
       const mockUnmount = vi.fn();
       mockCreateWidget.mockImplementation((containerEl: HTMLElement | null) => {
         if (!containerEl) {
@@ -203,13 +241,14 @@ describe("Widget", () => {
           <Widget researchId="test-research-id" />
         </StrictMode>
       );
+      await act(async () => {});
 
       const container = screen.getByTestId("perspective-widget");
       const iframes = container.querySelectorAll("iframe[data-perspective]");
       expect(iframes.length).toBe(1);
     });
 
-    it("properly cleans up in StrictMode double-mount cycle", () => {
+    it("properly cleans up in StrictMode double-mount cycle", async () => {
       const mockUnmount = vi.fn();
       mockCreateWidget.mockImplementation((containerEl: HTMLElement | null) => {
         if (!containerEl) {
@@ -245,6 +284,7 @@ describe("Widget", () => {
           <Widget researchId="test-research-id" />
         </StrictMode>
       );
+      await act(async () => {});
 
       unmount();
 
@@ -256,7 +296,7 @@ describe("Widget", () => {
       }
     });
 
-    it("StrictMode double-mount calls createWidget twice but cleanup prevents duplicates", () => {
+    it("StrictMode double-mount calls createWidget twice but cleanup prevents duplicates", async () => {
       const createCalls: number[] = [];
       const unmountCalls: number[] = [];
       let callCount = 0;
@@ -298,6 +338,7 @@ describe("Widget", () => {
           <Widget researchId="test-research-id" />
         </StrictMode>
       );
+      await act(async () => {});
 
       const container = screen.getByTestId("perspective-widget");
       const iframes = container.querySelectorAll("iframe[data-perspective]");

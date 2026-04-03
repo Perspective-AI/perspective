@@ -37,6 +37,7 @@ export {
   type UseAutoOpenOptions,
   type UseAutoOpenReturn,
 } from "./hooks/useAutoOpen";
+export { useEmbedConfig } from "./hooks/useEmbedConfig";
 export { useThemeSync } from "./hooks/useThemeSync";
 export { useStableCallback } from "./hooks/useStableCallback";
 
