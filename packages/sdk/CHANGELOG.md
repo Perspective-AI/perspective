@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.6.1
+
+### Patch Changes
+
+- 831e88b: Fix float bubble avatar padding by resetting default button padding
+
 ## 1.6.0
 
 ### Minor Changes
