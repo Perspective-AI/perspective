@@ -242,6 +242,7 @@ export function injectStyles(): void {
       right: 20px;
       width: 58px;
       height: 58px;
+      padding: 0;
       border-radius: 50%;
       background: var(--perspective-float-bg, var(--perspective-chat-bg, #7629C8));
       color: white;
