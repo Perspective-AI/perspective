@@ -199,9 +199,9 @@ export function createLoadingIndicator(options?: LoadingOptions): HTMLElement {
   container.appendChild(inputArea);
 
   // -- Footer: centered hint text --
-  const footer = shimmer("14rem", "0.75rem");
-  footer.style.margin = "0.75rem auto 0";
-  container.appendChild(footer);
+  // const footer = shimmer("14rem", "0.75rem");
+  // footer.style.margin = "0.75rem auto 0";
+  // container.appendChild(footer);
 
   return container;
 }
