@@ -48,10 +48,10 @@ describe("createLoadingIndicator", () => {
     expect(pill.style.borderRadius).toBe("9999px");
   });
 
-  it("renders footer hint line", () => {
+  it("does not render footer hint line", () => {
     const el = createLoadingIndicator();
     const footer = el.children[4] as HTMLElement;
-    expect(footer).toBeTruthy();
+    expect(footer).toBeFalsy();
   });
 
   it("shimmer elements have animation applied", () => {
