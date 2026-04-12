@@ -1,5 +1,13 @@
 # @perspective-ai/sdk-react
 
+## 1.6.2
+
+### Patch Changes
+
+- 6798566: Remove footer hint skeleton from the loading indicator
+- Updated dependencies [6798566]
+  - @perspective-ai/sdk@1.6.2
+
 ## 1.6.1
 
 ### Patch Changes
