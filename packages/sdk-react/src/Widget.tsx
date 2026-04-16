@@ -109,6 +109,7 @@ export function Widget({
     brand,
     theme,
     host,
+    disableJsonLdAttribution,
     stableOnReady,
     stableOnSubmit,
     stableOnNavigate,

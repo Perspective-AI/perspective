@@ -94,6 +94,7 @@ export function Fullpage({
     brand,
     theme,
     host,
+    disableJsonLdAttribution,
     stableOnReady,
     stableOnSubmit,
     stableOnNavigate,
