@@ -5,13 +5,11 @@ describe("attribution", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     // Clean up global
-    // @ts-expect-error -- test cleanup
     delete window.PerspectiveAI;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    // @ts-expect-error -- test cleanup
     delete window.PerspectiveAI;
   });
 
@@ -67,7 +65,7 @@ describe("attribution", () => {
         "script[data-perspective-jsonld]"
       );
       expect(scripts).toHaveLength(1);
-      expect(scripts[0].textContent).toBe("{}");
+      expect(scripts[0]!.textContent).toBe("{}");
     });
   });
 
@@ -84,7 +82,6 @@ describe("attribution", () => {
     });
 
     it("is idempotent — does not overwrite existing global", async () => {
-      // @ts-expect-error -- test setup
       window.PerspectiveAI = Object.freeze({
         version: "old",
         provider: "old",

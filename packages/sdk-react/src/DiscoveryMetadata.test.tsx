@@ -12,8 +12,8 @@ describe("DiscoveryMetadata", () => {
     expect(html).toContain("data-perspective-jsonld");
 
     const match = html.match(/>(.+?)<\/script>/);
-    expect(match).toBeTruthy();
-    const data = JSON.parse(match![1]);
+    expect(match?.[1]).toBeTruthy();
+    const data = JSON.parse(match![1]!);
 
     expect(data["@context"]).toBe("https://schema.org");
     expect(data["@graph"]).toHaveLength(2);
@@ -32,7 +32,7 @@ describe("DiscoveryMetadata", () => {
     );
 
     const match = html.match(/>(.+?)<\/script>/);
-    const data = JSON.parse(match![1]);
+    const data = JSON.parse(match![1]!);
     expect(data["@graph"][0].softwareVersion).toBe("99.0.0");
   });
 });
