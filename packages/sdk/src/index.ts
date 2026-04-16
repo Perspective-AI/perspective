@@ -44,6 +44,13 @@ export { configure, getConfig } from "./config";
 export { fetchEmbedConfig } from "./embed-api";
 export { getPersistedOpenState } from "./state";
 
+// Attribution / AEO signals
+export {
+  injectJsonLd,
+  injectGlobalMetadata,
+  enrichContainer,
+} from "./attribution";
+
 // Types
 export type {
   BrandColors,
