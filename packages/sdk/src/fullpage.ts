@@ -47,7 +47,6 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
     "perspective-embed-root perspective-fullpage",
     getThemeClass(config.theme)
   );
-  enrichContainer(container, "fullpage", config);
 
   // Create loading indicator with theme and brand colors
   const loading = createLoadingIndicator({
@@ -73,6 +72,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
 
   container.appendChild(iframe);
   document.body.appendChild(container);
+  enrichContainer(container, "fullpage", config);
 
   // Mutable config reference for updates
   let currentConfig = { ...config };

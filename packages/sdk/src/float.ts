@@ -208,7 +208,6 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   applyBubbleIcon(bubble, config);
   bubble.setAttribute("aria-label", "Open chat");
   bubble.setAttribute("data-perspective", "float-bubble");
-  enrichContainer(bubble, "float", config);
 
   // Apply theme color if available
   if (_apiConfig || brand) {
@@ -253,6 +252,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   }
 
   document.body.appendChild(bubble);
+  enrichContainer(bubble, "float", config);
 
   // Auto-fetch config when avatar icon is requested but no _apiConfig provided
   // (programmatic API — browser.ts auto-init handles this separately)

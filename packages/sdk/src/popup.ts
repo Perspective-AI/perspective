@@ -48,7 +48,6 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
     "perspective-overlay perspective-embed-root",
     getThemeClass(config.theme)
   );
-  enrichContainer(overlay, "popup", config);
 
   // Create modal container
   const modal = document.createElement("div");
@@ -90,6 +89,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   modal.appendChild(iframe);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
+  enrichContainer(overlay, "popup", config);
 
   // Mutable config reference for updates
   let currentConfig = { ...config };

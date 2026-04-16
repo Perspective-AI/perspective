@@ -138,5 +138,25 @@ describe("attribution", () => {
       expect(el.getAttribute("data-perspective-version")).toBe(SDK_VERSION);
       expect(el.getAttribute("data-perspective-type")).toBe("popup");
     });
+
+    it("skips JSON-LD when disableJsonLdAttribution is true", async () => {
+      const { enrichContainer } = await import("./attribution");
+      const parent = document.createElement("div");
+      const el = document.createElement("div");
+      parent.appendChild(el);
+      document.body.appendChild(parent);
+
+      enrichContainer(el, "widget", { disableJsonLdAttribution: true });
+
+      // Data attributes and comment should still be present
+      expect(el.getAttribute("data-perspective-version")).toBe(SDK_VERSION);
+      expect(el.previousSibling!.nodeType).toBe(Node.COMMENT_NODE);
+      // JSON-LD should NOT be injected
+      expect(
+        document.querySelector("script[data-perspective-jsonld]")
+      ).toBeNull();
+      // Global metadata should still be set
+      expect(window.PerspectiveAI).toBeDefined();
+    });
   });
 });

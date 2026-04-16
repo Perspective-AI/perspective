@@ -102,7 +102,6 @@ export function createWidget(
   wrapper.className = cn("perspective-embed-root", getThemeClass(config.theme));
   wrapper.style.cssText =
     "position:relative;width:100%;height:100%;min-height:500px;";
-  enrichContainer(wrapper, "widget", config);
 
   // Create loading indicator with theme and brand colors
   const loading = createLoadingIndicator({
@@ -131,6 +130,7 @@ export function createWidget(
 
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
+  enrichContainer(wrapper, "widget", config);
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
