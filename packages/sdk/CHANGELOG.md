@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.7.1
+
+### Patch Changes
+
+- 7fb0a65: Align JSON-LD SoftwareApplication description with the main app's schema
+
 ## 1.7.0
 
 ### Minor Changes
