@@ -1,3 +1,4 @@
+"use client";
 import { useCallback, useState, useEffect, useRef } from "react";
 import {
   getPersistedOpenState,

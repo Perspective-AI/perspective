@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, type RefObject } from "react";
 import { type EmbedConfig, type FloatHandle } from "@perspective-ai/sdk";
 import {

@@ -1,3 +1,4 @@
+"use client";
 import { useRef, useEffect, type HTMLAttributes, type RefObject } from "react";
 import {
   createWidget,

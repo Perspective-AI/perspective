@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Perspective Embed SDK - React
  *
