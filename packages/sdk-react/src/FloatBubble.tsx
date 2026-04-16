@@ -33,6 +33,7 @@ export function FloatBubble({
   host,
   channel,
   welcomeMessage,
+  disableJsonLdAttribution,
   launcher,
   onReady,
   onSubmit,
@@ -49,6 +50,7 @@ export function FloatBubble({
     host,
     channel,
     welcomeMessage,
+    disableJsonLdAttribution,
     launcher,
     onReady,
     onSubmit,
@@ -68,5 +70,5 @@ export function FloatBubble({
     };
   }, [embedRef, handle]);
 
-  return <DiscoveryMetadata />;
+  return disableJsonLdAttribution ? null : <DiscoveryMetadata />;
 }

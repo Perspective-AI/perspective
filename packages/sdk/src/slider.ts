@@ -55,7 +55,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     "perspective-slider perspective-embed-root",
     getThemeClass(config.theme)
   );
-  enrichContainer(slider, "slider");
+  enrichContainer(slider, "slider", config);
 
   // Create close button (hidden when disableClose is enabled)
   const closeBtn = document.createElement("button");

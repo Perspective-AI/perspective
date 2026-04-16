@@ -48,7 +48,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
     "perspective-overlay perspective-embed-root",
     getThemeClass(config.theme)
   );
-  enrichContainer(overlay, "popup");
+  enrichContainer(overlay, "popup", config);
 
   // Create modal container
   const modal = document.createElement("div");

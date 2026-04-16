@@ -33,6 +33,7 @@ export function Widget({
   brand,
   theme,
   host,
+  disableJsonLdAttribution,
   onReady,
   onSubmit,
   onNavigate,
@@ -75,6 +76,7 @@ export function Widget({
         brand,
         theme,
         host,
+        disableJsonLdAttribution,
         _apiConfig: config,
         onReady: stableOnReady,
         onSubmit: stableOnSubmit,
@@ -117,7 +119,7 @@ export function Widget({
 
   return (
     <Fragment>
-      <DiscoveryMetadata />
+      {!disableJsonLdAttribution && <DiscoveryMetadata />}
       <div
         ref={containerRef}
         className={className}

@@ -93,6 +93,7 @@ export const DATA_ATTRS = {
   launcherIcon: "data-perspective-launcher-icon",
   launcherStyle: "data-perspective-launcher-style",
   launcherClass: "data-perspective-launcher-class",
+  disableJsonLdAttribution: "data-perspective-disable-jsonld-attribution",
 } as const;
 
 export type DataAttr = (typeof DATA_ATTRS)[keyof typeof DATA_ATTRS];

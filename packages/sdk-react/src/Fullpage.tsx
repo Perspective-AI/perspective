@@ -24,6 +24,7 @@ export function Fullpage({
   brand,
   theme,
   host,
+  disableJsonLdAttribution,
   onReady,
   onSubmit,
   onNavigate,
@@ -60,6 +61,7 @@ export function Fullpage({
         brand,
         theme,
         host,
+        disableJsonLdAttribution,
         _apiConfig: config,
         onReady: stableOnReady,
         onSubmit: stableOnSubmit,
@@ -101,5 +103,5 @@ export function Fullpage({
   ]);
 
   // The fullpage overlay is added to document.body via SDK; render attribution for SSR
-  return <DiscoveryMetadata />;
+  return disableJsonLdAttribution ? null : <DiscoveryMetadata />;
 }

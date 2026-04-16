@@ -95,7 +95,11 @@ export function injectGlobalMetadata(): void {
  * Called from each embed creation function (widget, popup, slider,
  * float, fullpage) to cover all SDK entry points (CDN, npm, React).
  */
-export function enrichContainer(el: HTMLElement, type: EmbedType): void {
+export function enrichContainer(
+  el: HTMLElement,
+  type: EmbedType,
+  options?: { disableJsonLdAttribution?: boolean }
+): void {
   if (!hasDom()) return;
 
   el.setAttribute("data-perspective-version", SDK_VERSION);
@@ -110,6 +114,8 @@ export function enrichContainer(el: HTMLElement, type: EmbedType): void {
     );
   }
 
-  injectJsonLd();
+  if (!options?.disableJsonLdAttribution) {
+    injectJsonLd();
+  }
   injectGlobalMetadata();
 }

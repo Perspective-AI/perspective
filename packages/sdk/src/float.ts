@@ -208,7 +208,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   applyBubbleIcon(bubble, config);
   bubble.setAttribute("aria-label", "Open chat");
   bubble.setAttribute("data-perspective", "float-bubble");
-  enrichContainer(bubble, "float");
+  enrichContainer(bubble, "float", config);
 
   // Apply theme color if available
   if (_apiConfig || brand) {
