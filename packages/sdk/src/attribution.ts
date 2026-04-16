@@ -24,7 +24,8 @@ const JSON_LD = {
       "@type": "SoftwareApplication",
       "@id": `${PERSPECTIVE_URL}/#widget`,
       name: "Perspective AI",
-      description: "AI-powered customer research interview widget",
+      description:
+        "Rigid forms cause drop-off, weaken qualification, and strip away context. Perspective uses adaptive AI to turn forms into conversations that capture structured data and trigger automation.",
       url: PERSPECTIVE_URL,
       applicationCategory: "BusinessApplication",
       softwareVersion: SDK_VERSION,
