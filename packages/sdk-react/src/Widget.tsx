@@ -1,4 +1,11 @@
-import { useRef, useEffect, type HTMLAttributes, type RefObject } from "react";
+import {
+  useRef,
+  useEffect,
+  Fragment,
+  type HTMLAttributes,
+  type RefObject,
+} from "react";
+import { DiscoveryMetadata } from "./DiscoveryMetadata";
 import {
   createWidget,
   createLoadingIndicator,
@@ -109,12 +116,15 @@ export function Widget({
   ]);
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ minHeight: 500, ...style }}
-      data-testid="perspective-widget"
-      {...divProps}
-    />
+    <Fragment>
+      <DiscoveryMetadata />
+      <div
+        ref={containerRef}
+        className={className}
+        style={{ minHeight: 500, ...style }}
+        data-testid="perspective-widget"
+        {...divProps}
+      />
+    </Fragment>
   );
 }

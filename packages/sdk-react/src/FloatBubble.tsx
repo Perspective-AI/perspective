@@ -1,5 +1,6 @@
 import { useEffect, type RefObject } from "react";
 import { type EmbedConfig, type FloatHandle } from "@perspective-ai/sdk";
+import { DiscoveryMetadata } from "./DiscoveryMetadata";
 import {
   useFloatBubble,
   type LauncherConfigReact,
@@ -67,5 +68,5 @@ export function FloatBubble({
     };
   }, [embedRef, handle]);
 
-  return null;
+  return <DiscoveryMetadata />;
 }

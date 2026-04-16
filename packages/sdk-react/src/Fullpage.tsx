@@ -1,4 +1,5 @@
 import { useRef, useEffect, type RefObject } from "react";
+import { DiscoveryMetadata } from "./DiscoveryMetadata";
 import {
   createFullpage,
   createLoadingIndicator,
@@ -99,6 +100,6 @@ export function Fullpage({
     embedRef,
   ]);
 
-  // This component doesn't render anything - the fullpage overlay is added to document.body
-  return null;
+  // The fullpage overlay is added to document.body via SDK; render attribution for SSR
+  return <DiscoveryMetadata />;
 }
