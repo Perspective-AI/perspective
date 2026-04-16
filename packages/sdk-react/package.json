@@ -1,6 +1,6 @@
 {
   "name": "@perspective-ai/sdk-react",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "description": "React components for Perspective AI embed SDK",
   "type": "module",
   "sideEffects": false,
