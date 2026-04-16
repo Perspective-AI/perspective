@@ -1,4 +1,3 @@
-"use client";
 import { useState, useEffect } from "react";
 import { fetchEmbedConfig, type ThemeConfig } from "@perspective-ai/sdk";
 

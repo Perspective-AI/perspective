@@ -1,4 +1,3 @@
-"use client";
 import { useRef, useEffect, type RefObject } from "react";
 import {
   createFullpage,
