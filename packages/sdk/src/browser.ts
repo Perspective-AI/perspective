@@ -48,6 +48,7 @@ import { createFullpage } from "./fullpage";
 import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
+import { injectJsonLd, injectGlobalMetadata } from "./attribution";
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
@@ -820,6 +821,9 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
       script
     );
   }
+
+  injectJsonLd();
+  injectGlobalMetadata();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", autoInit, { once: true });
