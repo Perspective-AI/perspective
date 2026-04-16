@@ -315,7 +315,7 @@ export function createIframe(
     "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation"
   );
   iframe.setAttribute("data-perspective", "true");
-  iframe.setAttribute("title", "Perspective AI");
+  iframe.setAttribute("title", "Powered by Perspective AI concierge");
   iframe.style.cssText = "border:none;";
 
   return iframe;
