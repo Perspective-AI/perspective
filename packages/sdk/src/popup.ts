@@ -16,6 +16,7 @@ import { createLoadingIndicator } from "./loading";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
+import { enrichContainer } from "./attribution";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -47,6 +48,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
     "perspective-overlay perspective-embed-root",
     getThemeClass(config.theme)
   );
+  enrichContainer(overlay, "popup");
 
   // Create modal container
   const modal = document.createElement("div");

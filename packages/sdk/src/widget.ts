@@ -15,6 +15,7 @@ import {
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
+import { enrichContainer } from "./attribution";
 
 type WidgetResources = {
   cleanup: () => void;
@@ -101,6 +102,7 @@ export function createWidget(
   wrapper.className = cn("perspective-embed-root", getThemeClass(config.theme));
   wrapper.style.cssText =
     "position:relative;width:100%;height:100%;min-height:500px;";
+  enrichContainer(wrapper, "widget");
 
   // Create loading indicator with theme and brand colors
   const loading = createLoadingIndicator({

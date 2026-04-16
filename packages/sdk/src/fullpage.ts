@@ -15,6 +15,7 @@ import {
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
+import { enrichContainer } from "./attribution";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -46,6 +47,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
     "perspective-embed-root perspective-fullpage",
     getThemeClass(config.theme)
   );
+  enrichContainer(container, "fullpage");
 
   // Create loading indicator with theme and brand colors
   const loading = createLoadingIndicator({

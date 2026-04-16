@@ -16,6 +16,7 @@ import { createLoadingIndicator } from "./loading";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
+import { enrichContainer } from "./attribution";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -54,6 +55,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     "perspective-slider perspective-embed-root",
     getThemeClass(config.theme)
   );
+  enrichContainer(slider, "slider");
 
   // Create close button (hidden when disableClose is enabled)
   const closeBtn = document.createElement("button");

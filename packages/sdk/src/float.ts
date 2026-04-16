@@ -22,6 +22,7 @@ import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
+import { enrichContainer } from "./attribution";
 
 /** Merge API launcher config over a base launcher (API is source of truth) */
 function mergeApiLauncher(
@@ -207,6 +208,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   applyBubbleIcon(bubble, config);
   bubble.setAttribute("aria-label", "Open chat");
   bubble.setAttribute("data-perspective", "float-bubble");
+  enrichContainer(bubble, "float");
 
   // Apply theme color if available
   if (_apiConfig || brand) {
