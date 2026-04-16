@@ -16,6 +16,7 @@ import { createLoadingIndicator } from "./loading";
 import { injectStyles, CLOSE_ICON } from "./styles";
 import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
+import { enrichContainer } from "./attribution";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -88,6 +89,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   modal.appendChild(iframe);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
+  enrichContainer(overlay, "popup", config);
 
   // Mutable config reference for updates
   let currentConfig = { ...config };

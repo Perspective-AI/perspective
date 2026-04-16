@@ -48,6 +48,7 @@ import { createFullpage } from "./fullpage";
 import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
+import { injectGlobalMetadata } from "./attribution";
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
@@ -487,6 +488,9 @@ function autoInit(): void {
             type: "widget",
             params,
             ...brandConfig,
+            disableJsonLdAttribution: el.hasAttribute(
+              DATA_ATTRS.disableJsonLdAttribution
+            ),
             _apiConfig: config,
           } as InternalEmbedConfig);
         });
@@ -524,6 +528,9 @@ function autoInit(): void {
             type: "fullpage",
             params,
             ...brandConfig,
+            disableJsonLdAttribution: el.hasAttribute(
+              DATA_ATTRS.disableJsonLdAttribution
+            ),
             _apiConfig: config,
           } as InternalEmbedConfig);
         });
@@ -552,12 +559,16 @@ function autoInit(): void {
 
       // Capture fetched config for passing _apiConfig to init calls
       let cachedConfig: EmbedApiConfig | undefined;
+      const disableJsonLdAttribution = el.hasAttribute(
+        DATA_ATTRS.disableJsonLdAttribution
+      );
       const initPopup = () =>
         init({
           researchId,
           type: "popup",
           params,
           disableClose,
+          disableJsonLdAttribution,
           ...brandConfig,
           ...(cachedConfig && { _apiConfig: cachedConfig }),
         } as InternalEmbedConfig);
@@ -663,12 +674,16 @@ function autoInit(): void {
         });
 
         let sliderConfig: EmbedApiConfig | undefined;
+        const disableJsonLdAttribution = el.hasAttribute(
+          DATA_ATTRS.disableJsonLdAttribution
+        );
         const initSlider = () =>
           init({
             researchId,
             type: "slider",
             params,
             disableClose,
+            disableJsonLdAttribution,
             ...brandConfig,
             ...(sliderConfig && { _apiConfig: sliderConfig }),
           } as InternalEmbedConfig);
@@ -723,6 +738,9 @@ function autoInit(): void {
         researchId,
         type: "float",
         params,
+        disableJsonLdAttribution: floatEl.hasAttribute(
+          DATA_ATTRS.disableJsonLdAttribution
+        ),
         ...brandConfig,
         ...(launcherConfig && { launcher: launcherConfig }),
         _apiConfig: DEFAULT_THEME,
@@ -820,6 +838,9 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
       script
     );
   }
+
+  // JSON-LD injection deferred to enrichContainer (needs per-embed config for disableJsonLdAttribution)
+  injectGlobalMetadata();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", autoInit, { once: true });

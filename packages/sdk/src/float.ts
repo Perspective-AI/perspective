@@ -22,6 +22,7 @@ import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
+import { enrichContainer } from "./attribution";
 
 /** Merge API launcher config over a base launcher (API is source of truth) */
 function mergeApiLauncher(
@@ -251,6 +252,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   }
 
   document.body.appendChild(bubble);
+  enrichContainer(bubble, "float", config);
 
   // Auto-fetch config when avatar icon is requested but no _apiConfig provided
   // (programmatic API — browser.ts auto-init handles this separately)

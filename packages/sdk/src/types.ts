@@ -112,6 +112,8 @@ export interface EmbedConfig {
   autoOpen?: AutoOpenConfig;
   /** When true, prevents the user from closing the popup/slider (hides close button, disables overlay click and ESC key) */
   disableClose?: boolean;
+  /** When true, skips JSON-LD structured data injection into the parent page. Other attribution signals (data attributes, global metadata, HTML comments) remain active. */
+  disableJsonLdAttribution?: boolean;
   /** Customize the floating launcher button appearance. Only used for float-type embeds. */
   launcher?: LauncherConfig;
   /** Callback when embed is ready */

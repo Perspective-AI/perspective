@@ -1,4 +1,11 @@
-import { useRef, useEffect, type HTMLAttributes, type RefObject } from "react";
+import {
+  useRef,
+  useEffect,
+  Fragment,
+  type HTMLAttributes,
+  type RefObject,
+} from "react";
+import { DiscoveryMetadata } from "./DiscoveryMetadata";
 import {
   createWidget,
   createLoadingIndicator,
@@ -26,6 +33,7 @@ export function Widget({
   brand,
   theme,
   host,
+  disableJsonLdAttribution,
   onReady,
   onSubmit,
   onNavigate,
@@ -68,6 +76,7 @@ export function Widget({
         brand,
         theme,
         host,
+        disableJsonLdAttribution,
         _apiConfig: config,
         onReady: stableOnReady,
         onSubmit: stableOnSubmit,
@@ -100,6 +109,7 @@ export function Widget({
     brand,
     theme,
     host,
+    disableJsonLdAttribution,
     stableOnReady,
     stableOnSubmit,
     stableOnNavigate,
@@ -109,12 +119,15 @@ export function Widget({
   ]);
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ minHeight: 500, ...style }}
-      data-testid="perspective-widget"
-      {...divProps}
-    />
+    <Fragment>
+      {!disableJsonLdAttribution && <DiscoveryMetadata />}
+      <div
+        ref={containerRef}
+        className={className}
+        style={{ minHeight: 500, ...style }}
+        data-testid="perspective-widget"
+        {...divProps}
+      />
+    </Fragment>
   );
 }

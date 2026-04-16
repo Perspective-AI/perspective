@@ -15,6 +15,7 @@ import {
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
+import { enrichContainer } from "./attribution";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -71,6 +72,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
 
   container.appendChild(iframe);
   document.body.appendChild(container);
+  enrichContainer(container, "fullpage", config);
 
   // Mutable config reference for updates
   let currentConfig = { ...config };

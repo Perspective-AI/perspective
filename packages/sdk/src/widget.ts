@@ -15,6 +15,7 @@ import {
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
+import { enrichContainer } from "./attribution";
 
 type WidgetResources = {
   cleanup: () => void;
@@ -129,6 +130,7 @@ export function createWidget(
 
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
+  enrichContainer(wrapper, "widget", config);
 
   // Mutable config reference for updates
   let currentConfig = { ...config };

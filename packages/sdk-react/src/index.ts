@@ -44,6 +44,10 @@ export { useStableCallback } from "./hooks/useStableCallback";
 export { Widget, type WidgetProps } from "./Widget";
 export { Fullpage, type FullpageProps } from "./Fullpage";
 export { FloatBubble, type FloatBubbleProps } from "./FloatBubble";
+export {
+  DiscoveryMetadata,
+  type DiscoveryMetadataProps,
+} from "./DiscoveryMetadata";
 
 export type {
   EmbedConfig,
