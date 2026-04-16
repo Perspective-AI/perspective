@@ -1,5 +1,13 @@
 # @perspective-ai/sdk-react
 
+## 1.7.1
+
+### Patch Changes
+
+- 7fb0a65: Align JSON-LD SoftwareApplication description with the main app's schema
+- Updated dependencies [7fb0a65]
+  - @perspective-ai/sdk@1.7.1
+
 ## 1.7.0
 
 ### Minor Changes
