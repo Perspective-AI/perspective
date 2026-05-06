@@ -126,7 +126,7 @@ export function createWidget(
   iframe.style.height = "100%";
   iframe.style.minHeight = "500px";
   iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
+  iframe.style.transition = "opacity 0.15s ease";
 
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
@@ -135,16 +135,28 @@ export function createWidget(
   // Mutable config reference for updates
   let currentConfig = { ...config };
 
+  // Hide skeleton on the FIRST signal of visual readiness — typically
+  // `perspective:visual-ready` (pre-hydration), with `perspective:ready`
+  // as a fallback for older iframe versions that don't emit visual-ready.
+  let skeletonHidden = false;
+  const hideSkeleton = () => {
+    if (skeletonHidden) return;
+    skeletonHidden = true;
+    loading.style.opacity = "0";
+    iframe.style.opacity = "1";
+    setTimeout(() => loading.remove(), 150);
+  };
+
   // Set up message listener with loading state handling
   const cleanup = setupMessageListener(
     researchId,
     {
+      get onVisualReady() {
+        return hideSkeleton;
+      },
       get onReady() {
         return () => {
-          // Hide loading, show iframe
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
+          hideSkeleton();
           currentConfig.onReady?.();
         };
       },

@@ -68,7 +68,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
     overrides
   );
   iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
+  iframe.style.transition = "opacity 0.15s ease";
 
   container.appendChild(iframe);
   document.body.appendChild(container);
@@ -77,6 +77,16 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   // Mutable config reference for updates
   let currentConfig = { ...config };
   let messageCleanup: (() => void) | null = null;
+
+  // See widget.ts — hide skeleton on first `visual-ready`, with `ready` fallback.
+  let skeletonHidden = false;
+  const hideSkeleton = () => {
+    if (skeletonHidden) return;
+    skeletonHidden = true;
+    loading.style.opacity = "0";
+    iframe.style.opacity = "1";
+    setTimeout(() => loading.remove(), 150);
+  };
 
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
@@ -92,11 +102,12 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   messageCleanup = setupMessageListener(
     researchId,
     {
+      get onVisualReady() {
+        return hideSkeleton;
+      },
       get onReady() {
         return () => {
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
+          hideSkeleton();
           currentConfig.onReady?.();
         };
       },

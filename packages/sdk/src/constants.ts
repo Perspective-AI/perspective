@@ -107,6 +107,13 @@ export const MESSAGE_TYPES = {
   init: "perspective:init",
 
   // Iframe -> SDK
+  // visualReady: emitted as soon as the iframe document is parsed and painted,
+  // before React hydration. Used by the SDK to hide the loading skeleton with
+  // minimum perceived latency.
+  visualReady: "perspective:visual-ready",
+  // ready: emitted after the iframe app is fully hydrated and interactive.
+  // Used to fire the public `onReady` callback and run the SDK→iframe
+  // handshake (anonId, init, scrollbar styles, cached auth token).
   ready: "perspective:ready",
   resize: "perspective:resize",
   submit: "perspective:submit",

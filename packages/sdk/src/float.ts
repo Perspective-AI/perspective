@@ -473,22 +473,33 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       overrides
     );
     iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.3s ease";
+    iframe.style.transition = "opacity 0.15s ease";
 
     floatWindow.appendChild(closeBtn);
     floatWindow.appendChild(loading);
     floatWindow.appendChild(iframe);
     document.body.appendChild(floatWindow);
 
+    // See widget.ts — hide skeleton on first `visual-ready`, with `ready` fallback.
+    let skeletonHidden = false;
+    const hideSkeleton = () => {
+      if (skeletonHidden) return;
+      skeletonHidden = true;
+      loading.style.opacity = "0";
+      iframe!.style.opacity = "1";
+      setTimeout(() => loading.remove(), 150);
+    };
+
     // Set up message listener with loading state handling
     cleanup = setupMessageListener(
       researchId,
       {
+        get onVisualReady() {
+          return hideSkeleton;
+        },
         get onReady() {
           return () => {
-            loading.style.opacity = "0";
-            iframe!.style.opacity = "1";
-            setTimeout(() => loading.remove(), 300);
+            hideSkeleton();
             currentConfig.onReady?.();
           };
         },

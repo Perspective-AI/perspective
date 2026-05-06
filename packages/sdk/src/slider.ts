@@ -84,7 +84,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     overrides
   );
   iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
+  iframe.style.transition = "opacity 0.15s ease";
 
   slider.appendChild(closeBtn);
   slider.appendChild(loading);
@@ -97,6 +97,16 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   let currentConfig = { ...config };
   let isOpen = true;
   let messageCleanup: (() => void) | null = null;
+
+  // See widget.ts — hide skeleton on first `visual-ready`, with `ready` fallback.
+  let skeletonHidden = false;
+  const hideSkeleton = () => {
+    if (skeletonHidden) return;
+    skeletonHidden = true;
+    loading.style.opacity = "0";
+    iframe.style.opacity = "1";
+    setTimeout(() => loading.remove(), 150);
+  };
   const persistOpenState = (open: boolean) => {
     setPersistedOpenState({
       researchId,
@@ -135,11 +145,12 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   messageCleanup = setupMessageListener(
     researchId,
     {
+      get onVisualReady() {
+        return hideSkeleton;
+      },
       get onReady() {
         return () => {
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
+          hideSkeleton();
           currentConfig.onReady?.();
         };
       },

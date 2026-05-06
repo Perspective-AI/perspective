@@ -348,6 +348,15 @@ export function setupMessageListener(
     }
 
     switch (event.data.type) {
+      case MESSAGE_TYPES.visualReady: {
+        // Fired from the iframe's inline boot script before React hydrates.
+        // Used to hide the loading skeleton with minimum perceived latency.
+        // Idempotent: app may also send `ready` later, embeds hide the skeleton
+        // on whichever arrives first (older app versions only send `ready`).
+        config.onVisualReady?.();
+        break;
+      }
+
       case MESSAGE_TYPES.ready: {
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
