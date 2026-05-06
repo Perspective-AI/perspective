@@ -16,6 +16,7 @@ import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
+import { perfLog } from "./perf";
 
 type WidgetResources = {
   cleanup: () => void;
@@ -82,6 +83,8 @@ export function createWidget(
 ): EmbedHandle {
   const { researchId } = config;
 
+  perfLog("SDK", "createWidget called", { researchId });
+
   // SSR safety: return no-op handle
   if (!hasDom() || !container) {
     return createNoOpHandle(researchId, "widget");
@@ -142,6 +145,7 @@ export function createWidget(
   const hideSkeleton = () => {
     if (skeletonHidden) return;
     skeletonHidden = true;
+    perfLog("SDK", "skeleton hide started (widget)", { researchId });
     loading.style.opacity = "0";
     iframe.style.opacity = "1";
     setTimeout(() => loading.remove(), 150);

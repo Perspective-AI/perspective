@@ -86,3 +86,6 @@ export {
 } from "./constants";
 
 export type { ThemeValue, ParamKey, BrandKey, MessageType } from "./constants";
+
+// Perf instrumentation (opt-in via localStorage / URL param — no-op when off)
+export { perfLog, isPerfDebug } from "./perf";

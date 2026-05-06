@@ -29,6 +29,8 @@ vi.mock("@perspective-ai/sdk", () => ({
     el.className = "perspective-loading";
     return el;
   }),
+  perfLog: vi.fn(),
+  isPerfDebug: vi.fn(() => false),
 }));
 
 import { createWidget } from "@perspective-ai/sdk";

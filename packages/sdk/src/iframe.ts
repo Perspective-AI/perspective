@@ -24,6 +24,7 @@ import {
   ERROR_CODES,
 } from "./constants";
 import { normalizeHex } from "./utils";
+import { isPerfDebug, perfLog } from "./perf";
 
 /** Validate redirect URL - allow https, http localhost, and relative URLs */
 function isAllowedRedirectUrl(url: string): boolean {
@@ -211,6 +212,11 @@ function buildIframeUrl(
     url.searchParams.set(key, value);
   }
 
+  // Forward perf debug flag so the iframe-side logs activate too
+  if (isPerfDebug()) {
+    url.searchParams.set("perfDebug", "1");
+  }
+
   // Helper to set param only if color is valid
   const setColor = (key: string, color: string | undefined) => {
     if (!color) return;
@@ -318,6 +324,15 @@ export function createIframe(
   iframe.setAttribute("title", "Powered by Perspective AI concierge");
   iframe.style.cssText = "border:none;";
 
+  perfLog("SDK", "iframe element created (src set)", { researchId, type });
+  if (isPerfDebug()) {
+    iframe.addEventListener(
+      "load",
+      () => perfLog("SDK", "iframe.onload fired", { researchId, type }),
+      { once: true }
+    );
+  }
+
   return iframe;
 }
 
@@ -353,11 +368,13 @@ export function setupMessageListener(
         // Used to hide the loading skeleton with minimum perceived latency.
         // Idempotent: app may also send `ready` later, embeds hide the skeleton
         // on whichever arrives first (older app versions only send `ready`).
+        perfLog("SDK", "visual-ready received", { researchId });
         config.onVisualReady?.();
         break;
       }
 
       case MESSAGE_TYPES.ready: {
+        perfLog("SDK", "ready received", { researchId });
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
         // Send anon_id for anonymous auth

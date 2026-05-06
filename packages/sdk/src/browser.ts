@@ -49,6 +49,9 @@ import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
 import { injectGlobalMetadata } from "./attribution";
+import { perfLog } from "./perf";
+
+perfLog("SDK", "script evaluated");
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
@@ -456,6 +459,8 @@ function destroyAll(): void {
 function autoInit(): void {
   if (!hasDom()) return;
 
+  perfLog("SDK", "autoInit start");
+
   setupButtonThemeListener();
 
   // Widget embeds — skeleton immediately, config + iframe in parallel
@@ -466,6 +471,7 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        perfLog("SDK", "autoInit found widget", { researchId });
         // Show skeleton instantly while config fetches
         const skeleton = createLoadingIndicator({
           theme: brandConfig.theme,
@@ -477,7 +483,9 @@ function autoInit(): void {
         const pending = { cancelled: false, skeleton };
         pendingInits.set(researchId, pending);
         // Config + mount in parallel — skeleton covers the wait
+        perfLog("SDK", "fetchConfig start", { researchId });
         fetchConfig(researchId).then((config) => {
+          perfLog("SDK", "fetchConfig done", { researchId });
           pendingInits.delete(researchId);
           skeleton.remove();
           // Bail if cancelled by destroy(), element removed, or instance exists
@@ -843,8 +851,19 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
   injectGlobalMetadata();
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", autoInit, { once: true });
+    perfLog("SDK", "waiting for DOMContentLoaded");
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        perfLog("SDK", "DOMContentLoaded fired");
+        autoInit();
+      },
+      { once: true }
+    );
   } else {
+    perfLog("SDK", "DOM already ready, autoInit immediately", {
+      readyState: document.readyState,
+    });
     autoInit();
   }
 

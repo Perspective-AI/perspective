@@ -10,6 +10,7 @@ import {
   createWidget,
   createLoadingIndicator,
   fetchEmbedConfig,
+  perfLog,
   type EmbedConfig,
   type EmbedHandle,
 } from "@perspective-ai/sdk";
@@ -58,6 +59,8 @@ export function Widget({
     const container = containerRef.current;
     if (!container) return;
 
+    perfLog("SDK-React", "Widget effect mounted", { researchId });
+
     // Show skeleton instantly while config fetches in parallel
     const skeleton = createLoadingIndicator({ theme, brand });
     skeleton.style.position = "relative";
@@ -66,7 +69,9 @@ export function Widget({
 
     let cancelled = false;
 
+    perfLog("SDK-React", "fetchEmbedConfig start", { researchId });
     fetchEmbedConfig(researchId, host).then((config) => {
+      perfLog("SDK-React", "fetchEmbedConfig done", { researchId });
       if (cancelled) return;
       skeleton.remove();
 

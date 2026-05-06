@@ -17,6 +17,7 @@ import { injectStyles, CLOSE_ICON } from "./styles";
 import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
+import { perfLog } from "./perf";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -101,6 +102,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   const hideSkeleton = () => {
     if (skeletonHidden) return;
     skeletonHidden = true;
+    perfLog("SDK", "skeleton hide started (popup)", { researchId });
     loading.style.opacity = "0";
     iframe.style.opacity = "1";
     setTimeout(() => loading.remove(), 150);

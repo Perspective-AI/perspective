@@ -16,6 +16,7 @@ import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
+import { perfLog } from "./perf";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -83,6 +84,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   const hideSkeleton = () => {
     if (skeletonHidden) return;
     skeletonHidden = true;
+    perfLog("SDK", "skeleton hide started (fullpage)", { researchId });
     loading.style.opacity = "0";
     iframe.style.opacity = "1";
     setTimeout(() => loading.remove(), 150);

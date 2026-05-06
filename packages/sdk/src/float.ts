@@ -23,6 +23,7 @@ import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
 import { enrichContainer } from "./attribution";
+import { perfLog } from "./perf";
 
 /** Merge API launcher config over a base launcher (API is source of truth) */
 function mergeApiLauncher(
@@ -485,6 +486,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     const hideSkeleton = () => {
       if (skeletonHidden) return;
       skeletonHidden = true;
+      perfLog("SDK", "skeleton hide started (float)", { researchId });
       loading.style.opacity = "0";
       iframe!.style.opacity = "1";
       setTimeout(() => loading.remove(), 150);
