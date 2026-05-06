@@ -13,7 +13,6 @@ import type {
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
-  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -462,18 +461,14 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     });
     loading.style.borderRadius = "16px";
 
-    // Create iframe (hidden initially)
-    const overrides = appearanceToParams(
-      currentConfig._apiConfig?.embedSettings
-    );
+    // Create iframe (hidden initially). Appearance overrides resolved server-side.
     iframe = createIframe(
       researchId,
       "float",
       host,
       currentConfig.params,
       currentConfig.brand,
-      currentConfig.theme,
-      overrides
+      currentConfig.theme
     );
     iframe.style.opacity = "0";
     iframe.style.transition = "opacity 0.15s ease";

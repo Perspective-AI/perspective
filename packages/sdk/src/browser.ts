@@ -40,7 +40,6 @@ import {
   markShown,
 } from "./triggers";
 import { createWidget } from "./widget";
-import { createLoadingIndicator } from "./loading";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
@@ -463,7 +462,10 @@ function autoInit(): void {
 
   setupButtonThemeListener();
 
-  // Widget embeds — skeleton immediately, config + iframe in parallel
+  // Widget embeds — mount immediately. The iframe resolves workspace-level
+  // appearance overrides server-side, so no API round-trip is needed before
+  // creating the iframe. createWidget renders its own skeleton internally
+  // while the iframe loads.
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.widget}]`)
     .forEach((el) => {
@@ -472,40 +474,19 @@ function autoInit(): void {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
         perfLog("SDK", "autoInit found widget", { researchId });
-        // Show skeleton instantly while config fetches
-        const skeleton = createLoadingIndicator({
-          theme: brandConfig.theme,
-          brand: brandConfig.brand,
-        });
-        skeleton.style.position = "relative";
-        skeleton.style.minHeight = "500px";
-        el.appendChild(skeleton);
-        const pending = { cancelled: false, skeleton };
-        pendingInits.set(researchId, pending);
-        // Config + mount in parallel — skeleton covers the wait
-        perfLog("SDK", "fetchConfig start", { researchId });
-        fetchConfig(researchId).then((config) => {
-          perfLog("SDK", "fetchConfig done", { researchId });
-          pendingInits.delete(researchId);
-          skeleton.remove();
-          // Bail if cancelled by destroy(), element removed, or instance exists
-          if (pending.cancelled || !el.isConnected || instances.has(researchId))
-            return;
-          mount(el, {
-            researchId,
-            type: "widget",
-            params,
-            ...brandConfig,
-            disableJsonLdAttribution: el.hasAttribute(
-              DATA_ATTRS.disableJsonLdAttribution
-            ),
-            _apiConfig: config,
-          } as InternalEmbedConfig);
-        });
+        mount(el, {
+          researchId,
+          type: "widget",
+          params,
+          ...brandConfig,
+          disableJsonLdAttribution: el.hasAttribute(
+            DATA_ATTRS.disableJsonLdAttribution
+          ),
+        } as InternalEmbedConfig);
       }
     });
 
-  // Fullpage embeds — skeleton immediately, config + iframe in parallel
+  // Fullpage embeds — same: mount immediately, no upfront config fetch.
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.fullpage}]`)
     .forEach((el) => {
@@ -513,35 +494,15 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        // Show skeleton instantly while config fetches
-        const skeleton = createLoadingIndicator({
-          theme: brandConfig.theme,
-          brand: brandConfig.brand,
-        });
-        skeleton.style.position = "fixed";
-        skeleton.style.inset = "0";
-        skeleton.style.zIndex = "2147483647";
-        document.body.appendChild(skeleton);
-        const pending = { cancelled: false, skeleton };
-        pendingInits.set(researchId, pending);
-        // Config + init in parallel — skeleton covers the wait
-        fetchConfig(researchId).then((config) => {
-          pendingInits.delete(researchId);
-          skeleton.remove();
-          // Bail if cancelled by destroy(), element removed, or instance exists
-          if (pending.cancelled || !el.isConnected || instances.has(researchId))
-            return;
-          init({
-            researchId,
-            type: "fullpage",
-            params,
-            ...brandConfig,
-            disableJsonLdAttribution: el.hasAttribute(
-              DATA_ATTRS.disableJsonLdAttribution
-            ),
-            _apiConfig: config,
-          } as InternalEmbedConfig);
-        });
+        init({
+          researchId,
+          type: "fullpage",
+          params,
+          ...brandConfig,
+          disableJsonLdAttribution: el.hasAttribute(
+            DATA_ATTRS.disableJsonLdAttribution
+          ),
+        } as InternalEmbedConfig);
       }
     });
 

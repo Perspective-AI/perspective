@@ -110,16 +110,12 @@ describe("Widget", () => {
     expect(config.host).toBe("https://custom.example.com");
   });
 
-  it("shows skeleton immediately, creates widget after config loads", async () => {
+  it("creates widget immediately on mount (no upfront config fetch)", async () => {
     render(<Widget researchId="test-research-id" />);
-    // Skeleton shown instantly, widget not yet created
-    expect(mockCreateWidget).not.toHaveBeenCalled();
-    const container = screen.getByTestId("perspective-widget");
-    expect(container.querySelector(".perspective-loading")).toBeTruthy();
-
+    // Widget is created synchronously inside the mount effect — no upfront
+    // /api/v1/embed/config round-trip blocks iframe creation. createWidget
+    // renders its own skeleton internally while the iframe loads.
     await act(async () => {});
-
-    // After config loads, widget is created and skeleton removed
     expect(mockCreateWidget).toHaveBeenCalledTimes(1);
   });
 

@@ -8,7 +8,6 @@ import type {
   EmbedConfig,
   EmbedMessage,
   EmbedType,
-  ThemeConfig,
 } from "./types";
 import { hasDom, getHost } from "./config";
 import {
@@ -287,40 +286,13 @@ function buildIframeUrl(
   return url.toString();
 }
 
-/** Known appearance param keys — only these are allowed as overrides */
-const APPEARANCE_KEYS = new Set([
-  "hideProgress",
-  "hideGreeting",
-  "hideBranding",
-  "enableFullScreen",
-]);
-
-/** Convert embedSettings.appearance to URL query params. Emits both true/false so API can override embed code in either direction. */
-export function appearanceToParams(
-  embedSettings?: ThemeConfig["embedSettings"]
-): Record<string, string> | undefined {
-  const a = embedSettings?.appearance;
-  if (!a) return undefined;
-  const params: Record<string, string> = {};
-  if (a.hideProgress !== undefined)
-    params.hideProgress = a.hideProgress ? "true" : "false";
-  if (a.hideGreeting !== undefined)
-    params.hideGreeting = a.hideGreeting ? "true" : "false";
-  if (a.hideBranding !== undefined)
-    params.hideBranding = a.hideBranding ? "true" : "false";
-  if (a.enableFullScreen !== undefined)
-    params.enableFullScreen = a.enableFullScreen ? "true" : "false";
-  return Object.keys(params).length > 0 ? params : undefined;
-}
-
 export function createIframe(
   researchId: string,
   type: EmbedType,
   host: string,
   params?: Record<string, string>,
   brand?: { light?: BrandColors; dark?: BrandColors },
-  themeOverride?: "dark" | "light" | "system",
-  appearanceOverrides?: Record<string, string>
+  themeOverride?: "dark" | "light" | "system"
 ): HTMLIFrameElement {
   if (!hasDom()) {
     // Return a stub for SSR
@@ -336,18 +308,6 @@ export function createIframe(
     brand,
     themeOverride
   );
-
-  // Apply appearance overrides from API config (API wins over embed code)
-  // Restricted to APPEARANCE_KEYS to prevent overwriting reserved params
-  if (appearanceOverrides && Object.keys(appearanceOverrides).length > 0) {
-    const url = new URL(iframe.src);
-    for (const [key, value] of Object.entries(appearanceOverrides)) {
-      if (APPEARANCE_KEYS.has(key)) {
-        url.searchParams.set(key, value);
-      }
-    }
-    iframe.src = url.toString();
-  }
 
   iframe.setAttribute("allow", "microphone; camera");
   iframe.setAttribute("allowfullscreen", "true");

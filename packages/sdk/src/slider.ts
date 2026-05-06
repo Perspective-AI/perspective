@@ -7,7 +7,6 @@ import type { EmbedHandle, InternalEmbedConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
-  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -75,16 +74,14 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     appearance: config._apiConfig?.embedSettings?.appearance,
   });
 
-  // Create iframe (hidden initially)
-  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
+  // Create iframe (hidden initially). Appearance overrides resolved server-side.
   const iframe = createIframe(
     researchId,
     "slider",
     host,
     config.params,
     config.brand,
-    config.theme,
-    overrides
+    config.theme
   );
   iframe.style.opacity = "0";
   iframe.style.transition = "opacity 0.15s ease";

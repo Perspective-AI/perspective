@@ -7,7 +7,6 @@ import type { EmbedHandle, InternalEmbedConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
-  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
@@ -116,16 +115,17 @@ export function createWidget(
   });
   wrapper.appendChild(loading);
 
-  // Create iframe (hidden initially)
-  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
+  // Create iframe (hidden initially). Workspace-level appearance overrides
+  // (hideProgress / hideGreeting / hideBranding / enableFullScreen) are now
+  // resolved by the iframe page server-side, so the SDK doesn't need to
+  // fetch config or merge URL params before creating the iframe.
   const iframe = createIframe(
     researchId,
     "widget",
     host,
     config.params,
     config.brand,
-    config.theme,
-    overrides
+    config.theme
   );
   iframe.style.width = "100%";
   iframe.style.height = "100%";
