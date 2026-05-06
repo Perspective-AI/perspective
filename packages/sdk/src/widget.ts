@@ -11,6 +11,7 @@ import {
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  ensureHostPreconnect,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
@@ -97,6 +98,7 @@ export function createWidget(
 
   const host = getHost(config.host);
 
+  ensureHostPreconnect(host);
   injectStyles();
   ensureGlobalListeners();
 

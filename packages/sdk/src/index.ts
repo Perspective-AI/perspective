@@ -44,6 +44,9 @@ export { configure, getConfig } from "./config";
 export { fetchEmbedConfig } from "./embed-api";
 export { getPersistedOpenState } from "./state";
 
+// Network hints
+export { ensureHostPreconnect } from "./iframe";
+
 // Attribution / AEO signals
 export {
   injectJsonLd,

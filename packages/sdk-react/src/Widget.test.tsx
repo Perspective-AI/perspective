@@ -31,6 +31,7 @@ vi.mock("@perspective-ai/sdk", () => ({
   }),
   perfLog: vi.fn(),
   isPerfDebug: vi.fn(() => false),
+  ensureHostPreconnect: vi.fn(),
 }));
 
 import { createWidget } from "@perspective-ai/sdk";

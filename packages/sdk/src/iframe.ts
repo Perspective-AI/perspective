@@ -10,7 +10,7 @@ import type {
   EmbedType,
   ThemeConfig,
 } from "./types";
-import { hasDom } from "./config";
+import { hasDom, getHost } from "./config";
 import {
   RESERVED_PARAMS,
   PARAM_KEYS,
@@ -25,6 +25,41 @@ import {
 } from "./constants";
 import { normalizeHex } from "./utils";
 import { isPerfDebug, perfLog } from "./perf";
+
+// ---------------------------------------------------------------------------
+// Host preconnect — warm DNS + TLS to the embed host before the iframe HTTP
+// request fires. Useful when the SDK is loaded via npm/bundle (no prior
+// network contact with the host); a no-op in practice for CDN script-tag
+// integrations where the SDK script itself already established the connection.
+// Idempotent per host.
+// ---------------------------------------------------------------------------
+
+const preconnectedHosts = new Set<string>();
+
+export function ensureHostPreconnect(host?: string): void {
+  if (!hasDom()) return;
+  const resolved = getHost(host);
+  if (preconnectedHosts.has(resolved)) return;
+  preconnectedHosts.add(resolved);
+
+  try {
+    const preconnect = document.createElement("link");
+    preconnect.rel = "preconnect";
+    preconnect.href = resolved;
+    preconnect.crossOrigin = "anonymous";
+    document.head.appendChild(preconnect);
+
+    // dns-prefetch as a fallback hint for older browsers / certain proxies.
+    const dnsPrefetch = document.createElement("link");
+    dnsPrefetch.rel = "dns-prefetch";
+    dnsPrefetch.href = resolved;
+    document.head.appendChild(dnsPrefetch);
+
+    perfLog("SDK", "preconnect injected", { host: resolved });
+  } catch {
+    /* head not available — extremely rare */
+  }
+}
 
 /** Validate redirect URL - allow https, http localhost, and relative URLs */
 function isAllowedRedirectUrl(url: string): boolean {

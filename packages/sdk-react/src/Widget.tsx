@@ -10,6 +10,7 @@ import {
   createWidget,
   createLoadingIndicator,
   fetchEmbedConfig,
+  ensureHostPreconnect,
   perfLog,
   type EmbedConfig,
   type EmbedHandle,
@@ -60,6 +61,11 @@ export function Widget({
     if (!container) return;
 
     perfLog("SDK-React", "Widget effect mounted", { researchId });
+
+    // Warm DNS+TLS to the embed host as early as possible — saves 30-200ms
+    // on the upcoming config fetch and iframe HTTP request when the SDK is
+    // loaded via npm bundle (no prior network contact with the host).
+    ensureHostPreconnect(host);
 
     // Show skeleton instantly while config fetches in parallel
     const skeleton = createLoadingIndicator({ theme, brand });

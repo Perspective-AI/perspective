@@ -17,6 +17,7 @@ import {
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  ensureHostPreconnect,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
@@ -197,6 +198,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   }
   const host = getHost(config.host);
 
+  ensureHostPreconnect(host);
   injectStyles();
   ensureGlobalListeners();
 

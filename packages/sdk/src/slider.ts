@@ -11,6 +11,7 @@ import {
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  ensureHostPreconnect,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, CLOSE_ICON } from "./styles";
@@ -40,6 +41,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   }
   const host = getHost(config.host);
 
+  ensureHostPreconnect(host);
   injectStyles();
   ensureGlobalListeners();
 
