@@ -457,7 +457,6 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     const loading = createLoadingIndicator({
       theme: currentConfig.theme,
       brand: currentConfig.brand,
-      appearance: currentConfig._apiConfig?.embedSettings?.appearance,
     });
     loading.style.borderRadius = "16px";
 

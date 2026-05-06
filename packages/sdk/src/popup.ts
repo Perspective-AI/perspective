@@ -64,11 +64,10 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
     closeBtn.style.display = "none";
   }
 
-  // Create loading indicator with theme and brand colors
+  // Create loading indicator with theme and brand colors.
   const loading = createLoadingIndicator({
     theme: config.theme,
     brand: config.brand,
-    appearance: config._apiConfig?.embedSettings?.appearance,
   });
   loading.style.borderRadius = "16px";
 

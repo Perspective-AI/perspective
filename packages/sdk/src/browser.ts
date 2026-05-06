@@ -547,11 +547,16 @@ function autoInit(): void {
 
       if (autoOpenAttr) {
         if (persistedOpen === true) {
-          fetchConfig(researchId).then((config) => {
-            if (wasDestroyed(researchId, dg, ig)) return;
-            cachedConfig = config;
+          // Restore: popup was open on previous page. No need to await config —
+          // the iframe creation no longer reads _apiConfig (appearance overrides
+          // resolved server-side). Pre-fetch in parallel for downstream
+          // consumers that may still inspect cachedConfig.
+          if (!wasDestroyed(researchId, dg, ig)) {
+            fetchConfig(researchId).then((config) => {
+              if (!wasDestroyed(researchId, dg, ig)) cachedConfig = config;
+            });
             initPopup();
-          });
+          }
         } else if (persistedOpen !== false) {
           // Auto-open mode: trigger-based, no button styling
           try {
@@ -616,11 +621,11 @@ function autoInit(): void {
         if (persistedOpen === true) {
           triggerCleanups.get(researchId)?.();
           triggerCleanups.delete(researchId);
-          fetchConfig(researchId).then((config) => {
-            if (wasDestroyed(researchId, dg, ig)) return;
-            cachedConfig = config;
+          // Restore: same as the autoOpen case — don't await config; iframe
+          // creation doesn't need it.
+          if (!wasDestroyed(researchId, dg, ig)) {
             initPopup();
-          });
+          }
         }
       }
     });
@@ -683,11 +688,10 @@ function autoInit(): void {
         if (persistedOpen === true) {
           triggerCleanups.get(researchId)?.();
           triggerCleanups.delete(researchId);
-          fetchConfig(researchId).then((config) => {
-            if (wasDestroyed(researchId, dg, ig)) return;
-            sliderConfig = config;
+          // Restore: don't await config; iframe creation no longer needs it.
+          if (!wasDestroyed(researchId, dg, ig)) {
             initSlider();
-          });
+          }
         }
       }
     });
