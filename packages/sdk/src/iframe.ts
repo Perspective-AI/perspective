@@ -8,9 +8,8 @@ import type {
   EmbedConfig,
   EmbedMessage,
   EmbedType,
-  ThemeConfig,
 } from "./types";
-import { hasDom } from "./config";
+import { hasDom, getHost } from "./config";
 import {
   RESERVED_PARAMS,
   PARAM_KEYS,
@@ -24,6 +23,42 @@ import {
   ERROR_CODES,
 } from "./constants";
 import { normalizeHex } from "./utils";
+import { isPerfDebug, perfLog } from "./perf";
+
+// ---------------------------------------------------------------------------
+// Host preconnect — warm DNS + TLS to the embed host before the iframe HTTP
+// request fires. Useful when the SDK is loaded via npm/bundle (no prior
+// network contact with the host); a no-op in practice for CDN script-tag
+// integrations where the SDK script itself already established the connection.
+// Idempotent per host.
+// ---------------------------------------------------------------------------
+
+const preconnectedHosts = new Set<string>();
+
+export function ensureHostPreconnect(host?: string): void {
+  if (!hasDom()) return;
+  const resolved = getHost(host);
+  if (preconnectedHosts.has(resolved)) return;
+  preconnectedHosts.add(resolved);
+
+  try {
+    const preconnect = document.createElement("link");
+    preconnect.rel = "preconnect";
+    preconnect.href = resolved;
+    preconnect.crossOrigin = "anonymous";
+    document.head.appendChild(preconnect);
+
+    // dns-prefetch as a fallback hint for older browsers / certain proxies.
+    const dnsPrefetch = document.createElement("link");
+    dnsPrefetch.rel = "dns-prefetch";
+    dnsPrefetch.href = resolved;
+    document.head.appendChild(dnsPrefetch);
+
+    perfLog("SDK", "preconnect injected", { host: resolved });
+  } catch {
+    /* head not available — extremely rare */
+  }
+}
 
 /** Validate redirect URL - allow https, http localhost, and relative URLs */
 function isAllowedRedirectUrl(url: string): boolean {
@@ -211,6 +246,11 @@ function buildIframeUrl(
     url.searchParams.set(key, value);
   }
 
+  // Forward perf debug flag so the iframe-side logs activate too
+  if (isPerfDebug()) {
+    url.searchParams.set("perfDebug", "1");
+  }
+
   // Helper to set param only if color is valid
   const setColor = (key: string, color: string | undefined) => {
     if (!color) return;
@@ -246,40 +286,13 @@ function buildIframeUrl(
   return url.toString();
 }
 
-/** Known appearance param keys — only these are allowed as overrides */
-const APPEARANCE_KEYS = new Set([
-  "hideProgress",
-  "hideGreeting",
-  "hideBranding",
-  "enableFullScreen",
-]);
-
-/** Convert embedSettings.appearance to URL query params. Emits both true/false so API can override embed code in either direction. */
-export function appearanceToParams(
-  embedSettings?: ThemeConfig["embedSettings"]
-): Record<string, string> | undefined {
-  const a = embedSettings?.appearance;
-  if (!a) return undefined;
-  const params: Record<string, string> = {};
-  if (a.hideProgress !== undefined)
-    params.hideProgress = a.hideProgress ? "true" : "false";
-  if (a.hideGreeting !== undefined)
-    params.hideGreeting = a.hideGreeting ? "true" : "false";
-  if (a.hideBranding !== undefined)
-    params.hideBranding = a.hideBranding ? "true" : "false";
-  if (a.enableFullScreen !== undefined)
-    params.enableFullScreen = a.enableFullScreen ? "true" : "false";
-  return Object.keys(params).length > 0 ? params : undefined;
-}
-
 export function createIframe(
   researchId: string,
   type: EmbedType,
   host: string,
   params?: Record<string, string>,
   brand?: { light?: BrandColors; dark?: BrandColors },
-  themeOverride?: "dark" | "light" | "system",
-  appearanceOverrides?: Record<string, string>
+  themeOverride?: "dark" | "light" | "system"
 ): HTMLIFrameElement {
   if (!hasDom()) {
     // Return a stub for SSR
@@ -296,18 +309,6 @@ export function createIframe(
     themeOverride
   );
 
-  // Apply appearance overrides from API config (API wins over embed code)
-  // Restricted to APPEARANCE_KEYS to prevent overwriting reserved params
-  if (appearanceOverrides && Object.keys(appearanceOverrides).length > 0) {
-    const url = new URL(iframe.src);
-    for (const [key, value] of Object.entries(appearanceOverrides)) {
-      if (APPEARANCE_KEYS.has(key)) {
-        url.searchParams.set(key, value);
-      }
-    }
-    iframe.src = url.toString();
-  }
-
   iframe.setAttribute("allow", "microphone; camera");
   iframe.setAttribute("allowfullscreen", "true");
   iframe.setAttribute(
@@ -317,6 +318,15 @@ export function createIframe(
   iframe.setAttribute("data-perspective", "true");
   iframe.setAttribute("title", "Powered by Perspective AI concierge");
   iframe.style.cssText = "border:none;";
+
+  perfLog("SDK", "iframe element created (src set)", { researchId, type });
+  if (isPerfDebug()) {
+    iframe.addEventListener(
+      "load",
+      () => perfLog("SDK", "iframe.onload fired", { researchId, type }),
+      { once: true }
+    );
+  }
 
   return iframe;
 }
@@ -348,7 +358,18 @@ export function setupMessageListener(
     }
 
     switch (event.data.type) {
+      case MESSAGE_TYPES.visualReady: {
+        // Fired from the iframe's inline boot script before React hydrates.
+        // Used to hide the loading skeleton with minimum perceived latency.
+        // Idempotent: app may also send `ready` later, embeds hide the skeleton
+        // on whichever arrives first (older app versions only send `ready`).
+        perfLog("SDK", "visual-ready received", { researchId });
+        config.onVisualReady?.();
+        break;
+      }
+
       case MESSAGE_TYPES.ready: {
+        perfLog("SDK", "ready received", { researchId });
         // Send scrollbar styles when iframe is ready
         sendScrollbarStyles(iframe, host);
         // Send anon_id for anonymous auth

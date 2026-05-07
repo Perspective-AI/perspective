@@ -13,16 +13,17 @@ import type {
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
-  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  ensureHostPreconnect,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import { cn, getThemeClass, resolveIsDark } from "./utils";
 import { enrichContainer } from "./attribution";
+import { perfLog } from "./perf";
 
 /** Merge API launcher config over a base launcher (API is source of truth) */
 function mergeApiLauncher(
@@ -196,6 +197,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   }
   const host = getHost(config.host);
 
+  ensureHostPreconnect(host);
   injectStyles();
   ensureGlobalListeners();
 
@@ -455,40 +457,47 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     const loading = createLoadingIndicator({
       theme: currentConfig.theme,
       brand: currentConfig.brand,
-      appearance: currentConfig._apiConfig?.embedSettings?.appearance,
     });
     loading.style.borderRadius = "16px";
 
-    // Create iframe (hidden initially)
-    const overrides = appearanceToParams(
-      currentConfig._apiConfig?.embedSettings
-    );
+    // Create iframe (hidden initially). Appearance overrides resolved server-side.
     iframe = createIframe(
       researchId,
       "float",
       host,
       currentConfig.params,
       currentConfig.brand,
-      currentConfig.theme,
-      overrides
+      currentConfig.theme
     );
     iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.3s ease";
+    iframe.style.transition = "opacity 0.15s ease";
 
     floatWindow.appendChild(closeBtn);
     floatWindow.appendChild(loading);
     floatWindow.appendChild(iframe);
     document.body.appendChild(floatWindow);
 
+    // See widget.ts — hide skeleton on first `visual-ready`, with `ready` fallback.
+    let skeletonHidden = false;
+    const hideSkeleton = () => {
+      if (skeletonHidden) return;
+      skeletonHidden = true;
+      perfLog("SDK", "skeleton hide started (float)", { researchId });
+      loading.style.opacity = "0";
+      iframe!.style.opacity = "1";
+      setTimeout(() => loading.remove(), 150);
+    };
+
     // Set up message listener with loading state handling
     cleanup = setupMessageListener(
       researchId,
       {
+        get onVisualReady() {
+          return hideSkeleton;
+        },
         get onReady() {
           return () => {
-            loading.style.opacity = "0";
-            iframe!.style.opacity = "1";
-            setTimeout(() => loading.remove(), 300);
+            hideSkeleton();
             currentConfig.onReady?.();
           };
         },

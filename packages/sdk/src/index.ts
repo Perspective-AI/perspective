@@ -44,6 +44,9 @@ export { configure, getConfig } from "./config";
 export { fetchEmbedConfig } from "./embed-api";
 export { getPersistedOpenState } from "./state";
 
+// Network hints
+export { ensureHostPreconnect } from "./iframe";
+
 // Attribution / AEO signals
 export {
   injectJsonLd,
@@ -86,3 +89,6 @@ export {
 } from "./constants";
 
 export type { ThemeValue, ParamKey, BrandKey, MessageType } from "./constants";
+
+// Perf instrumentation (opt-in via localStorage / URL param — no-op when off)
+export { perfLog, isPerfDebug } from "./perf";

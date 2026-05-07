@@ -7,15 +7,16 @@ import type { EmbedHandle, InternalEmbedConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
-  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  ensureHostPreconnect,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
+import { perfLog } from "./perf";
 
 type WidgetResources = {
   cleanup: () => void;
@@ -82,6 +83,8 @@ export function createWidget(
 ): EmbedHandle {
   const { researchId } = config;
 
+  perfLog("SDK", "createWidget called", { researchId });
+
   // SSR safety: return no-op handle
   if (!hasDom() || !container) {
     return createNoOpHandle(researchId, "widget");
@@ -94,6 +97,7 @@ export function createWidget(
 
   const host = getHost(config.host);
 
+  ensureHostPreconnect(host);
   injectStyles();
   ensureGlobalListeners();
 
@@ -107,26 +111,26 @@ export function createWidget(
   const loading = createLoadingIndicator({
     theme: config.theme,
     brand: config.brand,
-    appearance: config._apiConfig?.embedSettings?.appearance,
   });
   wrapper.appendChild(loading);
 
-  // Create iframe (hidden initially)
-  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
+  // Create iframe (hidden initially). Workspace-level appearance overrides
+  // (hideProgress / hideGreeting / hideBranding / enableFullScreen) are now
+  // resolved by the iframe page server-side, so the SDK doesn't need to
+  // fetch config or merge URL params before creating the iframe.
   const iframe = createIframe(
     researchId,
     "widget",
     host,
     config.params,
     config.brand,
-    config.theme,
-    overrides
+    config.theme
   );
   iframe.style.width = "100%";
   iframe.style.height = "100%";
   iframe.style.minHeight = "500px";
   iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
+  iframe.style.transition = "opacity 0.15s ease";
 
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
@@ -135,16 +139,29 @@ export function createWidget(
   // Mutable config reference for updates
   let currentConfig = { ...config };
 
+  // Hide skeleton on the FIRST signal of visual readiness — typically
+  // `perspective:visual-ready` (pre-hydration), with `perspective:ready`
+  // as a fallback for older iframe versions that don't emit visual-ready.
+  let skeletonHidden = false;
+  const hideSkeleton = () => {
+    if (skeletonHidden) return;
+    skeletonHidden = true;
+    perfLog("SDK", "skeleton hide started (widget)", { researchId });
+    loading.style.opacity = "0";
+    iframe.style.opacity = "1";
+    setTimeout(() => loading.remove(), 150);
+  };
+
   // Set up message listener with loading state handling
   const cleanup = setupMessageListener(
     researchId,
     {
+      get onVisualReady() {
+        return hideSkeleton;
+      },
       get onReady() {
         return () => {
-          // Hide loading, show iframe
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
+          hideSkeleton();
           currentConfig.onReady?.();
         };
       },

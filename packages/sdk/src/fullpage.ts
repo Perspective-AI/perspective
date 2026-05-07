@@ -7,15 +7,16 @@ import type { EmbedHandle, InternalEmbedConfig } from "./types";
 import { hasDom, getHost } from "./config";
 import {
   createIframe,
-  appearanceToParams,
   setupMessageListener,
   registerIframe,
   ensureGlobalListeners,
+  ensureHostPreconnect,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
 import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
+import { perfLog } from "./perf";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -38,6 +39,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   }
   const host = getHost(config.host);
 
+  ensureHostPreconnect(host);
   injectStyles();
   ensureGlobalListeners();
 
@@ -52,23 +54,20 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   const loading = createLoadingIndicator({
     theme: config.theme,
     brand: config.brand,
-    appearance: config._apiConfig?.embedSettings?.appearance,
   });
   container.appendChild(loading);
 
-  // Create iframe (hidden initially)
-  const overrides = appearanceToParams(config._apiConfig?.embedSettings);
+  // Create iframe (hidden initially). Appearance overrides resolved server-side.
   const iframe = createIframe(
     researchId,
     "fullpage",
     host,
     config.params,
     config.brand,
-    config.theme,
-    overrides
+    config.theme
   );
   iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.3s ease";
+  iframe.style.transition = "opacity 0.15s ease";
 
   container.appendChild(iframe);
   document.body.appendChild(container);
@@ -77,6 +76,17 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   // Mutable config reference for updates
   let currentConfig = { ...config };
   let messageCleanup: (() => void) | null = null;
+
+  // See widget.ts — hide skeleton on first `visual-ready`, with `ready` fallback.
+  let skeletonHidden = false;
+  const hideSkeleton = () => {
+    if (skeletonHidden) return;
+    skeletonHidden = true;
+    perfLog("SDK", "skeleton hide started (fullpage)", { researchId });
+    loading.style.opacity = "0";
+    iframe.style.opacity = "1";
+    setTimeout(() => loading.remove(), 150);
+  };
 
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
@@ -92,11 +102,12 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   messageCleanup = setupMessageListener(
     researchId,
     {
+      get onVisualReady() {
+        return hideSkeleton;
+      },
       get onReady() {
         return () => {
-          loading.style.opacity = "0";
-          iframe.style.opacity = "1";
-          setTimeout(() => loading.remove(), 300);
+          hideSkeleton();
           currentConfig.onReady?.();
         };
       },
