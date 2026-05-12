@@ -157,7 +157,10 @@ export function createWidget(
     researchId,
     {
       get onVisualReady() {
-        return hideSkeleton;
+        return () => {
+          hideSkeleton();
+          currentConfig.onVisualReady?.();
+        };
       },
       get onReady() {
         return () => {

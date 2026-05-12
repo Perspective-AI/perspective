@@ -87,6 +87,7 @@ describe("Widget", () => {
 
   it("calls createWidget with correct config", async () => {
     const onReady = vi.fn();
+    const onVisualReady = vi.fn();
     const onSubmit = vi.fn();
 
     render(
@@ -96,6 +97,7 @@ describe("Widget", () => {
         theme="dark"
         host="https://custom.example.com"
         onReady={onReady}
+        onVisualReady={onVisualReady}
         onSubmit={onSubmit}
       />
     );
@@ -108,6 +110,7 @@ describe("Widget", () => {
     expect(config.params).toEqual({ source: "test" });
     expect(config.theme).toBe("dark");
     expect(config.host).toBe("https://custom.example.com");
+    expect(config.onVisualReady).toBeTypeOf("function");
   });
 
   it("creates widget immediately on mount (no upfront config fetch)", async () => {

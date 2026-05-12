@@ -35,6 +35,7 @@ export function Widget({
   host,
   disableJsonLdAttribution,
   onReady,
+  onVisualReady,
   onSubmit,
   onNavigate,
   onClose,
@@ -49,6 +50,7 @@ export function Widget({
 
   // Stable callbacks to avoid re-mounting on callback changes
   const stableOnReady = useStableCallback(onReady);
+  const stableOnVisualReady = useStableCallback(onVisualReady);
   const stableOnSubmit = useStableCallback(onSubmit);
   const stableOnNavigate = useStableCallback(onNavigate);
   const stableOnClose = useStableCallback(onClose);
@@ -74,6 +76,7 @@ export function Widget({
       host,
       disableJsonLdAttribution,
       onReady: stableOnReady,
+      onVisualReady: stableOnVisualReady,
       onSubmit: stableOnSubmit,
       onNavigate: stableOnNavigate,
       onClose: stableOnClose,
@@ -103,6 +106,7 @@ export function Widget({
     host,
     disableJsonLdAttribution,
     stableOnReady,
+    stableOnVisualReady,
     stableOnSubmit,
     stableOnNavigate,
     stableOnClose,

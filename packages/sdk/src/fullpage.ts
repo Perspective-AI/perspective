@@ -103,7 +103,10 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
     researchId,
     {
       get onVisualReady() {
-        return hideSkeleton;
+        return () => {
+          hideSkeleton();
+          currentConfig.onVisualReady?.();
+        };
       },
       get onReady() {
         return () => {

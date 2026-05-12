@@ -493,7 +493,10 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       researchId,
       {
         get onVisualReady() {
-          return hideSkeleton;
+          return () => {
+            hideSkeleton();
+            currentConfig.onVisualReady?.();
+          };
         },
         get onReady() {
           return () => {

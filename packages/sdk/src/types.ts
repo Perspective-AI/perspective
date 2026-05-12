@@ -157,6 +157,7 @@ export interface EmbedHandle {
       Pick<
         EmbedConfig,
         | "onReady"
+        | "onVisualReady"
         | "onSubmit"
         | "onNavigate"
         | "onClose"

@@ -332,6 +332,30 @@ describe("setupMessageListener", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("calls onVisualReady without running the ready handshake", () => {
+    const onVisualReady = vi.fn();
+    const onReady = vi.fn();
+    const postMessageSpy = vi.spyOn(iframe.contentWindow!, "postMessage");
+    removeListener = setupMessageListener(
+      researchId,
+      { onVisualReady, onReady },
+      iframe,
+      host
+    );
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: MESSAGE_TYPES.visualReady, researchId },
+        origin: host,
+        source: iframe.contentWindow,
+      })
+    );
+
+    expect(onVisualReady).toHaveBeenCalledTimes(1);
+    expect(onReady).not.toHaveBeenCalled();
+    expect(postMessageSpy).not.toHaveBeenCalled();
+  });
+
   it("calls onError for error messages", () => {
     const onError = vi.fn();
     removeListener = setupMessageListener(
