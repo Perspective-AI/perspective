@@ -246,11 +246,6 @@ function buildIframeUrl(
     url.searchParams.set(key, value);
   }
 
-  // Forward perf debug flag so the iframe-side logs activate too
-  if (isPerfDebug()) {
-    url.searchParams.set("perfDebug", "1");
-  }
-
   // Helper to set param only if color is valid
   const setColor = (key: string, color: string | undefined) => {
     if (!color) return;
@@ -281,6 +276,11 @@ function buildIframeUrl(
         url.searchParams.set(key, value);
       }
     }
+  }
+
+  // Forward perf debug last so parent/custom params cannot disable it.
+  if (isPerfDebug()) {
+    url.searchParams.set(PARAM_KEYS.perfDebug, "1");
   }
 
   return url.toString();

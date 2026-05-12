@@ -94,7 +94,7 @@ describe("createIframe", () => {
     Object.defineProperty(window, "location", {
       value: {
         ...originalLocation,
-        search: "?embed=false&theme=dark&ref=test",
+        search: "?embed=false&theme=dark&perfDebug=0&ref=test",
       },
       writable: true,
       configurable: true,
@@ -109,6 +109,7 @@ describe("createIframe", () => {
     const src = new URL(iframe.src);
     // Reserved params should be set by SDK, not from parent URL
     expect(src.searchParams.get(PARAM_KEYS.embed)).toBe("true");
+    expect(src.searchParams.has(PARAM_KEYS.perfDebug)).toBe(false);
     // Non-reserved params should be forwarded
     expect(src.searchParams.get("ref")).toBe("test");
 
@@ -117,6 +118,26 @@ describe("createIframe", () => {
       writable: true,
       configurable: true,
     });
+  });
+
+  it("forwards enabled perf debug after custom params", () => {
+    localStorage.setItem("perspective-perf-debug", "1");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      const iframe = createIframe(
+        "test-research-id",
+        "widget",
+        "https://getperspective.ai",
+        { perfDebug: "0" }
+      );
+
+      const src = new URL(iframe.src);
+      expect(src.searchParams.get(PARAM_KEYS.perfDebug)).toBe("1");
+    } finally {
+      logSpy.mockRestore();
+      localStorage.removeItem("perspective-perf-debug");
+    }
   });
 
   it("custom params override parent URL params", () => {

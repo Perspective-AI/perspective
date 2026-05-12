@@ -8,7 +8,6 @@ import {
 import { DiscoveryMetadata } from "./DiscoveryMetadata";
 import {
   createWidget,
-  ensureHostPreconnect,
   perfLog,
   type EmbedConfig,
   type EmbedHandle,
@@ -61,9 +60,6 @@ export function Widget({
     if (!container) return;
 
     perfLog("SDK-React", "Widget effect mounted", { researchId });
-
-    // Warm DNS+TLS to the embed host as early as possible.
-    ensureHostPreconnect(host);
 
     // No upfront config fetch — the iframe resolves workspace-level
     // appearance overrides server-side. createWidget renders its own

@@ -38,6 +38,7 @@ export const PARAM_KEYS = {
   embed: "embed",
   embedType: "embed_type",
   theme: "theme",
+  perfDebug: "perfDebug",
 } as const;
 
 export type ParamKey = (typeof PARAM_KEYS)[keyof typeof PARAM_KEYS];
