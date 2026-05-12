@@ -5,6 +5,7 @@ import {
   sendMessage,
   registerIframe,
   notifyThemeChange,
+  ensureHostPreconnect,
 } from "./iframe";
 import { MESSAGE_TYPES, PARAM_KEYS, PARAM_VALUES } from "./constants";
 
@@ -500,6 +501,35 @@ describe("sendMessage", () => {
         type: "test",
       })
     ).not.toThrow();
+  });
+});
+
+describe("ensureHostPreconnect", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("retries when preconnect insertion fails before marking a host complete", () => {
+    const host = "https://retry-preconnect.example.com";
+    const appendSpy = vi
+      .spyOn(document.head, "appendChild")
+      .mockImplementation(() => {
+        throw new Error("head unavailable");
+      });
+
+    expect(() => ensureHostPreconnect(host)).not.toThrow();
+    expect(appendSpy).toHaveBeenCalledTimes(1);
+    appendSpy.mockRestore();
+
+    ensureHostPreconnect(host);
+
+    const links = Array.from(document.head.querySelectorAll("link")).filter(
+      (link) => link.getAttribute("href") === host
+    );
+    expect(links.map((link) => link.getAttribute("rel")).sort()).toEqual([
+      "dns-prefetch",
+      "preconnect",
+    ]);
   });
 });
 

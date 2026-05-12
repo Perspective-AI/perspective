@@ -14,24 +14,17 @@ import { hasDom } from "./config";
 const PERF_DEBUG_LS_KEY = "perspective-perf-debug";
 const PERF_DEBUG_URL_PARAM = "perfDebug";
 
-let cached: boolean | null = null;
-
 export function isPerfDebug(): boolean {
-  if (cached !== null) return cached;
-  if (!hasDom()) {
-    cached = false;
-    return false;
-  }
+  if (!hasDom()) return false;
   try {
     const fromLs = localStorage.getItem(PERF_DEBUG_LS_KEY) === "1";
     const fromUrl =
       new URLSearchParams(window.location.search).get(PERF_DEBUG_URL_PARAM) ===
       "1";
-    cached = fromLs || fromUrl;
+    return fromLs || fromUrl;
   } catch {
-    cached = false;
+    return false;
   }
-  return cached;
 }
 
 /** Scope label — `"SDK"` and `"SDK-React"` for the embed runtime, `"iframe"` for the embedded interview app. */

@@ -39,7 +39,6 @@ export function ensureHostPreconnect(host?: string): void {
   if (!hasDom()) return;
   const resolved = getHost(host);
   if (preconnectedHosts.has(resolved)) return;
-  preconnectedHosts.add(resolved);
 
   try {
     const preconnect = document.createElement("link");
@@ -54,6 +53,7 @@ export function ensureHostPreconnect(host?: string): void {
     dnsPrefetch.href = resolved;
     document.head.appendChild(dnsPrefetch);
 
+    preconnectedHosts.add(resolved);
     perfLog("SDK", "preconnect injected", { host: resolved });
   } catch {
     /* head not available — extremely rare */
