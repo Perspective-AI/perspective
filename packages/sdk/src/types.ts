@@ -116,6 +116,8 @@ export interface EmbedConfig {
   disableJsonLdAttribution?: boolean;
   /** Customize the floating launcher button appearance. Only used for float-type embeds. */
   launcher?: LauncherConfig;
+  /** Callback when the iframe is visually painted but not yet hydrated. Fires significantly earlier than `onReady` — used internally by the SDK to hide the loading skeleton ASAP. Most consumers should use `onReady` instead. */
+  onVisualReady?: () => void;
   /** Callback when embed is ready */
   onReady?: () => void;
   /** Callback when interview is submitted/completed */
@@ -155,6 +157,7 @@ export interface EmbedHandle {
       Pick<
         EmbedConfig,
         | "onReady"
+        | "onVisualReady"
         | "onSubmit"
         | "onNavigate"
         | "onClose"
@@ -204,6 +207,7 @@ export interface InitMessage {
 
 /** Messages sent from iframe to SDK */
 export type EmbedMessage =
+  | { type: "perspective:visual-ready"; researchId: string }
   | { type: "perspective:ready"; researchId: string }
   | { type: "perspective:resize"; researchId: string; height: number }
   | { type: "perspective:submit"; researchId: string; data?: unknown }

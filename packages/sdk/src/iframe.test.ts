@@ -5,6 +5,7 @@ import {
   sendMessage,
   registerIframe,
   notifyThemeChange,
+  ensureHostPreconnect,
 } from "./iframe";
 import { MESSAGE_TYPES, PARAM_KEYS, PARAM_VALUES } from "./constants";
 
@@ -93,7 +94,7 @@ describe("createIframe", () => {
     Object.defineProperty(window, "location", {
       value: {
         ...originalLocation,
-        search: "?embed=false&theme=dark&ref=test",
+        search: "?embed=false&theme=dark&perfDebug=0&ref=test",
       },
       writable: true,
       configurable: true,
@@ -108,6 +109,7 @@ describe("createIframe", () => {
     const src = new URL(iframe.src);
     // Reserved params should be set by SDK, not from parent URL
     expect(src.searchParams.get(PARAM_KEYS.embed)).toBe("true");
+    expect(src.searchParams.has(PARAM_KEYS.perfDebug)).toBe(false);
     // Non-reserved params should be forwarded
     expect(src.searchParams.get("ref")).toBe("test");
 
@@ -116,6 +118,26 @@ describe("createIframe", () => {
       writable: true,
       configurable: true,
     });
+  });
+
+  it("forwards enabled perf debug after custom params", () => {
+    localStorage.setItem("perspective-perf-debug", "1");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      const iframe = createIframe(
+        "test-research-id",
+        "widget",
+        "https://getperspective.ai",
+        { perfDebug: "0" }
+      );
+
+      const src = new URL(iframe.src);
+      expect(src.searchParams.get(PARAM_KEYS.perfDebug)).toBe("1");
+    } finally {
+      logSpy.mockRestore();
+      localStorage.removeItem("perspective-perf-debug");
+    }
   });
 
   it("custom params override parent URL params", () => {
@@ -332,6 +354,30 @@ describe("setupMessageListener", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("calls onVisualReady without running the ready handshake", () => {
+    const onVisualReady = vi.fn();
+    const onReady = vi.fn();
+    const postMessageSpy = vi.spyOn(iframe.contentWindow!, "postMessage");
+    removeListener = setupMessageListener(
+      researchId,
+      { onVisualReady, onReady },
+      iframe,
+      host
+    );
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: MESSAGE_TYPES.visualReady, researchId },
+        origin: host,
+        source: iframe.contentWindow,
+      })
+    );
+
+    expect(onVisualReady).toHaveBeenCalledTimes(1);
+    expect(onReady).not.toHaveBeenCalled();
+    expect(postMessageSpy).not.toHaveBeenCalled();
+  });
+
   it("calls onError for error messages", () => {
     const onError = vi.fn();
     removeListener = setupMessageListener(
@@ -476,6 +522,35 @@ describe("sendMessage", () => {
         type: "test",
       })
     ).not.toThrow();
+  });
+});
+
+describe("ensureHostPreconnect", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("retries when preconnect insertion fails before marking a host complete", () => {
+    const host = "https://retry-preconnect.example.com";
+    const appendSpy = vi
+      .spyOn(document.head, "appendChild")
+      .mockImplementation(() => {
+        throw new Error("head unavailable");
+      });
+
+    expect(() => ensureHostPreconnect(host)).not.toThrow();
+    expect(appendSpy).toHaveBeenCalledTimes(1);
+    appendSpy.mockRestore();
+
+    ensureHostPreconnect(host);
+
+    const links = Array.from(document.head.querySelectorAll("link")).filter(
+      (link) => link.getAttribute("href") === host
+    );
+    expect(links.map((link) => link.getAttribute("rel")).sort()).toEqual([
+      "dns-prefetch",
+      "preconnect",
+    ]);
   });
 });
 

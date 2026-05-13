@@ -8,8 +8,7 @@ import {
 import { DiscoveryMetadata } from "./DiscoveryMetadata";
 import {
   createWidget,
-  createLoadingIndicator,
-  fetchEmbedConfig,
+  perfLog,
   type EmbedConfig,
   type EmbedHandle,
 } from "@perspective-ai/sdk";
@@ -35,6 +34,7 @@ export function Widget({
   host,
   disableJsonLdAttribution,
   onReady,
+  onVisualReady,
   onSubmit,
   onNavigate,
   onClose,
@@ -49,6 +49,7 @@ export function Widget({
 
   // Stable callbacks to avoid re-mounting on callback changes
   const stableOnReady = useStableCallback(onReady);
+  const stableOnVisualReady = useStableCallback(onVisualReady);
   const stableOnSubmit = useStableCallback(onSubmit);
   const stableOnNavigate = useStableCallback(onNavigate);
   const stableOnClose = useStableCallback(onClose);
@@ -58,43 +59,33 @@ export function Widget({
     const container = containerRef.current;
     if (!container) return;
 
-    // Show skeleton instantly while config fetches in parallel
-    const skeleton = createLoadingIndicator({ theme, brand });
-    skeleton.style.position = "relative";
-    skeleton.style.minHeight = "500px";
-    container.appendChild(skeleton);
+    perfLog("SDK-React", "Widget effect mounted", { researchId });
 
-    let cancelled = false;
-
-    fetchEmbedConfig(researchId, host).then((config) => {
-      if (cancelled) return;
-      skeleton.remove();
-
-      const handle = createWidget(container, {
-        researchId,
-        params,
-        brand,
-        theme,
-        host,
-        disableJsonLdAttribution,
-        _apiConfig: config,
-        onReady: stableOnReady,
-        onSubmit: stableOnSubmit,
-        onNavigate: stableOnNavigate,
-        onClose: stableOnClose,
-        onError: stableOnError,
-      });
-
-      handleRef.current = handle;
-
-      if (embedRef) {
-        embedRef.current = handle;
-      }
+    // No upfront config fetch — the iframe resolves workspace-level
+    // appearance overrides server-side. createWidget renders its own
+    // skeleton while the iframe loads.
+    const handle = createWidget(container, {
+      researchId,
+      params,
+      brand,
+      theme,
+      host,
+      disableJsonLdAttribution,
+      onReady: stableOnReady,
+      onVisualReady: stableOnVisualReady,
+      onSubmit: stableOnSubmit,
+      onNavigate: stableOnNavigate,
+      onClose: stableOnClose,
+      onError: stableOnError,
     });
 
+    handleRef.current = handle;
+
+    if (embedRef) {
+      embedRef.current = handle;
+    }
+
     return () => {
-      cancelled = true;
-      skeleton.remove();
       if (handleRef.current) {
         handleRef.current.unmount();
         handleRef.current = null;
@@ -111,6 +102,7 @@ export function Widget({
     host,
     disableJsonLdAttribution,
     stableOnReady,
+    stableOnVisualReady,
     stableOnSubmit,
     stableOnNavigate,
     stableOnClose,

@@ -29,6 +29,9 @@ vi.mock("@perspective-ai/sdk", () => ({
     el.className = "perspective-loading";
     return el;
   }),
+  perfLog: vi.fn(),
+  isPerfDebug: vi.fn(() => false),
+  ensureHostPreconnect: vi.fn(),
 }));
 
 import { createWidget } from "@perspective-ai/sdk";
@@ -84,6 +87,7 @@ describe("Widget", () => {
 
   it("calls createWidget with correct config", async () => {
     const onReady = vi.fn();
+    const onVisualReady = vi.fn();
     const onSubmit = vi.fn();
 
     render(
@@ -93,6 +97,7 @@ describe("Widget", () => {
         theme="dark"
         host="https://custom.example.com"
         onReady={onReady}
+        onVisualReady={onVisualReady}
         onSubmit={onSubmit}
       />
     );
@@ -105,18 +110,15 @@ describe("Widget", () => {
     expect(config.params).toEqual({ source: "test" });
     expect(config.theme).toBe("dark");
     expect(config.host).toBe("https://custom.example.com");
+    expect(config.onVisualReady).toBeTypeOf("function");
   });
 
-  it("shows skeleton immediately, creates widget after config loads", async () => {
+  it("creates widget immediately on mount (no upfront config fetch)", async () => {
     render(<Widget researchId="test-research-id" />);
-    // Skeleton shown instantly, widget not yet created
-    expect(mockCreateWidget).not.toHaveBeenCalled();
-    const container = screen.getByTestId("perspective-widget");
-    expect(container.querySelector(".perspective-loading")).toBeTruthy();
-
+    // Widget is created synchronously inside the mount effect — no upfront
+    // /api/v1/embed/config round-trip blocks iframe creation. createWidget
+    // renders its own skeleton internally while the iframe loads.
     await act(async () => {});
-
-    // After config loads, widget is created and skeleton removed
     expect(mockCreateWidget).toHaveBeenCalledTimes(1);
   });
 

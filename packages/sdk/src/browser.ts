@@ -40,7 +40,6 @@ import {
   markShown,
 } from "./triggers";
 import { createWidget } from "./widget";
-import { createLoadingIndicator } from "./loading";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
@@ -49,6 +48,9 @@ import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark } from "./utils";
 import { injectGlobalMetadata } from "./attribution";
+import { perfLog } from "./perf";
+
+perfLog("SDK", "script evaluated");
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
@@ -456,9 +458,14 @@ function destroyAll(): void {
 function autoInit(): void {
   if (!hasDom()) return;
 
+  perfLog("SDK", "autoInit start");
+
   setupButtonThemeListener();
 
-  // Widget embeds — skeleton immediately, config + iframe in parallel
+  // Widget embeds — mount immediately. The iframe resolves workspace-level
+  // appearance overrides server-side, so no API round-trip is needed before
+  // creating the iframe. createWidget renders its own skeleton internally
+  // while the iframe loads.
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.widget}]`)
     .forEach((el) => {
@@ -466,38 +473,20 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        // Show skeleton instantly while config fetches
-        const skeleton = createLoadingIndicator({
-          theme: brandConfig.theme,
-          brand: brandConfig.brand,
-        });
-        skeleton.style.position = "relative";
-        skeleton.style.minHeight = "500px";
-        el.appendChild(skeleton);
-        const pending = { cancelled: false, skeleton };
-        pendingInits.set(researchId, pending);
-        // Config + mount in parallel — skeleton covers the wait
-        fetchConfig(researchId).then((config) => {
-          pendingInits.delete(researchId);
-          skeleton.remove();
-          // Bail if cancelled by destroy(), element removed, or instance exists
-          if (pending.cancelled || !el.isConnected || instances.has(researchId))
-            return;
-          mount(el, {
-            researchId,
-            type: "widget",
-            params,
-            ...brandConfig,
-            disableJsonLdAttribution: el.hasAttribute(
-              DATA_ATTRS.disableJsonLdAttribution
-            ),
-            _apiConfig: config,
-          } as InternalEmbedConfig);
-        });
+        perfLog("SDK", "autoInit found widget", { researchId });
+        mount(el, {
+          researchId,
+          type: "widget",
+          params,
+          ...brandConfig,
+          disableJsonLdAttribution: el.hasAttribute(
+            DATA_ATTRS.disableJsonLdAttribution
+          ),
+        } as InternalEmbedConfig);
       }
     });
 
-  // Fullpage embeds — skeleton immediately, config + iframe in parallel
+  // Fullpage embeds — same: mount immediately, no upfront config fetch.
   document
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.fullpage}]`)
     .forEach((el) => {
@@ -505,35 +494,15 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
-        // Show skeleton instantly while config fetches
-        const skeleton = createLoadingIndicator({
-          theme: brandConfig.theme,
-          brand: brandConfig.brand,
-        });
-        skeleton.style.position = "fixed";
-        skeleton.style.inset = "0";
-        skeleton.style.zIndex = "2147483647";
-        document.body.appendChild(skeleton);
-        const pending = { cancelled: false, skeleton };
-        pendingInits.set(researchId, pending);
-        // Config + init in parallel — skeleton covers the wait
-        fetchConfig(researchId).then((config) => {
-          pendingInits.delete(researchId);
-          skeleton.remove();
-          // Bail if cancelled by destroy(), element removed, or instance exists
-          if (pending.cancelled || !el.isConnected || instances.has(researchId))
-            return;
-          init({
-            researchId,
-            type: "fullpage",
-            params,
-            ...brandConfig,
-            disableJsonLdAttribution: el.hasAttribute(
-              DATA_ATTRS.disableJsonLdAttribution
-            ),
-            _apiConfig: config,
-          } as InternalEmbedConfig);
-        });
+        init({
+          researchId,
+          type: "fullpage",
+          params,
+          ...brandConfig,
+          disableJsonLdAttribution: el.hasAttribute(
+            DATA_ATTRS.disableJsonLdAttribution
+          ),
+        } as InternalEmbedConfig);
       }
     });
 
@@ -578,11 +547,16 @@ function autoInit(): void {
 
       if (autoOpenAttr) {
         if (persistedOpen === true) {
-          fetchConfig(researchId).then((config) => {
-            if (wasDestroyed(researchId, dg, ig)) return;
-            cachedConfig = config;
+          // Restore: popup was open on previous page. No need to await config —
+          // the iframe creation no longer reads _apiConfig (appearance overrides
+          // resolved server-side). Pre-fetch in parallel for downstream
+          // consumers that may still inspect cachedConfig.
+          if (!wasDestroyed(researchId, dg, ig)) {
+            fetchConfig(researchId).then((config) => {
+              if (!wasDestroyed(researchId, dg, ig)) cachedConfig = config;
+            });
             initPopup();
-          });
+          }
         } else if (persistedOpen !== false) {
           // Auto-open mode: trigger-based, no button styling
           try {
@@ -647,11 +621,11 @@ function autoInit(): void {
         if (persistedOpen === true) {
           triggerCleanups.get(researchId)?.();
           triggerCleanups.delete(researchId);
-          fetchConfig(researchId).then((config) => {
-            if (wasDestroyed(researchId, dg, ig)) return;
-            cachedConfig = config;
+          // Restore: same as the autoOpen case — don't await config; iframe
+          // creation doesn't need it.
+          if (!wasDestroyed(researchId, dg, ig)) {
             initPopup();
-          });
+          }
         }
       }
     });
@@ -714,11 +688,10 @@ function autoInit(): void {
         if (persistedOpen === true) {
           triggerCleanups.get(researchId)?.();
           triggerCleanups.delete(researchId);
-          fetchConfig(researchId).then((config) => {
-            if (wasDestroyed(researchId, dg, ig)) return;
-            sliderConfig = config;
+          // Restore: don't await config; iframe creation no longer needs it.
+          if (!wasDestroyed(researchId, dg, ig)) {
             initSlider();
-          });
+          }
         }
       }
     });
@@ -843,8 +816,19 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
   injectGlobalMetadata();
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", autoInit, { once: true });
+    perfLog("SDK", "waiting for DOMContentLoaded");
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        perfLog("SDK", "DOMContentLoaded fired");
+        autoInit();
+      },
+      { once: true }
+    );
   } else {
+    perfLog("SDK", "DOM already ready, autoInit immediately", {
+      readyState: document.readyState,
+    });
     autoInit();
   }
 
