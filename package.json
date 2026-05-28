@@ -43,7 +43,7 @@
     "oxlint": "^1.0.0",
     "prettier": "^3.5.0",
     "serve": "^14.2.6",
-    "turbo": "^2.7.5",
+    "turbo": "^2.9.14",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   }
