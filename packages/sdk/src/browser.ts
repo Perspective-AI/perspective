@@ -642,25 +642,38 @@ function autoInit(): void {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
         const disableClose = el.hasAttribute(DATA_ATTRS.disableClose);
+        const sliderMode =
+          el.getAttribute(DATA_ATTRS.sliderMode) === "push"
+            ? "push"
+            : undefined;
         const persistedOpen = getPersistedOpenState({
           researchId,
           type: "slider",
         });
 
         let sliderConfig: EmbedApiConfig | undefined;
+        // Tracks the live handle so a second click on the same trigger toggles
+        // the slider closed instead of re-opening it.
+        let sliderHandle: EmbedHandle | null = null;
         const disableJsonLdAttribution = el.hasAttribute(
           DATA_ATTRS.disableJsonLdAttribution
         );
-        const initSlider = () =>
-          init({
+        const initSlider = () => {
+          sliderHandle = init({
             researchId,
             type: "slider",
             params,
             disableClose,
             disableJsonLdAttribution,
+            sliderMode,
             ...brandConfig,
             ...(sliderConfig && { _apiConfig: sliderConfig }),
-          } as InternalEmbedConfig);
+            onClose: () => {
+              sliderHandle = null;
+            },
+          } as InternalEmbedConfig) as EmbedHandle;
+          return sliderHandle;
+        };
 
         const dg = globalDestroyGen;
         const ig = idDestroyGen.get(researchId) ?? 0;
@@ -682,6 +695,12 @@ function autoInit(): void {
           // Cancel any pending API auto-trigger (manual open takes precedence)
           triggerCleanups.get(researchId)?.();
           triggerCleanups.delete(researchId);
+          // Toggle: a second click on the same trigger closes the open slider
+          // (unless disableClose, which forbids dismissal entirely).
+          if (sliderHandle) {
+            if (!disableClose) sliderHandle.destroy();
+            return;
+          }
           initSlider();
         });
 
