@@ -27,7 +27,8 @@
     "test:e2e": {
       "dependsOn": ["build"],
       "inputs": ["$TURBO_DEFAULT$", "src/**", "e2e/**", "playwright.config.ts"],
-      "outputs": ["playwright-report/**", "test-results/**"]
+      "outputs": ["playwright-report/**", "test-results/**"],
+      "passThroughEnv": ["PLAYWRIGHT_BROWSERS_PATH"]
     },
     "test:ssr": {
       "dependsOn": ["build"],
