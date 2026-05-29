@@ -112,6 +112,14 @@ export interface EmbedConfig {
   autoOpen?: AutoOpenConfig;
   /** When true, prevents the user from closing the popup/slider (hides close button, disables overlay click and ESC key) */
   disableClose?: boolean;
+  /**
+   * Slider display mode. `"overlay"` (default) floats the panel over the page
+   * with a dimming backdrop that closes on outside click. `"push"` shifts the
+   * page content aside so the slider occupies real layout space — no backdrop,
+   * and clicking the page does not close it. Falls back to `"overlay"` on narrow
+   * viewports. Only used for slider-type embeds.
+   */
+  sliderMode?: "overlay" | "push";
   /** When true, skips JSON-LD structured data injection into the parent page. Other attribution signals (data attributes, global metadata, HTML comments) remain active. */
   disableJsonLdAttribution?: boolean;
   /** Customize the floating launcher button appearance. Only used for float-type embeds. */

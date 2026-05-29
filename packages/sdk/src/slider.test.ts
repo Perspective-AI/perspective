@@ -277,6 +277,97 @@ describe("openSlider", () => {
     });
   });
 
+  describe("sliderMode: push", () => {
+    const setViewport = (width: number) => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: width,
+      });
+    };
+
+    afterEach(() => {
+      setViewport(1024);
+      document.documentElement.style.marginRight = "";
+      document.documentElement.style.transition = "";
+    });
+
+    it("omits backdrop and pushes the page in push mode", () => {
+      setViewport(1024);
+      const handle = openSlider({
+        researchId: "test-research-id",
+        sliderMode: "push",
+      });
+
+      expect(
+        document.querySelector(".perspective-slider-backdrop")
+      ).toBeFalsy();
+      expect(document.querySelector(".perspective-slider-push")).toBeTruthy();
+      expect(document.documentElement.style.marginRight).not.toBe("");
+
+      handle.unmount();
+    });
+
+    it("restores page margin on close", () => {
+      setViewport(1024);
+      const handle = openSlider({
+        researchId: "test-research-id",
+        sliderMode: "push",
+      });
+
+      handle.unmount();
+
+      expect(document.documentElement.style.marginRight).toBe("");
+    });
+
+    it("does not close on page interaction (no backdrop)", () => {
+      setViewport(1024);
+      const onClose = vi.fn();
+      const handle = openSlider({
+        researchId: "test-research-id",
+        sliderMode: "push",
+        onClose,
+      });
+
+      document.body.click();
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("falls back to overlay on narrow viewports", () => {
+      setViewport(480);
+      const handle = openSlider({
+        researchId: "test-research-id",
+        sliderMode: "push",
+      });
+
+      expect(
+        document.querySelector(".perspective-slider-backdrop")
+      ).toBeTruthy();
+      expect(document.querySelector(".perspective-slider-push")).toBeFalsy();
+      expect(document.documentElement.style.marginRight).toBe("");
+
+      handle.unmount();
+    });
+
+    it("overlay mode is unchanged (default)", () => {
+      const handle = openSlider({
+        researchId: "test-research-id",
+        sliderMode: "overlay",
+      });
+
+      expect(
+        document.querySelector(".perspective-slider-backdrop")
+      ).toBeTruthy();
+      expect(document.documentElement.style.marginRight).toBe("");
+
+      handle.unmount();
+    });
+  });
+
   describe("update() behavior", () => {
     const host = "https://getperspective.ai";
     const researchId = "test-research-id";

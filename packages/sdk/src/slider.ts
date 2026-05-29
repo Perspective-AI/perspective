@@ -19,6 +19,9 @@ import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
 
+/** Below this viewport width, "push" mode falls back to "overlay" so content isn't shoved off-screen. */
+const PUSH_MIN_VIEWPORT = 640;
+
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
     unmount: () => {},
@@ -44,7 +47,12 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   injectStyles();
   ensureGlobalListeners();
 
-  // Create backdrop
+  // Push mode shifts page content aside instead of overlaying it. Falls back
+  // to overlay on narrow viewports where there's no room to push.
+  const isPush =
+    config.sliderMode === "push" && window.innerWidth >= PUSH_MIN_VIEWPORT;
+
+  // Create backdrop (overlay mode only — push mode keeps the page interactive)
   const backdrop = document.createElement("div");
   backdrop.className = cn(
     "perspective-slider-backdrop perspective-embed-root",
@@ -55,6 +63,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   const slider = document.createElement("div");
   slider.className = cn(
     "perspective-slider perspective-embed-root",
+    isPush && "perspective-slider-push",
     getThemeClass(config.theme)
   );
 
@@ -88,9 +97,36 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   slider.appendChild(closeBtn);
   slider.appendChild(loading);
   slider.appendChild(iframe);
-  document.body.appendChild(backdrop);
+  if (!isPush) {
+    document.body.appendChild(backdrop);
+  }
   document.body.appendChild(slider);
   enrichContainer(slider, "slider", config);
+
+  // Push mode: shrink the page by the slider's width, animated in sync with the
+  // slide-in. Margin lives on <html> to avoid clobbering site-set body margins.
+  const root = document.documentElement;
+  const prevRootMarginRight = root.style.marginRight;
+  const prevRootTransition = root.style.transition;
+  const syncPush = () => {
+    const fits = window.innerWidth >= PUSH_MIN_VIEWPORT;
+    root.style.marginRight = fits
+      ? `${slider.getBoundingClientRect().width}px`
+      : "0px";
+  };
+  if (isPush) {
+    root.style.transition = "margin-right 0.3s ease-out";
+    syncPush();
+    window.addEventListener("resize", syncPush);
+  }
+  const removePush = () => {
+    if (!isPush) return;
+    window.removeEventListener("resize", syncPush);
+    root.style.marginRight = prevRootMarginRight;
+    setTimeout(() => {
+      root.style.transition = prevRootTransition;
+    }, 300);
+  };
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
@@ -126,6 +162,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     isOpen = false;
     messageCleanup?.();
     unregisterIframe();
+    removePush();
     slider.remove();
     backdrop.remove();
     document.removeEventListener("keydown", escHandler);
@@ -184,7 +221,10 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
 
   if (!config.disableClose) {
     closeBtn.addEventListener("click", destroy);
-    backdrop.addEventListener("click", destroy);
+    // Push mode has no backdrop — page stays interactive and clicks don't close.
+    if (!isPush) {
+      backdrop.addEventListener("click", destroy);
+    }
     document.addEventListener("keydown", escHandler);
   }
 

@@ -221,8 +221,8 @@ export function injectStyles(): void {
     }
 
     .perspective-slider .perspective-close {
-      top: 1rem;
-      right: 2rem;
+      top: 1.2rem;
+      right: 1.5rem;
     }
 
     /* Slider backdrop */

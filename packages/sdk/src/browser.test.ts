@@ -302,6 +302,27 @@ describe("browser entry", () => {
 
       expect(document.querySelector(".perspective-slider")).toBeTruthy();
     });
+
+    it("toggles the slider closed on a second trigger click", async () => {
+      document.body.innerHTML = `
+        <button data-perspective-slider="slider1">Toggle</button>
+      `;
+      autoInit();
+      await flushConfigFetch();
+
+      const button = document.querySelector(
+        "[data-perspective-slider]"
+      ) as HTMLButtonElement;
+
+      button.click();
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+
+      button.click();
+      expect(document.querySelector(".perspective-slider")).toBeFalsy();
+
+      button.click();
+      expect(document.querySelector(".perspective-slider")).toBeTruthy();
+    });
   });
 
   describe("destroyAll", () => {
