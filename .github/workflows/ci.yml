@@ -67,6 +67,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The container runs as root but the mounted workspace is owned by the
+      # host runner UID, so git's dubious-ownership guard blocks the lefthook
+      # postinstall hook. Trust the workspace before install runs.
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
