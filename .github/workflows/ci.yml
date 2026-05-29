@@ -58,25 +58,10 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: ci
-    # Browsers + system deps are pre-baked into this image, so there is no
-    # `playwright install` download step (it deterministically stalled on the CDN).
-    # Keep the tag in sync with the @playwright/test version in the root package.json.
-    container:
-      image: mcr.microsoft.com/playwright:v1.57.0-noble
-    # GitHub overrides HOME to /github/home in container jobs, so Playwright
-    # looks for browsers in the default ~/.cache path instead of where the
-    # image bakes them. Point it at the image's browser location.
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
-
-      # The container runs as root but the mounted workspace is owned by the
-      # host runner UID, so git's dubious-ownership guard blocks the lefthook
-      # postinstall hook. Trust the workspace before install runs.
-      - name: Trust workspace for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: pnpm/action-setup@v4
 
@@ -89,6 +74,28 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Key on the lockfile so the cache tracks the resolved Playwright version.
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      # System deps (apt) install cleanly on their own — kept separate from the
+      # browser download, which previously stalled after the Chromium binary
+      # finished. Each download attempt is killed if it stalls and retried on a
+      # fresh connection; cached/already-fetched browsers make retries no-ops.
+      - name: Install Playwright system deps
+        run: pnpm --filter @perspective-ai/sdk exec playwright install-deps chromium
+
+      - name: Install Playwright browsers
+        run: |
+          for i in 1 2 3; do
+            timeout 240 pnpm --filter @perspective-ai/sdk exec playwright install chromium && exit 0
+            echo "::warning::playwright browser download attempt $i stalled or failed; retrying"
+          done
+          exit 1
 
       - name: Test E2E
         run: pnpm test:e2e
