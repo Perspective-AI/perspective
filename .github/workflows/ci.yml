@@ -63,6 +63,11 @@ jobs:
     # Keep the tag in sync with the @playwright/test version in the root package.json.
     container:
       image: mcr.microsoft.com/playwright:v1.57.0-noble
+    # GitHub overrides HOME to /github/home in container jobs, so Playwright
+    # looks for browsers in the default ~/.cache path instead of where the
+    # image bakes them. Point it at the image's browser location.
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
 
     steps:
       - uses: actions/checkout@v4
