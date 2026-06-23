@@ -6,6 +6,8 @@ import {
   resolveTheme,
   normalizeHex,
   hexToRgba,
+  relativeLuminance,
+  readableTextColor,
 } from "./utils";
 import * as config from "./config";
 
@@ -158,5 +160,46 @@ describe("hexToRgba", () => {
   it("returns default color for invalid hex", () => {
     expect(hexToRgba("invalid", 0.5)).toBe("rgba(118, 41, 200, 0.5)");
     expect(hexToRgba("#abc", 0.5)).toBe("rgba(118, 41, 200, 0.5)"); // 3-char hex not supported
+  });
+});
+
+describe("relativeLuminance", () => {
+  it("returns 0 for black and 1 for white", () => {
+    expect(relativeLuminance("#000000")).toBe(0);
+    expect(relativeLuminance("#ffffff")).toBeCloseTo(1, 5);
+  });
+
+  it("supports shorthand and alpha hex (alpha ignored)", () => {
+    expect(relativeLuminance("#fff")).toBeCloseTo(1, 5);
+    expect(relativeLuminance("#000000ff")).toBe(0);
+  });
+
+  it("returns undefined for unparseable input", () => {
+    expect(relativeLuminance("notacolor")).toBeUndefined();
+    expect(relativeLuminance("")).toBeUndefined();
+  });
+});
+
+describe("readableTextColor", () => {
+  it("uses black text on light backgrounds", () => {
+    expect(readableTextColor("#ffffff")).toBe("#000000");
+    expect(readableTextColor("#ffe066")).toBe("#000000"); // light yellow
+    expect(readableTextColor("#e5e7eb")).toBe("#000000"); // light gray
+  });
+
+  it("uses white text on dark backgrounds", () => {
+    expect(readableTextColor("#000000")).toBe("#ffffff");
+    expect(readableTextColor("#7c3aed")).toBe("#ffffff"); // brand purple
+    expect(readableTextColor("#111827")).toBe("#ffffff"); // near-black
+  });
+
+  it("accepts hex without leading # and shorthand", () => {
+    expect(readableTextColor("fff")).toBe("#000000");
+    expect(readableTextColor("000")).toBe("#ffffff");
+  });
+
+  it("returns undefined for unparseable input so callers can fall back", () => {
+    expect(readableTextColor("var(--brand)")).toBeUndefined();
+    expect(readableTextColor("")).toBeUndefined();
   });
 });

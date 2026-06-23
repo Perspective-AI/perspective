@@ -71,6 +71,64 @@ export function normalizeHex(color: string): string | undefined {
 }
 
 /**
+ * Strictly parse a hex color (#RGB / #RRGGBB / #RRGGBBAA, with or without a
+ * leading #) into 8-bit RGB channels. Returns undefined for anything that
+ * isn't a well-formed hex string — unlike normalizeHex, this does NOT try to
+ * salvage hex characters out of arbitrary input, so callers can reliably fall
+ * back when given a non-hex CSS color (e.g. "var(--brand)" or "rebeccapurple").
+ */
+function hexToRgb(
+  hex: string
+): { r: number; g: number; b: number } | undefined {
+  let h = hex.trim().replace(/^#/, "");
+  if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(h)) {
+    return undefined;
+  }
+  // Expand shorthand (abc -> aabbcc)
+  if (h.length === 3) {
+    h = h
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  // Drop alpha if present (RRGGBBAA)
+  if (h.length === 8) h = h.slice(0, 6);
+
+  const n = parseInt(h, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+/**
+ * WCAG relative luminance (0–1) of a hex color, or undefined if unparseable.
+ * https://www.w3.org/TR/WCAG20/#relativeluminancedef
+ */
+export function relativeLuminance(hex: string): number | undefined {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return undefined;
+
+  const channel = (c: number): number => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return (
+    0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
+  );
+}
+
+/**
+ * Pick a readable foreground (`#000000` or `#ffffff`) for a given background
+ * color, based on its WCAG relative luminance. The ~0.179 threshold is the
+ * crossover where black vs. white text yield equal contrast ratios against the
+ * background. Returns undefined if the background isn't a parseable hex, so
+ * callers can fall back to a preconfigured color.
+ */
+export function readableTextColor(bgHex: string): string | undefined {
+  const luminance = relativeLuminance(bgHex);
+  if (luminance === undefined) return undefined;
+  return luminance > 0.179 ? "#000000" : "#ffffff";
+}
+
+/**
  * Convert hex to rgba for spinner track
  */
 export function hexToRgba(hex: string, alpha: number): string {

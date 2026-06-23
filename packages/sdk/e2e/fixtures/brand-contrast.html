@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Perspective SDK — Trigger Button Brand Contrast</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        margin: 0;
+        padding: 1.5rem;
+        background: #f5f5f7;
+        color: #111;
+      }
+      h1 {
+        font-size: 1.1rem;
+        margin: 0 0 0.25rem;
+      }
+      p.note {
+        margin: 0 0 1.25rem;
+        color: #555;
+        font-size: 0.85rem;
+        max-width: 760px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 0.5rem 1rem;
+        align-items: center;
+        max-width: 600px;
+      }
+      .label {
+        font-family: ui-monospace, monospace;
+        font-size: 0.8rem;
+        color: #444;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Visual fixture for the SDK trigger-button foreground contrast.
+
+      Each button below opens a popup and is styled by the SDK's real
+      updateButtonTheme(): background = brand.primary, foreground = a readable
+      color chosen from that background's luminance (readableTextColor). Light
+      brand colors should get dark text, dark colors should get white text.
+
+      Serve and open it:  pnpm exec serve e2e/fixtures -l 3456
+      then visit http://localhost:3456/brand-contrast.html
+    -->
+    <h1>
+      SDK trigger button — foreground contrast across <code>brand.primary</code>
+    </h1>
+    <p class="note">
+      Buttons are styled by the live SDK. The text color is derived from the
+      brand background, so a light <code>primary</code> gets dark text instead
+      of unreadable white. (Uses a placeholder research id; clicking opens a
+      popup against the configured host.)
+    </p>
+
+    <div class="grid">
+      <div class="label">#7c3aed (default)</div>
+      <button
+        data-perspective-popup="brand-contrast-demo"
+        data-perspective-brand="primary=#7c3aed"
+      >
+        Start interview
+      </button>
+
+      <div class="label">#ffe066 (light yellow)</div>
+      <button
+        data-perspective-popup="brand-contrast-demo"
+        data-perspective-brand="primary=#ffe066"
+      >
+        Start interview
+      </button>
+
+      <div class="label">#00e0a4 (mint)</div>
+      <button
+        data-perspective-popup="brand-contrast-demo"
+        data-perspective-brand="primary=#00e0a4"
+      >
+        Start interview
+      </button>
+
+      <div class="label">#ffffff (white)</div>
+      <button
+        data-perspective-popup="brand-contrast-demo"
+        data-perspective-brand="primary=#ffffff"
+      >
+        Start interview
+      </button>
+
+      <div class="label">#111827 (near-black)</div>
+      <button
+        data-perspective-popup="brand-contrast-demo"
+        data-perspective-brand="primary=#111827"
+      >
+        Start interview
+      </button>
+
+      <div class="label">#e5e7eb (light gray)</div>
+      <button
+        data-perspective-popup="brand-contrast-demo"
+        data-perspective-brand="primary=#e5e7eb"
+      >
+        Start interview
+      </button>
+    </div>
+
+    <script src="/sdk/perspective.global.js"></script>
+  </body>
+</html>

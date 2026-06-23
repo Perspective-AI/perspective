@@ -21,7 +21,7 @@ import {
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
-import { cn, getThemeClass, resolveIsDark } from "./utils";
+import { cn, getThemeClass, resolveIsDark, readableTextColor } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
 
@@ -227,6 +227,9 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       `0 6px 16px ${bg}80`
     );
     bubble.style.backgroundColor = bg;
+    // Keep the icon (currentColor) readable on a light brand.primary; the CSS
+    // default is white, so fall back to white when bg isn't a parseable hex.
+    bubble.style.color = readableTextColor(bg) ?? "#ffffff";
     bubble.style.boxShadow = `0 4px 12px ${bg}66`;
   }
 
@@ -614,6 +617,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
             `0 6px 16px ${bg}80`
           );
           bubble.style.backgroundColor = bg;
+          bubble.style.color = readableTextColor(bg) ?? "#ffffff";
           bubble.style.boxShadow = `0 4px 12px ${bg}66`;
         }
       }
