@@ -130,10 +130,10 @@ interface EmbedConfig {
 }
 
 interface BrandColors {
-  primary?: string; // Primary brand color
-  secondary?: string; // Secondary brand color
-  bg?: string; // Background color
-  text?: string; // Text color
+  primary?: string; // Primary accent — buttons, progress bar, links, mic, focus rings
+  bg?: string; // Interview background behind the card, shown only when no background scene is set
+  secondary?: string; // @deprecated — ignored, no longer forwarded (no-op)
+  text?: string; // @deprecated — ignored, no longer forwarded (no-op)
 }
 ```
 

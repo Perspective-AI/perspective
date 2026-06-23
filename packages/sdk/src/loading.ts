@@ -10,7 +10,7 @@
 
 import type { BrandColors, ThemeValue } from "./types";
 import { hasDom } from "./config";
-import { resolveTheme } from "./utils";
+import { resolveTheme, readableTextColor } from "./utils";
 
 /** Default background + semi-transparent shimmer that works on any bg */
 const DEFAULT_COLORS = {
@@ -54,10 +54,18 @@ function getLoadingColors(options?: LoadingOptions): {
   const theme = resolveTheme(options?.theme);
   const isDark = theme === "dark";
   const brandColors = isDark ? options?.brand?.dark : options?.brand?.light;
-  const defaults = isDark ? DEFAULT_COLORS.dark : DEFAULT_COLORS.light;
+  const bg = brandColors?.bg;
+
+  // Choose the shimmer/border palette from the actual background luminance when
+  // a brand bg is set, so a dark brand.bg under a light theme (or vice versa)
+  // still gets visible shimmer and borders. readableTextColor returns white for
+  // dark backgrounds; fall back to the theme default for non-hex bg values.
+  const fg = bg ? readableTextColor(bg) : undefined;
+  const useDarkPalette = fg ? fg === "#ffffff" : isDark;
+  const defaults = useDarkPalette ? DEFAULT_COLORS.dark : DEFAULT_COLORS.light;
 
   return {
-    bg: brandColors?.bg || defaults.bg,
+    bg: bg || defaults.bg,
     shimmer: defaults.shimmer,
     shimmerHighlight: defaults.shimmerHighlight,
     border: defaults.border,

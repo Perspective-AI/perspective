@@ -78,6 +78,27 @@ describe("createLoadingIndicator", () => {
     expect(el.style.background).toBe("#1a3a2a");
   });
 
+  it("uses a dark shimmer/border palette for a dark brand bg under light theme", () => {
+    const el = createLoadingIndicator({
+      theme: "light",
+      brand: { light: { bg: "#0a0a0a" } }, // dark bg despite light theme
+    });
+    expect(el.style.background).toBe("#0a0a0a");
+    // Dark palette uses white-based translucent shimmer/borders so they stay visible
+    expect(el.innerHTML).toContain("rgba(255, 255, 255");
+    expect(el.innerHTML).not.toContain("rgba(0, 0, 0");
+  });
+
+  it("uses a light shimmer/border palette for a light brand bg under dark theme", () => {
+    const el = createLoadingIndicator({
+      theme: "dark",
+      brand: { dark: { bg: "#fafafa" } }, // light bg despite dark theme
+    });
+    expect(el.style.background).toBe("#fafafa");
+    expect(el.innerHTML).toContain("rgba(0, 0, 0");
+    expect(el.innerHTML).not.toContain("rgba(255, 255, 255");
+  });
+
   it("has column layout with padding", () => {
     const el = createLoadingIndicator();
     expect(el.style.flexDirection).toBe("column");

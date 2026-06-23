@@ -673,6 +673,35 @@ describe("createFloatBubble", () => {
       handle.unmount();
     });
 
+    it("sets a readable icon color for a light brand.primary", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        brand: { light: { primary: "#ffe066" } }, // light yellow
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      // Icon is currentColor; on a light bg it must be dark, not the default white
+      expect(bubble.style.color).toBe("#000000");
+
+      handle.unmount();
+    });
+
+    it("keeps white icon color for a dark brand.primary", () => {
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        brand: { light: { primary: "#7c3aed" } }, // brand purple
+      });
+
+      const bubble = document.querySelector(
+        ".perspective-float-bubble"
+      ) as HTMLButtonElement;
+      expect(bubble.style.color).toBe("#ffffff");
+
+      handle.unmount();
+    });
+
     it("className is added to bubble classList", () => {
       const handle = createFloatBubble({
         researchId: "test-research-id",

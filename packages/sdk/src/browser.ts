@@ -46,7 +46,7 @@ import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
 import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
-import { resolveIsDark } from "./utils";
+import { resolveIsDark, readableTextColor } from "./utils";
 import { injectGlobalMetadata } from "./attribution";
 import { perfLog } from "./perf";
 
@@ -161,9 +161,14 @@ function updateButtonTheme(el: HTMLElement, config: ButtonStyleConfig): void {
   const bg = isDark
     ? (brand?.dark?.primary ?? themeConfig.darkPrimaryColor)
     : (brand?.light?.primary ?? themeConfig.primaryColor);
-  const text = isDark
-    ? (brand?.dark?.text ?? themeConfig.darkTextColor)
-    : (brand?.light?.text ?? themeConfig.textColor);
+  // Choose a foreground that contrasts with the resolved background so a light
+  // brand.primary doesn't end up with unreadable white text. Falls back to the
+  // preconfigured text color when bg isn't a parseable hex (e.g. a CSS color
+  // string from server config) so existing themes keep their chosen color.
+  const configuredText = isDark
+    ? themeConfig.darkTextColor
+    : themeConfig.textColor;
+  const text = readableTextColor(bg) ?? configuredText;
 
   el.style.backgroundColor = bg;
   el.style.color = text;
@@ -235,12 +240,7 @@ function parseBrandAttr(attrValue: string | null): BrandColors | undefined {
       const value = valueParts.join("=").trim();
       if (value) {
         const k = key.trim() as keyof BrandColors;
-        if (
-          k === "primary" ||
-          k === "secondary" ||
-          k === "bg" ||
-          k === "text"
-        ) {
+        if (k === "primary" || k === "bg") {
           colors[k] = value;
         }
       }
@@ -760,6 +760,7 @@ function autoInit(): void {
               `0 6px 16px ${bg}80`
             );
             bubble.style.backgroundColor = bg;
+            bubble.style.color = readableTextColor(bg) ?? "#ffffff";
             bubble.style.boxShadow = `0 4px 12px ${bg}66`;
           }
         }
