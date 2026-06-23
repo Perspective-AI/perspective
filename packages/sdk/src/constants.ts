@@ -50,15 +50,11 @@ export type ParamKey = (typeof PARAM_KEYS)[keyof typeof PARAM_KEYS];
 export const BRAND_KEYS = {
   // Light mode
   primary: "brand.primary",
-  secondary: "brand.secondary",
   bg: "brand.bg",
-  text: "brand.text",
 
   // Dark mode
   darkPrimary: "brand.dark.primary",
-  darkSecondary: "brand.dark.secondary",
   darkBg: "brand.dark.bg",
-  darkText: "brand.dark.text",
 } as const;
 
 export type BrandKey = (typeof BRAND_KEYS)[keyof typeof BRAND_KEYS];

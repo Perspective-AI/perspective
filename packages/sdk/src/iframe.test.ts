@@ -206,15 +206,16 @@ describe("createIframe", () => {
       "https://getperspective.ai",
       undefined,
       {
-        light: { primary: "#ff0000", secondary: "#00ff00" },
-        dark: { primary: "#0000ff" },
+        light: { primary: "#ff0000", bg: "#00ff00" },
+        dark: { primary: "#0000ff", bg: "#111111" },
       }
     );
 
     const src = new URL(iframe.src);
     expect(src.searchParams.get("brand.primary")).toBe("#ff0000");
-    expect(src.searchParams.get("brand.secondary")).toBe("#00ff00");
+    expect(src.searchParams.get("brand.bg")).toBe("#00ff00");
     expect(src.searchParams.get("brand.dark.primary")).toBe("#0000ff");
+    expect(src.searchParams.get("brand.dark.bg")).toBe("#111111");
   });
 
   it("sets sandbox attribute", () => {

@@ -44,13 +44,21 @@ export interface AutoOpenConfig {
 
 /** Brand colors that can be passed via embed code */
 export interface BrandColors {
-  /** Primary accent color (buttons, links, focus states) */
+  /** Primary accent color — themes buttons, progress bar, links, mic, and focus rings */
   primary?: string;
-  /** Secondary accent color */
-  secondary?: string;
-  /** Background color of the embed */
+  /** Interview background behind the card, shown only when no background scene is set */
   bg?: string;
-  /** Primary text color */
+  /**
+   * @deprecated No longer supported — ignored by the interview app and not
+   * forwarded by the SDK. Kept only to avoid breaking TypeScript consumers that
+   * still reference it. Use `primary`/`bg`; this field is a no-op.
+   */
+  secondary?: string;
+  /**
+   * @deprecated No longer supported — ignored by the interview app and not
+   * forwarded by the SDK. Kept only to avoid breaking TypeScript consumers that
+   * still reference it. Use `primary`/`bg`; this field is a no-op.
+   */
   text?: string;
 }
 

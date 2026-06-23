@@ -161,9 +161,7 @@ function updateButtonTheme(el: HTMLElement, config: ButtonStyleConfig): void {
   const bg = isDark
     ? (brand?.dark?.primary ?? themeConfig.darkPrimaryColor)
     : (brand?.light?.primary ?? themeConfig.primaryColor);
-  const text = isDark
-    ? (brand?.dark?.text ?? themeConfig.darkTextColor)
-    : (brand?.light?.text ?? themeConfig.textColor);
+  const text = isDark ? themeConfig.darkTextColor : themeConfig.textColor;
 
   el.style.backgroundColor = bg;
   el.style.color = text;
@@ -235,12 +233,7 @@ function parseBrandAttr(attrValue: string | null): BrandColors | undefined {
       const value = valueParts.join("=").trim();
       if (value) {
         const k = key.trim() as keyof BrandColors;
-        if (
-          k === "primary" ||
-          k === "secondary" ||
-          k === "bg" ||
-          k === "text"
-        ) {
+        if (k === "primary" || k === "bg") {
           colors[k] = value;
         }
       }

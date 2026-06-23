@@ -256,17 +256,13 @@ function buildIframeUrl(
   // Add brand colors using short keys
   if (brand?.light) {
     setColor(BRAND_KEYS.primary, brand.light.primary);
-    setColor(BRAND_KEYS.secondary, brand.light.secondary);
     setColor(BRAND_KEYS.bg, brand.light.bg);
-    setColor(BRAND_KEYS.text, brand.light.text);
   }
 
   // Add dark mode brand colors
   if (brand?.dark) {
     setColor(BRAND_KEYS.darkPrimary, brand.dark.primary);
-    setColor(BRAND_KEYS.darkSecondary, brand.dark.secondary);
     setColor(BRAND_KEYS.darkBg, brand.dark.bg);
-    setColor(BRAND_KEYS.darkText, brand.dark.text);
   }
 
   // Add custom params, filtering out reserved keys
