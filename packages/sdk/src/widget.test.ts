@@ -30,6 +30,94 @@ describe("createWidget", () => {
     handle.unmount();
   });
 
+  it("applies the framed card class for a bare drop-in container", () => {
+    const handle = createWidget(container, {
+      researchId: "test-research-id",
+    });
+
+    const wrapper = container.querySelector(".perspective-embed-root");
+    // An unsized container gets the centered, framed card default. The visual
+    // defaults come from these classes in the injected stylesheet so host
+    // pages can override them with plain CSS.
+    expect(wrapper?.classList.contains("perspective-widget")).toBe(true);
+    expect(wrapper?.classList.contains("perspective-widget-card")).toBe(true);
+
+    handle.unmount();
+  });
+
+  it("fills the container (no card framing) when the host sized it", () => {
+    // Custom "full page" layouts size the container themselves; we must not
+    // collapse them into a centered card. An explicit height signals intent.
+    container.style.height = "600px";
+
+    const handle = createWidget(container, {
+      researchId: "test-research-id",
+    });
+
+    const wrapper = container.querySelector(".perspective-embed-root");
+    expect(wrapper?.classList.contains("perspective-widget")).toBe(true);
+    expect(wrapper?.classList.contains("perspective-widget-card")).toBe(false);
+
+    handle.unmount();
+  });
+
+  it("frame.layout:'fill' forces fill mode on a bare container", () => {
+    const handle = createWidget(container, {
+      researchId: "test-research-id",
+      frame: { layout: "fill" },
+    });
+
+    const wrapper = container.querySelector(".perspective-embed-root");
+    expect(wrapper?.classList.contains("perspective-widget-card")).toBe(false);
+
+    handle.unmount();
+  });
+
+  it("frame.layout:'card' forces the card even when the host sized it", () => {
+    container.style.height = "600px";
+
+    const handle = createWidget(container, {
+      researchId: "test-research-id",
+      frame: { layout: "card" },
+    });
+
+    const wrapper = container.querySelector(".perspective-embed-root");
+    expect(wrapper?.classList.contains("perspective-widget-card")).toBe(true);
+
+    handle.unmount();
+  });
+
+  it("applies frame appearance as CSS variables on the wrapper", () => {
+    const handle = createWidget(container, {
+      researchId: "test-research-id",
+      frame: {
+        radius: "4px",
+        border: "none",
+        shadow: "none",
+        background: "#fff",
+        maxWidth: "720px",
+        minHeight: "720px",
+      },
+    });
+
+    const wrapper = container.querySelector<HTMLElement>(
+      ".perspective-embed-root"
+    );
+    const style = wrapper!.style;
+    expect(style.getPropertyValue("--perspective-widget-radius")).toBe("4px");
+    expect(style.getPropertyValue("--perspective-widget-border")).toBe("none");
+    expect(style.getPropertyValue("--perspective-widget-shadow")).toBe("none");
+    expect(style.getPropertyValue("--perspective-widget-bg")).toBe("#fff");
+    expect(style.getPropertyValue("--perspective-widget-max-width")).toBe(
+      "720px"
+    );
+    expect(style.getPropertyValue("--perspective-widget-min-height")).toBe(
+      "720px"
+    );
+
+    handle.unmount();
+  });
+
   it("creates loading indicator", () => {
     const handle = createWidget(container, {
       researchId: "test-research-id",

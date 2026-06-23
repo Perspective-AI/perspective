@@ -68,6 +68,41 @@ export function injectStyles(): void {
       }
     }
 
+    /* Inline widget. The base layer fills the host container exactly — this is
+       the original, non-opinionated behaviour, used whenever the host has sized
+       the container (full-bleed / custom layouts). When the container is an
+       unsized drop-in, the SDK additionally applies perspective-widget-card
+       for a centered, framed card so it looks finished with zero CSS. Both
+       knobs are plain custom properties the host can override. */
+    .perspective-widget {
+      position: relative;
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      min-height: var(--perspective-widget-min-height, 500px);
+    }
+
+    .perspective-widget.perspective-widget-card {
+      max-width: var(--perspective-widget-max-width, 480px);
+      margin-left: auto;
+      margin-right: auto;
+      min-height: var(--perspective-widget-min-height, 640px);
+      background: var(--perspective-widget-bg, var(--perspective-modal-bg));
+      color: var(--perspective-modal-text);
+      border: var(--perspective-widget-border, 1px solid var(--perspective-border));
+      border-radius: var(--perspective-widget-radius, var(--perspective-radius));
+      box-shadow: var(--perspective-widget-shadow, var(--perspective-shadow-lg));
+      overflow: hidden;
+    }
+
+    .perspective-widget iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: inherit;
+      border: none;
+    }
+
     /* Scrollbar styling */
     .perspective-modal,
     .perspective-slider,

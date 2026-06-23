@@ -74,6 +74,7 @@ export type {
   LauncherConfig,
   LauncherIcon,
   LauncherStyle,
+  FrameConfig,
 } from "./types";
 
 // Re-export commonly used constants and types

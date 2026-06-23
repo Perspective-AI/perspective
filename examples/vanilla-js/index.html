@@ -27,12 +27,6 @@
         margin-top: 0;
         font-size: 1.25rem;
       }
-      .widget-container {
-        height: 500px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        overflow: hidden;
-      }
       button {
         background: #7c3aed;
         color: white;
@@ -57,9 +51,12 @@
       <h2>Widget Embed (Data Attributes)</h2>
       <p>
         Uses <code>data-perspective-widget</code> for automatic initialization.
+        The widget renders as a centered, framed card by default — no wrapper
+        styling required. Override the width with the
+        <code>--perspective-widget-max-width</code> CSS variable if you want it
+        wider or full-bleed.
       </p>
       <div
-        class="widget-container"
         data-perspective-widget="YOUR_RESEARCH_ID"
         data-perspective-params="source=example,page=demo"
       ></div>

@@ -88,6 +88,7 @@ export const DATA_ATTRS = {
   showOnce: "data-perspective-show-once",
   disableClose: "data-perspective-disable-close",
   sliderMode: "data-perspective-slider-mode",
+  frame: "data-perspective-frame",
   launcherIcon: "data-perspective-launcher-icon",
   launcherStyle: "data-perspective-launcher-style",
   launcherClass: "data-perspective-launcher-class",

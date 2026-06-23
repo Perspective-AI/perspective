@@ -77,6 +77,63 @@ function createExistingWidgetHandle(
   };
 }
 
+/**
+ * Has the host given the widget container an explicit width or height?
+ *
+ * The centered, framed card is only a default for a *bare* drop-in. The moment
+ * the host sizes the container — inline OR via a stylesheet / flex / grid
+ * layout — we fill it exactly and skip the card's max-width / min-height, so an
+ * embed that already lives in a sized box (e.g. a `height: 100%` / `h-full`
+ * child of a sized flex or grid parent, or `.container { height: 500px }`) keeps
+ * its existing full-bleed layout.
+ *
+ * Detection:
+ *  1. Inline width/height (incl. min/max), flex, aspect-ratio, or out-of-flow
+ *     positioning — covers `style="..."`, including `width: 100%`.
+ *  2. A *resolved* computed height: an empty block box is ~0px tall until we
+ *     fill it, so any real height means a stylesheet / flex / grid sized it
+ *     (this is how `height: 100%` / Tailwind `h-full` is picked up).
+ *
+ * This is a best-effort read of author intent at mount time, not a guarantee —
+ * e.g. a bare drop-in that happens to be a stretched flex-row child resolves to
+ * a height and reads as "sized". `frame.layout` is the explicit override when
+ * the detection guesses wrong, in either direction.
+ *
+ * We deliberately do NOT infer an author width by measuring against the parent:
+ * an empty flex/grid child collapses to ~0px wide, which would misfire and
+ * shrink a bare drop-in. Width set purely via stylesheet (no inline width, no
+ * height) is uncommon; size the container or use the CSS variables instead.
+ */
+function hostControlsLayout(container: HTMLElement): boolean {
+  const s = container.style;
+  if (
+    s.width ||
+    s.minWidth ||
+    s.maxWidth ||
+    s.height ||
+    s.minHeight ||
+    s.maxHeight ||
+    s.flex ||
+    s.flexBasis ||
+    s.flexGrow ||
+    s.aspectRatio ||
+    s.position === "absolute" ||
+    s.position === "fixed"
+  ) {
+    return true;
+  }
+
+  try {
+    // Author-set height (stylesheet / flex / grid / height:100%). A bare block
+    // box reports ~0px tall here, so any real height means the host sized it.
+    if (parseFloat(getComputedStyle(container).height) > 1) return true;
+  } catch {
+    /* getComputedStyle unavailable (extremely rare) */
+  }
+
+  return false;
+}
+
 export function createWidget(
   container: HTMLElement | null,
   config: InternalEmbedConfig
@@ -101,11 +158,39 @@ export function createWidget(
   injectStyles();
   ensureGlobalListeners();
 
-  // Create wrapper for positioning
+  // Create wrapper for positioning. Visual defaults live in the injected
+  // `.perspective-widget` stylesheet rules so host pages can override them
+  // with ordinary CSS. The opinionated card framing is applied when the layout
+  // resolves to "card": an explicit `frame.layout` always wins; otherwise we
+  // best-effort detect whether the host already controls the container's box
+  // (see hostControlsLayout) so existing full-bleed / custom-layout embeds keep
+  // filling their container.
+  const frame = config.frame;
+  const useCard = frame?.layout
+    ? frame.layout === "card"
+    : !hostControlsLayout(container);
+
   const wrapper = document.createElement("div");
-  wrapper.className = cn("perspective-embed-root", getThemeClass(config.theme));
-  wrapper.style.cssText =
-    "position:relative;width:100%;height:100%;min-height:500px;";
+  wrapper.className = cn(
+    "perspective-embed-root perspective-widget",
+    useCard && "perspective-widget-card",
+    getThemeClass(config.theme)
+  );
+
+  // Frame appearance maps 1:1 to CSS custom properties the card rule reads.
+  // Setting them inline here is equivalent to the host setting the same vars in
+  // CSS — it's just a friendlier surface for JS/React consumers.
+  if (frame) {
+    const setVar = (prop: string, value?: string) => {
+      if (value != null && value !== "") wrapper.style.setProperty(prop, value);
+    };
+    setVar("--perspective-widget-max-width", frame.maxWidth);
+    setVar("--perspective-widget-min-height", frame.minHeight);
+    setVar("--perspective-widget-radius", frame.radius);
+    setVar("--perspective-widget-border", frame.border);
+    setVar("--perspective-widget-shadow", frame.shadow);
+    setVar("--perspective-widget-bg", frame.background);
+  }
 
   // Create loading indicator with theme and brand colors
   const loading = createLoadingIndicator({
@@ -126,9 +211,8 @@ export function createWidget(
     config.brand,
     config.theme
   );
-  iframe.style.width = "100%";
-  iframe.style.height = "100%";
-  iframe.style.minHeight = "500px";
+  // Size/border come from the `.perspective-widget iframe` rule; opacity is
+  // toggled inline as the loading skeleton hands off to the live iframe.
   iframe.style.opacity = "0";
   iframe.style.transition = "opacity 0.15s ease";
 

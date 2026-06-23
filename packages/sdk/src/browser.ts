@@ -21,6 +21,7 @@ import type {
   EmbedConfig,
   EmbedHandle,
   FloatHandle,
+  FrameConfig,
   InternalEmbedConfig,
   ShowOnce,
   ThemeConfig,
@@ -250,6 +251,52 @@ function parseBrandAttr(attrValue: string | null): BrandColors | undefined {
 }
 
 /**
+ * Parse the widget frame from a data attribute, mirroring the brand format:
+ * "layout=fill,radius=4px,shadow=none,background=#fff". Keys accept kebab or
+ * camel case (and `bg` for background). Values containing commas (e.g. a
+ * multi-layer box-shadow) can't be expressed here — use the
+ * `--perspective-widget-*` CSS variable for those.
+ */
+function parseFrameAttr(attrValue: string | null): FrameConfig | undefined {
+  if (!attrValue) return undefined;
+
+  const frame: FrameConfig = {};
+  for (const pair of attrValue.split(",")) {
+    const [key, ...valueParts] = pair.trim().split("=");
+    const k = key?.trim();
+    const value = valueParts.join("=").trim();
+    if (!k || !value) continue;
+    switch (k) {
+      case "layout":
+        if (value === "fill" || value === "card") frame.layout = value;
+        break;
+      case "radius":
+        frame.radius = value;
+        break;
+      case "border":
+        frame.border = value;
+        break;
+      case "shadow":
+        frame.shadow = value;
+        break;
+      case "background":
+      case "bg":
+        frame.background = value;
+        break;
+      case "max-width":
+      case "maxWidth":
+        frame.maxWidth = value;
+        break;
+      case "min-height":
+      case "minHeight":
+        frame.minHeight = value;
+        break;
+    }
+  }
+  return Object.keys(frame).length > 0 ? frame : undefined;
+}
+
+/**
  * Extract brand config and theme from element attributes
  */
 function extractBrandConfig(
@@ -473,12 +520,14 @@ function autoInit(): void {
       if (researchId && !instances.has(researchId)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
+        const frame = parseFrameAttr(el.getAttribute(DATA_ATTRS.frame));
         perfLog("SDK", "autoInit found widget", { researchId });
         mount(el, {
           researchId,
           type: "widget",
           params,
           ...brandConfig,
+          ...(frame && { frame }),
           disableJsonLdAttribution: el.hasAttribute(
             DATA_ATTRS.disableJsonLdAttribution
           ),
