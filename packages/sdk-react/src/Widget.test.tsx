@@ -55,12 +55,15 @@ describe("Widget", () => {
     expect(container.tagName).toBe("DIV");
   });
 
-  it("has default minHeight of 500px", async () => {
+  it("does not force an inline height on the container by default", async () => {
+    // The widget's default height comes from the injected `.perspective-widget`
+    // stylesheet rule, not an inline style. Forcing inline sizing here would
+    // make every widget look "host-sized" and suppress the card default.
     render(<Widget researchId="test-research-id" />);
     await act(async () => {});
 
     const container = screen.getByTestId("perspective-widget");
-    expect(container.style.minHeight).toBe("500px");
+    expect(container.style.minHeight).toBe("");
   });
 
   it("accepts custom className", async () => {
@@ -111,6 +114,19 @@ describe("Widget", () => {
     expect(config.theme).toBe("dark");
     expect(config.host).toBe("https://custom.example.com");
     expect(config.onVisualReady).toBeTypeOf("function");
+  });
+
+  it("forwards the frame object to createWidget", async () => {
+    render(
+      <Widget
+        researchId="test-research-id"
+        frame={{ layout: "fill", radius: "4px" }}
+      />
+    );
+    await act(async () => {});
+
+    const [, config] = mockCreateWidget.mock.calls[0]!;
+    expect(config.frame).toEqual({ layout: "fill", radius: "4px" });
   });
 
   it("creates widget immediately on mount (no upfront config fetch)", async () => {

@@ -52,6 +52,91 @@ const handle = createWidget(container, {
 });
 ```
 
+#### Sizing — two modes, picked automatically
+
+The widget adapts to whether **you** have sized its container:
+
+- **Bare drop-in** (no size on the container) → renders as a centered, framed
+  **card** (border, rounded corners, soft shadow, `max-width: 480px`,
+  `min-height: 640px`) so it looks finished with zero CSS.
+- **Host-sized container** (you give it a height, `flex`, a grid track,
+  absolute positioning, etc.) → the widget **fills the container exactly**, with
+  no card framing. This is the original behaviour and is ideal for full-bleed or
+  "full page" layouts (e.g. header + widget + footer):
+
+```html
+<header>…</header>
+<!-- sized by the host → fills it edge to edge, no card -->
+<div
+  data-perspective-widget="your-research-id"
+  style="height: calc(100vh - 120px)"
+></div>
+<footer>…</footer>
+```
+
+The widget's container and appearance are configured with the **`frame`**
+object. **Force a mode** when auto-detection isn't what you want — `"fill"`
+restores the full-width behaviour, `"card"` always frames:
+
+```ts
+createWidget(el, { researchId: "…", frame: { layout: "fill" } }); // or "card"
+```
+
+```tsx
+<Widget researchId="…" frame={{ layout: "fill" }} /> // @perspective-ai/sdk-react
+```
+
+```html
+<div data-perspective-widget="…" data-perspective-frame="layout=fill"></div>
+```
+
+#### Styling the frame
+
+Every visual aspect of the card is exposed three equivalent ways — pick
+whichever fits. They all resolve to the same CSS custom property:
+
+| Aspect     | `frame` field | CSS variable                      | Default            |
+| ---------- | ------------- | --------------------------------- | ------------------ |
+| Max width  | `maxWidth`    | `--perspective-widget-max-width`  | `480px`            |
+| Min height | `minHeight`   | `--perspective-widget-min-height` | `640px`            |
+| Border     | `border`      | `--perspective-widget-border`     | `1px solid` border |
+| Radius     | `radius`      | `--perspective-widget-radius`     | theme radius       |
+| Shadow     | `shadow`      | `--perspective-widget-shadow`     | soft shadow        |
+| Background | `background`  | `--perspective-widget-bg`         | theme background   |
+
+**Precedence** (highest → lowest): a field set via `frame` / `data-perspective-frame`
+(the SDK writes it as an inline variable on the wrapper) → your own
+`--perspective-widget-*` declaration in CSS → the built-in default. So a `frame`
+field overrides a stylesheet variable. For any field you _don't_ pass to
+`frame`, your CSS variable wins at **any specificity** — the SDK leaves that var
+unset, so there's nothing to out-specify and it isn't clobbered by global resets
+like Tailwind Preflight's `* { border-width: 0 }`.
+
+```tsx
+// 1) The frame object (config / React prop)
+<Widget researchId="…" frame={{ radius: "4px", shadow: "none" }} />
+```
+
+```html
+<!-- 2) Script tag — packed data attribute (same format as data-perspective-brand) -->
+<div
+  data-perspective-widget="…"
+  data-perspective-frame="radius=4px,shadow=none,layout=card"
+></div>
+```
+
+```css
+/* 3) Stylesheet — any selector, even :root */
+.perspective-widget {
+  --perspective-widget-radius: 4px;
+}
+```
+
+> Sizing the container (`height`, `flex`, `height: 100%`, …) switches to fill
+> mode automatically; `frame.layout` overrides that detection either way. Values
+> that contain commas (e.g. a multi-layer `box-shadow`) can't be packed into the
+> data attribute — use the CSS variable for those.
+
 ### Popup Modal
 
 ```typescript
@@ -535,6 +620,7 @@ For non-module environments, use the browser bundle:
 | Attribute                         | Description                                             |
 | --------------------------------- | ------------------------------------------------------- |
 | `data-perspective-widget`         | Inline widget embed                                     |
+| `data-perspective-frame`          | Widget frame: `"layout=fill,radius=4px,shadow=none,…"`  |
 | `data-perspective-popup`          | Popup trigger button                                    |
 | `data-perspective-slider`         | Slider trigger button                                   |
 | `data-perspective-float`          | Floating chat bubble                                    |

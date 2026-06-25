@@ -210,9 +210,35 @@ import { Widget } from "@perspective-ai/sdk-react";
   researchId="your-research-id"
   onSubmit={() => console.log("Done!")}
   className="my-widget"
-  style={{ height: 600 }}
 />;
 ```
+
+#### Layout & styling (`frame`)
+
+A bare `<Widget />` renders as a **centered, framed card** by default (border,
+rounded corners, soft shadow, sensible width/height) — no CSS required. If you
+size the container yourself (a `height`, `flex`, `height: 100%`, …) it **fills
+that box edge to edge** with no framing, exactly like before.
+
+Use the `frame` prop to force a layout or restyle the card:
+
+```tsx
+// Force full-width (pre-card behaviour), or always frame
+<Widget researchId="…" frame={{ layout: "fill" }} /> // or "card"
+
+// Restyle the card — each field maps to a --perspective-widget-* CSS variable
+<Widget
+  researchId="…"
+  frame={{ radius: "4px", border: "1px solid #ddd", shadow: "none", maxWidth: "720px" }}
+/>
+```
+
+`frame` accepts `layout` (`"card" | "fill"`), `maxWidth`, `minHeight`, `radius`,
+`border`, `shadow`, and `background`. Equivalent CSS variables
+(`--perspective-widget-radius`, etc.) work too; a `frame` value takes precedence
+over a stylesheet variable. See the
+[core SDK README](https://www.npmjs.com/package/@perspective-ai/sdk#styling-the-frame)
+for the full table and precedence rules.
 
 ### Fullpage
 

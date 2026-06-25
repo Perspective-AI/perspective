@@ -32,6 +32,7 @@ export function Widget({
   brand,
   theme,
   host,
+  frame,
   disableJsonLdAttribution,
   onReady,
   onVisualReady,
@@ -70,6 +71,7 @@ export function Widget({
       brand,
       theme,
       host,
+      frame,
       disableJsonLdAttribution,
       onReady: stableOnReady,
       onVisualReady: stableOnVisualReady,
@@ -100,6 +102,7 @@ export function Widget({
     brand,
     theme,
     host,
+    frame,
     disableJsonLdAttribution,
     stableOnReady,
     stableOnVisualReady,
@@ -116,7 +119,7 @@ export function Widget({
       <div
         ref={containerRef}
         className={className}
-        style={{ minHeight: 500, ...style }}
+        style={style}
         data-testid="perspective-widget"
         {...divProps}
       />

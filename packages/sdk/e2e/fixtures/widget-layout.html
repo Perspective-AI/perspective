@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Widget Layout Test</title>
+    <style>
+      /* Sized via stylesheet — should resolve to FILL (no card framing). */
+      .sized {
+        height: 500px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Bare drop-in (no size) → card -->
+    <div id="bare" data-perspective-widget="bare01"></div>
+
+    <!-- Stylesheet height → fill (exercises the computed-height branch) -->
+    <div id="sized" class="sized" data-perspective-widget="sized01"></div>
+
+    <!-- Bare, but forced to fill via the data attribute -->
+    <div
+      id="forced-fill"
+      data-perspective-widget="forced01"
+      data-perspective-frame="layout=fill,radius=4px"
+    ></div>
+
+    <script src="/sdk/perspective.global.js"></script>
+  </body>
+</html>

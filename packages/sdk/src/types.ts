@@ -80,6 +80,36 @@ export type LauncherIcon =
   | { url: string }
   | { svg: string };
 
+/**
+ * The inline widget's frame — the card-like container the SDK draws around the
+ * interview. Every field is applied by setting the matching CSS custom property
+ * on the widget wrapper, so each can equivalently be set via a stylesheet or
+ * inline `style`. The framing fields (`maxWidth`, `radius`, `border`, `shadow`,
+ * `background`) only take effect in card layout (a bare drop-in, or
+ * `layout: "card"`); `minHeight` applies in both card and fill layouts.
+ */
+export interface FrameConfig {
+  /**
+   * Layout. Omit to auto-detect: a bare drop-in renders as a centered, framed
+   * `"card"`; a container you've sized (height, flex, `height: 100%`, …) renders
+   * as `"fill"` — edge to edge, no framing. `"fill"` forces the full-width
+   * behaviour; `"card"` always frames.
+   */
+  layout?: "card" | "fill";
+  /** Card max width, e.g. `"720px"` or `"none"`. → `--perspective-widget-max-width` (default `480px`). Card layout only. */
+  maxWidth?: string;
+  /** Min height, e.g. `"720px"`. → `--perspective-widget-min-height` (default `640px` card, `500px` fill). Applies in both layouts. */
+  minHeight?: string;
+  /** Card `border-radius`, e.g. `"4px"`. → `--perspective-widget-radius`. */
+  radius?: string;
+  /** Card `border` shorthand, e.g. `"1px solid #ddd"` or `"none"`. → `--perspective-widget-border`. */
+  border?: string;
+  /** Card `box-shadow`, e.g. `"none"`. → `--perspective-widget-shadow`. */
+  shadow?: string;
+  /** Card `background`, e.g. `"#fff"`. → `--perspective-widget-bg`. */
+  background?: string;
+}
+
 /** Customization options for the float launcher button */
 export interface LauncherConfig {
   /** Button icon. 'default' uses built-in SVG (mic/chat based on channel).
@@ -128,6 +158,20 @@ export interface EmbedConfig {
    * viewports. Only used for slider-type embeds.
    */
   sliderMode?: "overlay" | "push";
+  /**
+   * The inline widget's frame — layout, sizing, and the card's border/radius/
+   * shadow/background. Only used for widget-type embeds.
+   *
+   * Each field maps to a `--perspective-widget-*` CSS custom property, so the
+   * same knob is reachable from JS/React (this object), a stylesheet, or inline
+   * `style`. Precedence, highest to lowest: a field set here (the SDK writes it
+   * as an inline variable on the wrapper) → your own `--perspective-widget-*`
+   * declaration in CSS → the built-in default. So a `frame` field overrides a
+   * stylesheet variable; conversely, for any field you DON'T set here, your CSS
+   * variable wins at any specificity (the SDK leaves that var unset, so it's
+   * never out-specified and survives global resets like Tailwind Preflight).
+   */
+  frame?: FrameConfig;
   /** When true, skips JSON-LD structured data injection into the parent page. Other attribution signals (data attributes, global metadata, HTML comments) remain active. */
   disableJsonLdAttribution?: boolean;
   /** Customize the floating launcher button appearance. Only used for float-type embeds. */

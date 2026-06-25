@@ -85,6 +85,32 @@ test.describe("Script Tag Auto-Init", () => {
     expect(src).toContain("user=abc");
   });
 
+  test("resolves widget layout: card for bare, fill when host-sized", async ({
+    page,
+  }) => {
+    await page.goto("/widget-layout.html");
+
+    const bare = page.locator("#bare .perspective-widget");
+    const sized = page.locator("#sized .perspective-widget");
+    const forced = page.locator("#forced-fill .perspective-widget");
+    await expect(bare).toBeVisible();
+    await expect(sized).toBeVisible();
+    await expect(forced).toBeVisible();
+
+    // Bare drop-in → centered, framed card.
+    await expect(bare).toHaveClass(/perspective-widget-card/);
+
+    // Stylesheet height resolves to a real computed height → fill (no card).
+    // Guards the computed-height detection branch in a real browser, which
+    // jsdom/happy-dom can't exercise.
+    await expect(sized).not.toHaveClass(/perspective-widget-card/);
+
+    // Explicit layout=fill on a bare container overrides detection → fill,
+    // and the packed appearance var is still applied.
+    await expect(forced).not.toHaveClass(/perspective-widget-card/);
+    await expect(forced).toHaveCSS("--perspective-widget-radius", "4px");
+  });
+
   test("creates popup trigger from data-perspective-popup attribute", async ({
     page,
   }) => {

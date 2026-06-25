@@ -484,6 +484,36 @@ describe("browser entry", () => {
       expect(document.querySelector("iframe[data-perspective]")).toBeTruthy();
     });
 
+    it("parses data-perspective-frame (brand-style) into the frame config", async () => {
+      document.body.innerHTML = `
+        <div
+          data-perspective-widget="frame-widget"
+          data-perspective-frame="layout=fill,radius=4px,shadow=none,bg=#fff"
+        ></div>
+      `;
+
+      autoInit();
+      await flushConfigFetch();
+
+      const wrapper = document.querySelector<HTMLElement>(
+        ".perspective-widget"
+      );
+      // layout=fill → no card framing
+      expect(wrapper?.classList.contains("perspective-widget-card")).toBe(
+        false
+      );
+      // visual keys → CSS variables on the wrapper
+      expect(
+        wrapper?.style.getPropertyValue("--perspective-widget-radius")
+      ).toBe("4px");
+      expect(
+        wrapper?.style.getPropertyValue("--perspective-widget-shadow")
+      ).toBe("none");
+      expect(wrapper?.style.getPropertyValue("--perspective-widget-bg")).toBe(
+        "#fff"
+      );
+    });
+
     it("calling autoInit twice does not duplicate widgets", async () => {
       document.body.innerHTML = `
         <div data-perspective-widget="test-widget"></div>
