@@ -261,8 +261,16 @@ export interface InitMessage {
   version: string;
   features: number;
   researchId: string;
-  /** Whether the SDK rendered a close button over the iframe. Older SDKs (pre-1.4) don't send this field — fall back to embed-type-based logic when undefined. */
+  /**
+   * @deprecated The SDK no longer sends this (it sends `renderCloseButton`).
+   * Kept because the app may still receive it from older SDK clients.
+   */
   hasCloseButton?: boolean;
+  /**
+   * Whether the app should render its own close X. Sent for slider/popup/float;
+   * `false` when `disableClose` is set. widget/fullpage have no X and omit it.
+   */
+  renderCloseButton?: boolean;
 }
 
 /** Messages sent from iframe to SDK */

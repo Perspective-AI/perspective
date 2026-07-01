@@ -430,7 +430,7 @@ describe("openPopup", () => {
       expect(document.querySelector(".perspective-overlay")).toBeFalsy();
     });
 
-    it("sends hasCloseButton: false in init message when disableClose is true", () => {
+    it("sends renderCloseButton: false in init message when disableClose is true", () => {
       const host = "https://getperspective.ai";
       const researchId = "test-research-id";
       const postMessageSpy = vi.fn();
@@ -458,14 +458,18 @@ describe("openPopup", () => {
           (args[0] as { type: string }).type === "perspective:init"
       );
       expect(initCall).toBeTruthy();
-      expect((initCall![0] as { hasCloseButton: boolean }).hasCloseButton).toBe(
-        false
-      );
+      const init = initCall![0] as {
+        renderCloseButton: boolean;
+        hasCloseButton?: boolean;
+      };
+      expect(init.renderCloseButton).toBe(false);
+      // Slider/popup no longer send the legacy flag — app prefers renderCloseButton
+      expect(init.hasCloseButton).toBeUndefined();
 
       handle.unmount();
     });
 
-    it("sends hasCloseButton: true in init message when disableClose is not set", () => {
+    it("sends renderCloseButton: true in init message when disableClose is not set", () => {
       const host = "https://getperspective.ai";
       const researchId = "test-research-id";
       const postMessageSpy = vi.fn();
@@ -490,9 +494,36 @@ describe("openPopup", () => {
           (args[0] as { type: string }).type === "perspective:init"
       );
       expect(initCall).toBeTruthy();
-      expect((initCall![0] as { hasCloseButton: boolean }).hasCloseButton).toBe(
-        true
+      const init = initCall![0] as {
+        renderCloseButton: boolean;
+        hasCloseButton?: boolean;
+      };
+      expect(init.renderCloseButton).toBe(true);
+      expect(init.hasCloseButton).toBeUndefined();
+
+      handle.unmount();
+    });
+
+    it("removes the SDK close button as soon as the skeleton hides (visual-ready)", () => {
+      const host = "https://getperspective.ai";
+      const researchId = "test-research-id";
+
+      const handle = openPopup({ researchId, host });
+
+      // The temporary X is present while the skeleton is up...
+      expect(document.querySelector(".perspective-close")).toBeTruthy();
+
+      // ...and removed at skeleton-hide — which fires on `visual-ready`, before
+      // `ready` — so it never lingers over the now-visible app's own X.
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "perspective:visual-ready", researchId },
+          origin: host,
+          source: handle.iframe!.contentWindow,
+        })
       );
+
+      expect(document.querySelector(".perspective-close")).toBeFalsy();
 
       handle.unmount();
     });

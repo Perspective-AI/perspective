@@ -11,7 +11,6 @@ const LIGHT_THEME = `
   --perspective-overlay-bg: rgba(0, 0, 0, 0.5);
   --perspective-modal-bg: #ffffff;
   --perspective-modal-text: #151B23;
-  --perspective-close-bg: rgba(0, 0, 0, 0.1);
   --perspective-close-text: #666666;
   --perspective-close-hover-bg: rgba(0, 0, 0, 0.2);
   --perspective-close-hover-text: #333333;
@@ -26,7 +25,6 @@ const DARK_THEME = `
   --perspective-overlay-bg: rgba(0, 0, 0, 0.7);
   --perspective-modal-bg: #02040a;
   --perspective-modal-text: #ffffff;
-  --perspective-close-bg: rgba(255, 255, 255, 0.1);
   --perspective-close-text: #a0a0a0;
   --perspective-close-hover-bg: rgba(255, 255, 255, 0.2);
   --perspective-close-hover-text: #ffffff;
@@ -193,7 +191,8 @@ export function injectStyles(): void {
       border: none;
     }
 
-    /* Close button */
+    /* Temporary close X — ghost style (no background) to match the app's own X,
+       so the handoff at skeleton-hide has no visual pop. Subtle bg on hover. */
     .perspective-close {
       position: absolute;
       top: 1rem;
@@ -201,7 +200,7 @@ export function injectStyles(): void {
       width: 2rem;
       height: 2rem;
       border: none;
-      background: var(--perspective-close-bg);
+      background: transparent;
       color: var(--perspective-close-text);
       border-radius: 50%;
       cursor: pointer;

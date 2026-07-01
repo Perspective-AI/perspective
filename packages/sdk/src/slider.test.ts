@@ -108,6 +108,30 @@ describe("openSlider", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("removes the SDK close button as soon as the skeleton hides (visual-ready)", () => {
+    const host = "https://getperspective.ai";
+    const researchId = "test-research-id";
+
+    const handle = openSlider({ researchId, host });
+
+    // The temporary X is present while the skeleton is up...
+    expect(document.querySelector(".perspective-close")).toBeTruthy();
+
+    // ...and removed at skeleton-hide — which fires on `visual-ready`, before
+    // `ready` — so it never lingers over the now-visible app's own X.
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: "perspective:visual-ready", researchId },
+        origin: host,
+        source: handle.iframe!.contentWindow,
+      })
+    );
+
+    expect(document.querySelector(".perspective-close")).toBeFalsy();
+
+    handle.unmount();
+  });
+
   it("closes on backdrop click", () => {
     const onClose = vi.fn();
     openSlider({

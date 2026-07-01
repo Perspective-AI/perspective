@@ -332,7 +332,10 @@ export function setupMessageListener(
   config: Partial<EmbedConfig>,
   iframe: HTMLIFrameElement,
   host: string,
-  options?: { skipResize?: boolean; hasCloseButton?: boolean }
+  options?: {
+    skipResize?: boolean;
+    renderCloseButton?: boolean;
+  }
 ): () => void {
   if (!hasDom()) {
     return () => {};
@@ -373,13 +376,16 @@ export function setupMessageListener(
           type: MESSAGE_TYPES.anonId,
           anonId: getOrCreateAnonId(),
         });
-        // Send init message with version/features for handshake
+        // Init handshake. `renderCloseButton` asks the app to draw its own
+        // close X (slider/popup/float); widget/fullpage have none and omit it.
         sendMessage(iframe, host, {
           type: MESSAGE_TYPES.init,
           version: SDK_VERSION,
           features: CURRENT_FEATURES,
           researchId,
-          hasCloseButton: options?.hasCloseButton ?? false,
+          ...(options?.renderCloseButton !== undefined && {
+            renderCloseButton: options.renderCloseButton,
+          }),
         });
         // Layer 2 → Layer 1 relay: on iframe load, send any cached token from
         // parent's first-party localStorage back to the iframe. On Safari this
