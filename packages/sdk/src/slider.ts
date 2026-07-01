@@ -67,7 +67,8 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     getThemeClass(config.theme)
   );
 
-  // Create close button (hidden when disableClose is enabled)
+  // Temporary X over the loading skeleton, removed at skeleton-hide once the
+  // app draws its own (see hideSkeleton). Hidden when disableClose is set.
   const closeBtn = document.createElement("button");
   closeBtn.className = "perspective-close";
   closeBtn.innerHTML = CLOSE_ICON;
@@ -142,6 +143,9 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     loading.style.opacity = "0";
     iframe.style.opacity = "1";
     setTimeout(() => loading.remove(), 150);
+    // The app now draws its own X, so drop ours. A brief no-X gap reads as
+    // loading; an SDK X left over the app's avatar/menu looks like a bug.
+    closeBtn.remove();
   };
   const persistOpenState = (open: boolean) => {
     setPersistedOpenState({
@@ -209,7 +213,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     },
     iframe,
     host,
-    { skipResize: true, hasCloseButton: !config.disableClose }
+    { skipResize: true, renderCloseButton: !config.disableClose }
   );
 
   // Close handlers (disabled when disableClose is enabled)

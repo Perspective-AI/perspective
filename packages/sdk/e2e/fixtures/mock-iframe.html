@@ -34,6 +34,21 @@
         <button id="send-resize">Send Resize Event</button>
         <button id="send-error">Send Error Event</button>
       </div>
+
+      <!-- App-rendered close X (mirrors codebase#4397), shown on renderCloseButton.
+           Pinned top-right so it stays in view/clickable in short containers. -->
+      <button
+        id="app-close"
+        style="
+          display: none;
+          position: fixed;
+          top: 8px;
+          right: 8px;
+          z-index: 10;
+        "
+      >
+        Close (app)
+      </button>
     </div>
 
     <script>
@@ -96,6 +111,14 @@
         });
       });
 
+      // App-rendered close button emits perspective:close (mirrors codebase#4397)
+      document.getElementById("app-close").addEventListener("click", () => {
+        sendToParent({
+          type: "perspective:close",
+          researchId: researchId,
+        });
+      });
+
       // Handle messages from parent
       window.addEventListener("message", (event) => {
         console.log("[MockIframe] Received message:", event.data);
@@ -106,6 +129,10 @@
             "[MockIframe] Init received, version:",
             event.data.version
           );
+          // The app renders its own X when the SDK asks it to.
+          if (event.data.renderCloseButton) {
+            document.getElementById("app-close").style.display = "block";
+          }
         }
       });
     </script>

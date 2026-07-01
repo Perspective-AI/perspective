@@ -204,6 +204,64 @@ describe("createFloatBubble", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  describe("close button handoff", () => {
+    const host = "https://getperspective.ai";
+    const researchId = "test-research-id";
+
+    const send = (iframe: HTMLIFrameElement, type: string) =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type, researchId },
+          origin: host,
+          source: iframe.contentWindow,
+        })
+      );
+
+    it("removes the SDK close button as soon as the skeleton hides (visual-ready)", () => {
+      const handle = createFloatBubble({ researchId, host });
+      handle.open();
+
+      // Temporary X present while the skeleton is up...
+      expect(
+        document.querySelector(".perspective-float-window .perspective-close")
+      ).toBeTruthy();
+
+      send(handle.iframe!, "perspective:visual-ready");
+
+      // ...removed once the app is visible to draw its own (in its header).
+      expect(
+        document.querySelector(".perspective-float-window .perspective-close")
+      ).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("sends renderCloseButton: true in init message", () => {
+      const handle = createFloatBubble({ researchId, host });
+      handle.open();
+
+      const postMessageSpy = vi.fn();
+      handle.iframe!.contentWindow!.postMessage = postMessageSpy;
+
+      send(handle.iframe!, "perspective:ready");
+
+      const initCall = postMessageSpy.mock.calls.find(
+        (args: unknown[]) =>
+          (args[0] as { type: string }).type === "perspective:init"
+      );
+      expect(initCall).toBeTruthy();
+      const init = initCall![0] as {
+        renderCloseButton: boolean;
+        hasCloseButton?: boolean;
+      };
+      expect(init.renderCloseButton).toBe(true);
+      // Legacy flag retired — float no longer sends it either.
+      expect(init.hasCloseButton).toBeUndefined();
+
+      handle.unmount();
+    });
+  });
+
   it("unmount removes bubble and window", () => {
     const handle = createFloatBubble({
       researchId: "test-research-id",

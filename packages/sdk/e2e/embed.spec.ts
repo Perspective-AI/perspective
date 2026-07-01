@@ -232,7 +232,15 @@ test.describe("Script Tag Auto-Init", () => {
     await bubble.click();
     await expect(page.locator(".perspective-float-window")).toBeVisible();
 
-    await page.locator(".perspective-float-window .perspective-close").click();
+    // Click the app's X (in the iframe) → perspective:close → window closes.
+    // Wait for the loading overlay to detach first so it doesn't cover the iframe.
+    await page
+      .locator(".perspective-float-window .perspective-loading")
+      .waitFor({ state: "detached" });
+    await page
+      .frameLocator(".perspective-float-window iframe[data-perspective]")
+      .locator("#app-close")
+      .click();
     await expect(page.locator(".perspective-float-window")).not.toBeVisible();
 
     await page.reload();
@@ -343,8 +351,15 @@ test.describe("Popup Lifecycle", () => {
     await page.click("#open-popup-btn");
     await expect(page.locator(".perspective-overlay")).toBeVisible();
 
-    // Click close button
-    await page.click(".perspective-close");
+    // Click the app's X (in the iframe) → perspective:close → popup closes.
+    // Wait for the loading overlay to detach first so it doesn't cover the iframe.
+    await page
+      .locator(".perspective-overlay .perspective-loading")
+      .waitFor({ state: "detached" });
+    await page
+      .frameLocator(".perspective-overlay iframe[data-perspective]")
+      .locator("#app-close")
+      .click();
 
     // Popup should be closed
     await expect(page.locator(".perspective-overlay")).not.toBeVisible();
@@ -404,8 +419,15 @@ test.describe("Slider Lifecycle", () => {
     await page.click("#open-slider-btn");
     await expect(page.locator(".perspective-slider")).toBeVisible();
 
-    // Click close button (inside slider)
-    await page.locator(".perspective-slider .perspective-close").click();
+    // Click the app's X (in the iframe) → perspective:close → slider closes.
+    // Wait for the loading overlay to detach first so it doesn't cover the iframe.
+    await page
+      .locator(".perspective-slider .perspective-loading")
+      .waitFor({ state: "detached" });
+    await page
+      .frameLocator(".perspective-slider iframe[data-perspective]")
+      .locator("#app-close")
+      .click();
 
     // Slider should be closed
     await expect(page.locator(".perspective-slider")).not.toBeVisible();

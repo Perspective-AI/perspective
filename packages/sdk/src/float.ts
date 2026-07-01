@@ -449,12 +449,16 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       getThemeClass(currentConfig.theme)
     );
 
-    // Create close button
+    // Temporary X over the loading skeleton, removed at skeleton-hide once the
+    // app draws its own in its header (see hideSkeleton). Hidden if disableClose.
     const closeBtn = document.createElement("button");
     closeBtn.className = "perspective-close";
     closeBtn.innerHTML = CLOSE_ICON;
     closeBtn.setAttribute("aria-label", "Close chat");
     closeBtn.addEventListener("click", () => closeFloat());
+    if (currentConfig.disableClose) {
+      closeBtn.style.display = "none";
+    }
 
     // Create loading indicator with theme and brand colors
     const loading = createLoadingIndicator({
@@ -489,6 +493,9 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       loading.style.opacity = "0";
       iframe!.style.opacity = "1";
       setTimeout(() => loading.remove(), 150);
+      // The app now draws its own X in its header, so drop ours. The launcher
+      // bubble still closes the window.
+      closeBtn.remove();
     };
 
     // Set up message listener with loading state handling
@@ -522,7 +529,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       },
       iframe,
       host,
-      { skipResize: true, hasCloseButton: true }
+      { skipResize: true, renderCloseButton: !currentConfig.disableClose }
     );
 
     // Register iframe for theme change notifications
