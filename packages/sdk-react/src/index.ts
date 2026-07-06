@@ -59,4 +59,5 @@ export type {
   TriggerConfig,
   ShowOnce,
   AutoOpenConfig,
+  TeaserConfig,
 } from "@perspective-ai/sdk";

@@ -92,6 +92,9 @@ export const DATA_ATTRS = {
   launcherIcon: "data-perspective-launcher-icon",
   launcherStyle: "data-perspective-launcher-style",
   launcherClass: "data-perspective-launcher-class",
+  teaser: "data-perspective-teaser",
+  teaserDelay: "data-perspective-teaser-delay",
+  teaserSound: "data-perspective-teaser-sound",
   disableJsonLdAttribution: "data-perspective-disable-jsonld-attribution",
 } as const;
 

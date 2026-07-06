@@ -47,7 +47,7 @@ import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
 import { configure, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
-import { resolveIsDark, readableTextColor } from "./utils";
+import { resolveIsDark, readableTextColor, isValidDelayMs } from "./utils";
 import { injectGlobalMetadata } from "./attribution";
 import { perfLog } from "./perf";
 
@@ -372,6 +372,39 @@ function extractLauncherConfig(
   }
 
   return launcher;
+}
+
+/**
+ * Extract teaser config from element data attributes:
+ * data-perspective-teaser="false" disables the welcome sequence,
+ * data-perspective-teaser-delay="5000" sets the teaser delay in ms,
+ * data-perspective-teaser-sound="false" mutes the chime.
+ */
+function extractTeaserConfig(
+  el: HTMLElement
+): EmbedConfig["teaser"] | undefined {
+  const enabledAttr = el.getAttribute(DATA_ATTRS.teaser);
+  const delayAttr = el.getAttribute(DATA_ATTRS.teaserDelay);
+  const soundAttr = el.getAttribute(DATA_ATTRS.teaserSound);
+
+  const teaser: NonNullable<EmbedConfig["teaser"]> = {};
+
+  if (enabledAttr === "false") {
+    teaser.enabled = false;
+  }
+
+  if (delayAttr) {
+    const delay = Number(delayAttr);
+    if (isValidDelayMs(delay)) {
+      teaser.delay = delay;
+    }
+  }
+
+  if (soundAttr === "false") {
+    teaser.sound = false;
+  }
+
+  return Object.keys(teaser).length > 0 ? teaser : undefined;
 }
 
 /**
@@ -775,6 +808,7 @@ function autoInit(): void {
       const params = parseParamsAttr(floatEl);
       const brandConfig = extractBrandConfig(floatEl);
       const launcherConfig = extractLauncherConfig(floatEl);
+      const teaserConfig = extractTeaserConfig(floatEl);
       const floatHandle = init({
         researchId,
         type: "float",
@@ -784,6 +818,7 @@ function autoInit(): void {
         ),
         ...brandConfig,
         ...(launcherConfig && { launcher: launcherConfig }),
+        ...(teaserConfig && { teaser: teaserConfig }),
         _apiConfig: DEFAULT_THEME,
       } as InternalEmbedConfig);
 

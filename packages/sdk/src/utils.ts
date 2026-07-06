@@ -142,3 +142,11 @@ export function hexToRgba(hex: string, alpha: number): string {
   const b = parseInt(result[3], 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+/**
+ * Valid delay for timed UI (e.g. the float teaser): a finite,
+ * non-negative number of milliseconds.
+ */
+export function isValidDelayMs(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}

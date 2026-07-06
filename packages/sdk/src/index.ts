@@ -74,6 +74,7 @@ export type {
   LauncherConfig,
   LauncherIcon,
   LauncherStyle,
+  TeaserConfig,
   FrameConfig,
 } from "./types";
 
