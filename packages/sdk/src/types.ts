@@ -110,6 +110,20 @@ export interface FrameConfig {
   background?: string;
 }
 
+/**
+ * Controls the welcome teaser — the message bubble that appears above the
+ * float button (with a chime sound and notification dot). Only used for
+ * float-type embeds. The teaser text itself comes from `welcomeMessage`.
+ */
+export interface TeaserConfig {
+  /** Master switch for the whole welcome sequence (teaser bubble, chime sound, and notification dot). Default: `true`. */
+  enabled?: boolean;
+  /** Milliseconds after mount before the teaser bubble appears. Default: `3000`. */
+  delay?: number;
+  /** Whether the chime sound plays. It fires 1s before the teaser appears (or immediately, when `delay` is under 1s). Default: `true`. */
+  sound?: boolean;
+}
+
 /** Customization options for the float launcher button */
 export interface LauncherConfig {
   /** Button icon. 'default' uses built-in SVG (mic/chat based on channel).
@@ -133,6 +147,8 @@ export interface EmbedConfig {
   channel?: AIAssistantChannel | AIAssistantChannel[] | null;
   /** Welcome message shown as a teaser bubble next to the float button. Only used for float-type embeds. */
   welcomeMessage?: string;
+  /** Controls if and when the welcome teaser appears (`enabled`, `delay`, `sound`). Only used for float-type embeds. */
+  teaser?: TeaserConfig;
   /** Custom button text for popup/slider triggers */
   buttonText?: string;
   /** Custom params to pass to the interview (for tracking/attribution) */
@@ -225,6 +241,7 @@ export interface EmbedHandle {
         | "onAuth"
         | "channel"
         | "welcomeMessage"
+        | "teaser"
       >
     >
   ) => void;
@@ -321,6 +338,7 @@ export interface ThemeConfig {
       icon?: LauncherIcon;
       style?: LauncherStyle;
     };
+    teaser?: TeaserConfig;
     autoTrigger?: {
       trigger?: "timeout" | "exit-intent";
       delay?: number;

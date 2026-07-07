@@ -3,6 +3,32 @@ import { createFloatBubble, createChatBubble } from "./float";
 import * as config from "./config";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 
+/** Minimal AudioContext stub — jsdom has none, so the SDK's chime silently
+ *  no-ops in tests unless we stub the constructor. */
+function createFakeAudioContext() {
+  const node = {
+    connect: (target: unknown) => target,
+    start: () => {},
+    stop: () => {},
+    type: "sine",
+    frequency: { setValueAtTime: () => {} },
+    gain: {
+      setValueAtTime: () => {},
+      linearRampToValueAtTime: () => {},
+      exponentialRampToValueAtTime: () => {},
+    },
+  };
+  return {
+    currentTime: 0,
+    state: "running",
+    destination: {},
+    createOscillator: () => ({ ...node }),
+    createGain: () => ({ ...node }),
+    resume: () => Promise.resolve(),
+    close: () => Promise.resolve(),
+  };
+}
+
 describe("createFloatBubble", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -544,6 +570,302 @@ describe("createFloatBubble", () => {
 
       // launcher.style.backgroundColor takes precedence
       expect(bubble.style.backgroundColor).toBe("#00ff00");
+
+      handle.unmount();
+    });
+  });
+
+  describe("teaser config", () => {
+    it("teaser.enabled=false suppresses teaser and notification dot", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { enabled: false },
+      });
+
+      vi.advanceTimersByTime(10000);
+
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+      expect(
+        document.querySelector(".perspective-float-notification-dot")
+      ).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("teaser.delay controls when the teaser appears", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { delay: 500 },
+      });
+
+      vi.advanceTimersByTime(400);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      vi.advanceTimersByTime(100);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("teaser.delay=0 shows the teaser immediately", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { delay: 0 },
+      });
+
+      vi.advanceTimersByTime(0);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("plays the chime 1s before the teaser (2s with the default 3s delay)", () => {
+      vi.useFakeTimers();
+      const audioCtxCtor = vi.fn(() => createFakeAudioContext());
+      vi.stubGlobal("AudioContext", audioCtxCtor);
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(1999);
+      expect(audioCtxCtor).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(audioCtxCtor).toHaveBeenCalledTimes(1);
+
+      handle.unmount();
+      vi.unstubAllGlobals();
+    });
+
+    it("chime tracks a long teaser delay instead of firing early", () => {
+      vi.useFakeTimers();
+      const audioCtxCtor = vi.fn(() => createFakeAudioContext());
+      vi.stubGlobal("AudioContext", audioCtxCtor);
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { delay: 10000 },
+      });
+
+      vi.advanceTimersByTime(8999);
+      expect(audioCtxCtor).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(audioCtxCtor).toHaveBeenCalledTimes(1);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      vi.advanceTimersByTime(1000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+      vi.unstubAllGlobals();
+    });
+
+    it("teaser.sound=false skips the chime", () => {
+      vi.useFakeTimers();
+      const audioCtxCtor = vi.fn(() => createFakeAudioContext());
+      vi.stubGlobal("AudioContext", audioCtxCtor);
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { sound: false },
+      });
+
+      vi.advanceTimersByTime(10000);
+
+      expect(audioCtxCtor).not.toHaveBeenCalled();
+      // Teaser itself still shows
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+      vi.unstubAllGlobals();
+    });
+
+    it("chime fires immediately when delay is shorter than the 1s lead", () => {
+      vi.useFakeTimers();
+      const audioCtxCtor = vi.fn(() => createFakeAudioContext());
+      vi.stubGlobal("AudioContext", audioCtxCtor);
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { delay: 500 },
+      });
+
+      vi.advanceTimersByTime(0);
+      expect(audioCtxCtor).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(500);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      // Nothing else fires later
+      vi.advanceTimersByTime(10000);
+      expect(audioCtxCtor).toHaveBeenCalledTimes(1);
+
+      handle.unmount();
+      vi.unstubAllGlobals();
+    });
+
+    it("update() enabling the teaser starts the welcome sequence", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { enabled: false },
+      });
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      handle.update({ teaser: { enabled: true, delay: 1000 } });
+
+      vi.advanceTimersByTime(1000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("update() disabling the teaser cancels a pending teaser", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(1000);
+      handle.update({ teaser: { enabled: false } });
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("update() disabling the teaser removes a visible teaser", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(3000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.update({ teaser: { enabled: false } });
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+      expect(
+        document.querySelector(".perspective-float-notification-dot")
+      ).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("keeps an API teaser disable when a later _apiConfig omits teaser settings", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      const colors = {
+        primaryColor: "#7c3aed",
+        textColor: "#ffffff",
+        darkPrimaryColor: "#a78bfa",
+        darkTextColor: "#ffffff",
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          ...colors,
+          embedSettings: { teaser: { enabled: false } },
+        },
+      });
+      // A refresh without embedSettings.teaser must not re-enable the teaser
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({ _apiConfig: { ...colors } });
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("avatar config auto-fetch cancels the teaser when the API disables it", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            primaryColor: "#7c3aed",
+            textColor: "#ffffff",
+            darkPrimaryColor: "#a78bfa",
+            darkTextColor: "#ffffff",
+            avatarUrl: "https://example.com/avatar.png",
+            embedSettings: { teaser: { enabled: false } },
+          }),
+        })
+      );
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        launcher: { icon: "avatar" },
+      });
+
+      // Flush the fetch promise chain (fetch → json → merge)
+      for (let i = 0; i < 5; i++) {
+        await Promise.resolve();
+      }
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      handle.unmount();
+      vi.unstubAllGlobals();
+    });
+
+    it("API embedSettings.teaser overrides customer config", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { enabled: true },
+      });
+
+      // Async API config arrives with the teaser disabled from the dashboard
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+          embedSettings: { teaser: { enabled: false } },
+        },
+      });
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
 
       handle.unmount();
     });

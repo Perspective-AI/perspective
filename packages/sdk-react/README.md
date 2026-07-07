@@ -273,6 +273,20 @@ import { FloatBubble } from "@perspective-ai/sdk-react";
 />
 ```
 
+**With teaser control** (the welcome bubble above the button):
+
+```tsx
+// Delay the teaser to 10s and mute the chime
+<FloatBubble
+  researchId="your-research-id"
+  welcomeMessage="Have a question? I'm here to help."
+  teaser={{ delay: 10000, sound: false }}
+/>
+
+// Disable the welcome sequence entirely (no teaser, chime, or dot)
+<FloatBubble researchId="your-research-id" teaser={{ enabled: false }} />
+```
+
 ## Hook Options
 
 All hooks accept options from `EmbedConfig`:
@@ -284,6 +298,7 @@ interface UsePopupOptions {
   theme?: "light" | "dark" | "system";
   channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode
   welcomeMessage?: string; // Teaser text (float only)
+  teaser?: TeaserConfig; // Teaser on/off, delay (ms), and chime sound (float only)
   buttonText?: string; // Trigger button text (popup/slider)
   params?: Record<string, string>;
   brand?: {

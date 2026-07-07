@@ -8,6 +8,7 @@ import type {
   FloatHandle,
   InternalEmbedConfig,
   LauncherIcon,
+  TeaserConfig,
   ThemeConfig,
 } from "./types";
 import { hasDom, getHost } from "./config";
@@ -21,7 +22,13 @@ import {
 import { createLoadingIndicator } from "./loading";
 import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
-import { cn, getThemeClass, resolveIsDark, readableTextColor } from "./utils";
+import {
+  cn,
+  getThemeClass,
+  resolveIsDark,
+  readableTextColor,
+  isValidDelayMs,
+} from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
 
@@ -43,8 +50,9 @@ function mergeApiLauncher(
 }
 type ChannelMode = "voice" | "text" | "both";
 
-const SOUND_DELAY_MS = 2000;
-const TEASER_DELAY_MS = 3000;
+/** How long the chime leads the teaser bubble */
+const SOUND_LEAD_MS = 1000;
+const DEFAULT_TEASER_DELAY_MS = 3000;
 const TYPEWRITER_SPEED_MS = 40;
 const DEFAULT_WELCOME_MESSAGE = "Have a question? I'm here to help.";
 
@@ -75,6 +83,24 @@ function resolveWelcomeMessage(config: InternalEmbedConfig): string {
   const message = config.welcomeMessage ?? config._apiConfig?.welcomeMessage;
   const trimmed = typeof message === "string" ? message.trim() : "";
   return trimmed.length > 0 ? trimmed : DEFAULT_WELCOME_MESSAGE;
+}
+
+/** Merge API teaser settings over customer config (API is source of truth) */
+function resolveTeaserConfig(
+  config: InternalEmbedConfig
+): Required<TeaserConfig> {
+  const merged: TeaserConfig = {
+    ...config.teaser,
+    ...config._apiConfig?.embedSettings?.teaser,
+  };
+  const delay = isValidDelayMs(merged.delay)
+    ? merged.delay
+    : DEFAULT_TEASER_DELAY_MS;
+  return {
+    enabled: merged.enabled !== false,
+    delay,
+    sound: merged.sound !== false,
+  };
 }
 
 export function getDefaultIconHtml(config: InternalEmbedConfig): string {
@@ -265,15 +291,17 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     fetch(`${host}/api/v1/embed/config/${researchId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((fetchedConfig) => {
-        if (fetchedConfig?.avatarUrl) {
-          currentConfig = {
-            ...currentConfig,
-            _apiConfig: { ...currentConfig._apiConfig, ...fetchedConfig },
-          };
-          if (!isOpen) {
-            applyBubbleIcon(bubble, currentConfig);
-          }
+        if (!fetchedConfig) return;
+        currentConfig = {
+          ...currentConfig,
+          _apiConfig: { ...currentConfig._apiConfig, ...fetchedConfig },
+        };
+        if (fetchedConfig.avatarUrl && !isOpen) {
+          applyBubbleIcon(bubble, currentConfig);
         }
+        // The fetched config may carry teaser settings (e.g. a dashboard
+        // disable) that must cancel the sequence armed at mount.
+        syncTeaserState();
       })
       .catch(() => {
         // Silently fall back to default icon
@@ -290,7 +318,6 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   let notificationDot: HTMLElement | null = null;
   let audioCtx: AudioContext | null = null;
   let welcomeSequenceStarted = false;
-  let welcomeDismissed = false;
   let welcomeTimers: number[] = [];
   const persistOpenState = (open: boolean) => {
     setPersistedOpenState({
@@ -417,22 +444,50 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     }, TYPEWRITER_SPEED_MS);
   };
 
-  const maybeStartWelcomeSequence = () => {
-    if (welcomeSequenceStarted || welcomeDismissed || isOpen) return;
+  const maybeStartWelcomeSequence = (
+    teaserConfig = resolveTeaserConfig(currentConfig)
+  ) => {
+    if (welcomeSequenceStarted || isOpen) return;
+
+    // Not marked as started, so a later update() that enables the teaser
+    // (e.g. async API config arriving) can still kick off the sequence.
+    if (!teaserConfig.enabled) return;
 
     welcomeSequenceStarted = true;
 
-    const soundTimer = window.setTimeout(() => {
-      if (isOpen || welcomeDismissed) return;
-      playChime();
-    }, SOUND_DELAY_MS);
+    if (teaserConfig.sound) {
+      // The chime tracks the teaser: it announces the bubble 1s ahead of it
+      // (or as early as possible when the delay is shorter than the lead)
+      const soundTimer = window.setTimeout(
+        () => {
+          if (isOpen) return;
+          playChime();
+        },
+        Math.max(0, teaserConfig.delay - SOUND_LEAD_MS)
+      );
+      welcomeTimers.push(soundTimer);
+    }
 
     const teaserTimer = window.setTimeout(() => {
-      if (isOpen || welcomeDismissed) return;
+      if (isOpen) return;
       renderTeaser(resolveWelcomeMessage(currentConfig));
-    }, TEASER_DELAY_MS);
+    }, teaserConfig.delay);
 
-    welcomeTimers.push(soundTimer, teaserTimer);
+    welcomeTimers.push(teaserTimer);
+  };
+
+  // Re-evaluate the teaser after a config change: a disable cancels any
+  // pending or visible teaser (and re-arms on a later enable); otherwise
+  // start the sequence if it hasn't run yet.
+  const syncTeaserState = () => {
+    const teaserConfig = resolveTeaserConfig(currentConfig);
+    if (!teaserConfig.enabled) {
+      clearWelcomeTimers();
+      removeTeaser();
+      welcomeSequenceStarted = false;
+      return;
+    }
+    maybeStartWelcomeSequence(teaserConfig);
   };
 
   const openFloat = () => {
@@ -599,7 +654,27 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
         _apiConfig?: ThemeConfig;
       }
     ) => {
+      const prevApiTeaser = currentConfig._apiConfig?.embedSettings?.teaser;
       currentConfig = { ...currentConfig, ...options };
+
+      // An _apiConfig refresh that omits teaser settings keeps the previous
+      // ones — a later payload must not silently undo an earlier API disable.
+      if (
+        options._apiConfig &&
+        prevApiTeaser &&
+        !options._apiConfig.embedSettings?.teaser
+      ) {
+        currentConfig = {
+          ...currentConfig,
+          _apiConfig: {
+            ...currentConfig._apiConfig!,
+            embedSettings: {
+              ...currentConfig._apiConfig!.embedSettings,
+              teaser: prevApiTeaser,
+            },
+          },
+        };
+      }
 
       // Recompute bubble color from updated API config or brand
       const apiCfg = currentConfig._apiConfig;
@@ -647,7 +722,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
         setBubbleClosedState();
       }
 
-      maybeStartWelcomeSequence();
+      syncTeaserState();
     },
     destroy,
     open: openFloat,

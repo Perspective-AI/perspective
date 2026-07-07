@@ -196,6 +196,7 @@ interface EmbedConfig {
   theme?: "light" | "dark" | "system"; // Theme preference (default: "system")
   channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode (default: from server config)
   welcomeMessage?: string; // Teaser text next to float button (float-type only)
+  teaser?: TeaserConfig; // Teaser on/off, delay, and sound (float-type only)
   buttonText?: string; // Custom text for popup/slider trigger buttons
   params?: Record<string, string>; // Custom URL parameters for tracking
   brand?: {
@@ -397,6 +398,49 @@ createFloatBubble({
 ```
 
 The teaser appears after 3 seconds with a chime sound. Click the teaser or the float button to open the chat. Only applies to float-type embeds.
+
+### Teaser Control
+
+Control whether and when the teaser appears via the `teaser` option:
+
+```typescript
+createFloatBubble({
+  researchId: "xxx",
+  welcomeMessage: "Have a question? I'm here to help.",
+  teaser: {
+    enabled: true, // false disables the whole welcome sequence (teaser, chime, dot)
+    delay: 5000, // ms after mount before the teaser appears (default: 3000)
+    sound: false, // mute the chime (default: true)
+  },
+});
+```
+
+- `enabled: false` turns off the teaser bubble, the chime sound, and the notification dot entirely.
+- `delay` sets when the teaser bubble appears, in milliseconds. The chime tracks the teaser, playing 1 second before it appears (or immediately, when `delay` is under a second).
+- `sound: false` mutes the chime while keeping the teaser bubble.
+
+Or declaratively via data attributes:
+
+```html
+<div
+  data-perspective-float="research_xxx"
+  data-perspective-teaser="false"
+></div>
+
+<div
+  data-perspective-float="research_xxx"
+  data-perspective-teaser-delay="5000"
+  data-perspective-teaser-sound="false"
+></div>
+```
+
+| Data Attribute                  | Description                             |
+| ------------------------------- | --------------------------------------- |
+| `data-perspective-teaser`       | `"false"` disables the welcome sequence |
+| `data-perspective-teaser-delay` | Milliseconds before the teaser appears  |
+| `data-perspective-teaser-sound` | `"false"` mutes the chime               |
+
+Teaser settings configured in the Perspective dashboard (delivered via the config API) take precedence over values passed in code.
 
 ## Disable Close
 
@@ -636,6 +680,9 @@ For non-module environments, use the browser bundle:
 | `data-perspective-launcher-icon`  | Launcher icon: `"avatar"`, `"default"`, or image URL    |
 | `data-perspective-launcher-style` | Launcher CSS: `"width:64px;border-radius:12px"`         |
 | `data-perspective-launcher-class` | CSS class(es) for the launcher button                   |
+| `data-perspective-teaser`         | `"false"` disables the float welcome teaser             |
+| `data-perspective-teaser-delay`   | Milliseconds before the teaser appears (default 3000)   |
+| `data-perspective-teaser-sound`   | `"false"` mutes the teaser chime                        |
 
 ### Auto-Trigger (Data Attributes)
 

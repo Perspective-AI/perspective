@@ -77,6 +77,7 @@ export function useFloatBubble(
     host,
     channel,
     welcomeMessage,
+    teaser,
     launcher,
     onReady,
     onSubmit,
@@ -108,6 +109,20 @@ export function useFloatBubble(
   }, [isControlled, onOpenChange, onClose]);
 
   const stableOnClose = useStableCallback(handleClose);
+
+  // Stabilize the teaser object on its primitive fields so an inline object
+  // literal prop doesn't remount the whole bubble on every parent render
+  const teaserEnabled = teaser?.enabled;
+  const teaserDelay = teaser?.delay;
+  const teaserSound = teaser?.sound;
+  const hasTeaser = teaser !== undefined;
+  const stableTeaser = useMemo(
+    (): EmbedConfig["teaser"] =>
+      hasTeaser
+        ? { enabled: teaserEnabled, delay: teaserDelay, sound: teaserSound }
+        : undefined,
+    [hasTeaser, teaserEnabled, teaserDelay, teaserSound]
+  );
 
   // Resolve ReactNode icons to SVG strings for the core SDK
   const resolvedLauncher = useMemo((): EmbedConfig["launcher"] | undefined => {
@@ -146,6 +161,7 @@ export function useFloatBubble(
       host,
       channel,
       welcomeMessage,
+      teaser: stableTeaser,
       launcher: resolvedLauncher,
       onReady: stableOnReady,
       onSubmit: stableOnSubmit,
@@ -172,6 +188,7 @@ export function useFloatBubble(
     host,
     channel,
     welcomeMessage,
+    stableTeaser,
     resolvedLauncher,
     stableOnReady,
     stableOnSubmit,

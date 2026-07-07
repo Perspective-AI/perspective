@@ -861,5 +861,32 @@ describe("browser entry", () => {
       expect(img).toBeTruthy();
       expect(img!.src).toBe("https://example.com/avatar.png");
     });
+
+    it("parses data-perspective-teaser='false' to disable the teaser", () => {
+      vi.useFakeTimers();
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id"
+             data-perspective-teaser="false"></div>
+      `;
+      autoInit();
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+    });
+
+    it("parses data-perspective-teaser-delay as teaser delay in ms", () => {
+      vi.useFakeTimers();
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id"
+             data-perspective-teaser-delay="500"></div>
+      `;
+      autoInit();
+
+      vi.advanceTimersByTime(400);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      vi.advanceTimersByTime(100);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+    });
   });
 });
