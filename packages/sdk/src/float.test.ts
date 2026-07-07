@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createFloatBubble, createChatBubble } from "./float";
+import { prefetchSceneImage } from "./loading";
 import * as config from "./config";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 
@@ -39,6 +40,21 @@ describe("createFloatBubble", () => {
     sessionStorage.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it("prefetches the scene image on bubble hover", () => {
+    createFloatBubble({
+      researchId: "float-prefetch-test",
+      host: "https://s.getperspective.ai",
+    });
+    const bubble = document.querySelector(
+      ".perspective-float-bubble"
+    ) as HTMLElement;
+    bubble.dispatchEvent(new Event("pointerenter"));
+    // hover already kicked the fetch, so a manual prefetch is a dedup no-op
+    expect(
+      prefetchSceneImage("float-prefetch-test", "https://s.getperspective.ai")
+    ).toBeNull();
   });
 
   it("creates float bubble", () => {

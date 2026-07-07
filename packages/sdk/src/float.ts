@@ -19,7 +19,7 @@ import {
   ensureGlobalListeners,
   ensureHostPreconnect,
 } from "./iframe";
-import { createLoadingIndicator } from "./loading";
+import { createLoadingIndicator, prefetchSceneImage } from "./loading";
 import { injectStyles, AUDIO_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import {
@@ -519,6 +519,9 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     const loading = createLoadingIndicator({
       theme: currentConfig.theme,
       brand: currentConfig.brand,
+      apiConfig: currentConfig._apiConfig,
+      researchId,
+      host,
     });
     loading.style.borderRadius = "16px";
 
@@ -531,8 +534,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       currentConfig.brand,
       currentConfig.theme
     );
-    iframe.style.opacity = "0";
-    iframe.style.transition = "opacity 0.15s ease";
+    iframe.style.opacity = "0"; // snaps visible at handoff — see widget.ts
 
     floatWindow.appendChild(closeBtn);
     floatWindow.appendChild(loading);
@@ -616,6 +618,11 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
 
     currentConfig.onClose?.();
   };
+
+  // Warm the scene image on intent so it's cached when the window opens.
+  const warmScene = () => prefetchSceneImage(researchId, host);
+  bubble.addEventListener("pointerenter", warmScene, { once: true });
+  bubble.addEventListener("focus", warmScene, { once: true });
 
   // Toggle on bubble click
   bubble.addEventListener("click", () => {
