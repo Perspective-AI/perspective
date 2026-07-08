@@ -81,6 +81,9 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   const loading = createLoadingIndicator({
     theme: config.theme,
     brand: config.brand,
+    apiConfig: config._apiConfig,
+    researchId,
+    host,
   });
 
   // Create iframe (hidden initially). Appearance overrides resolved server-side.
@@ -92,8 +95,7 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     config.brand,
     config.theme
   );
-  iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.15s ease";
+  iframe.style.opacity = "0"; // snaps visible at handoff — see widget.ts
 
   slider.appendChild(closeBtn);
   slider.appendChild(loading);

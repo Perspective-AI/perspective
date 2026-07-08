@@ -196,6 +196,9 @@ export function createWidget(
   const loading = createLoadingIndicator({
     theme: config.theme,
     brand: config.brand,
+    apiConfig: config._apiConfig,
+    researchId,
+    host,
   });
   wrapper.appendChild(loading);
 
@@ -211,10 +214,10 @@ export function createWidget(
     config.brand,
     config.theme
   );
-  // Size/border come from the `.perspective-widget iframe` rule; opacity is
-  // toggled inline as the loading skeleton hands off to the live iframe.
+  // Size/border come from the `.perspective-widget iframe` rule. At handoff
+  // the iframe snaps visible under the overlay's fade-out — no transition, so
+  // combined coverage never dips below 100% (a cross-fade would).
   iframe.style.opacity = "0";
-  iframe.style.transition = "opacity 0.15s ease";
 
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);

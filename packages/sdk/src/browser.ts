@@ -41,6 +41,7 @@ import {
   markShown,
 } from "./triggers";
 import { createWidget } from "./widget";
+import { prefetchSceneImage } from "./loading";
 import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
@@ -692,6 +693,10 @@ function autoInit(): void {
           }
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
+        // Warm the scene image on intent so it's cached when the embed opens.
+        const warmScene = () => prefetchSceneImage(researchId);
+        el.addEventListener("pointerenter", warmScene, { once: true });
+        el.addEventListener("focus", warmScene, { once: true });
         el.addEventListener("click", (e) => {
           e.preventDefault();
           // Cancel any pending API auto-trigger (manual open takes precedence)
@@ -772,6 +777,10 @@ function autoInit(): void {
           }
         });
         styleButton(el, DEFAULT_THEME, brandConfig);
+        // Warm the scene image on intent so it's cached when the embed opens.
+        const warmScene = () => prefetchSceneImage(researchId);
+        el.addEventListener("pointerenter", warmScene, { once: true });
+        el.addEventListener("focus", warmScene, { once: true });
         el.addEventListener("click", (e) => {
           e.preventDefault();
           // Cancel any pending API auto-trigger (manual open takes precedence)
