@@ -20,7 +20,7 @@ import {
   ensureHostPreconnect,
 } from "./iframe";
 import { createLoadingIndicator } from "./loading";
-import { injectStyles, MIC_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
+import { injectStyles, AUDIO_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
 import { getPersistedOpenState, setPersistedOpenState } from "./state";
 import {
   cn,
@@ -106,7 +106,7 @@ function resolveTeaserConfig(
 export function getDefaultIconHtml(config: InternalEmbedConfig): string {
   return getChannelMode(resolveChannel(config)) === "text"
     ? MESSAGES_ICON
-    : MIC_ICON;
+    : AUDIO_ICON;
 }
 
 export function createIconImg(
