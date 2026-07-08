@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.13.1
+
+### Patch Changes
+
+- a0af14d: Change the float launcher's default icon from a microphone to lucide's AudioLines icon for the voice and voice+text channels.
+
 ## 1.13.0
 
 ### Minor Changes
