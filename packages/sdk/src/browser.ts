@@ -829,6 +829,11 @@ function autoInit(): void {
         ...(launcherConfig && { launcher: launcherConfig }),
         ...(teaserConfig && { teaser: teaserConfig }),
         _apiConfig: DEFAULT_THEME,
+        // Defer the teaser until the fetched config below arrives — its
+        // embedSettings.teaser.delay must not be preempted by a shorter
+        // delay armed at mount. fetchConfig never rejects (it resolves with
+        // DEFAULT_THEME on error/timeout), so the deferral always ends.
+        _apiConfigPending: true,
       } as InternalEmbedConfig);
 
       fetchConfig(researchId).then((config) => {
