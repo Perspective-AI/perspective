@@ -348,7 +348,15 @@ export interface ThemeConfig {
 }
 
 /** EmbedConfig with _apiConfig from the config API (internal, subject to change) */
-export type InternalEmbedConfig = EmbedConfig & { _apiConfig?: ThemeConfig };
+export type InternalEmbedConfig = EmbedConfig & {
+  _apiConfig?: ThemeConfig;
+  /**
+   * Set when the embed mounts while the config API fetch is still in flight.
+   * Defers delay-sensitive behavior (the float teaser) until the fetched
+   * config arrives via update({ _apiConfig }), which clears the flag.
+   */
+  _apiConfigPending?: boolean;
+};
 
 /** SDK global configuration */
 export interface SDKConfig {

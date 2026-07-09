@@ -874,7 +874,7 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
     });
 
-    it("parses data-perspective-teaser-delay as teaser delay in ms", () => {
+    it("parses data-perspective-teaser-delay as teaser delay in ms", async () => {
       vi.useFakeTimers();
       document.body.innerHTML = `
         <div data-perspective-float="test-id"
@@ -882,11 +882,28 @@ describe("browser entry", () => {
       `;
       autoInit();
 
+      // The teaser is deferred until the config fetch resolves
+      await flushConfigFetch();
+      await flushConfigFetch();
+
       vi.advanceTimersByTime(400);
       expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
 
       vi.advanceTimersByTime(100);
       expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+    });
+
+    it("does not arm the teaser before the config fetch resolves", () => {
+      vi.useFakeTimers();
+      // Never-resolving fetch: the config stays in flight for the whole test
+      vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id-pending"></div>
+      `;
+      autoInit();
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
     });
   });
 });

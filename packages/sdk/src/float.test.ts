@@ -920,6 +920,137 @@ describe("createFloatBubble", () => {
       handle.unmount();
     });
 
+    it("_apiConfigPending defers the teaser until the API config arrives, crediting the wait", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        _apiConfigPending: true,
+      });
+
+      // Nothing fires while the config fetch is in flight — not even the
+      // 3s default.
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+          embedSettings: { teaser: { delay: 30000 } },
+        },
+      });
+
+      // Fires 30s after mount: 10s already elapsed + 20s remaining
+      vi.advanceTimersByTime(19000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      vi.advanceTimersByTime(1000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("a config resolving past the default delay shows the deferred teaser immediately", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        _apiConfigPending: true,
+      });
+
+      // Config resolves at 5s with no teaser settings — the default 3s delay
+      // has fully elapsed, so the teaser shows right away.
+      vi.advanceTimersByTime(5000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+        },
+      });
+
+      vi.advanceTimersByTime(0);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("a second delay change credits elapsed time from the first arm, not the last reschedule", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      // First reschedule at 1s (default 3s -> 30s)
+      vi.advanceTimersByTime(1000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+          embedSettings: { teaser: { delay: 30000 } },
+        },
+      });
+
+      // Second reschedule at 2s (30s -> 10s): must fire 10s after mount,
+      // i.e. 8s from now — not 10s from this reschedule.
+      vi.advanceTimersByTime(1000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+          embedSettings: { teaser: { delay: 10000 } },
+        },
+      });
+
+      vi.advanceTimersByTime(7000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      vi.advanceTimersByTime(1000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+    });
+
+    it("re-enabling the teaser measures the delay from the re-enable, not the original arm", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      // Disable at 1s, re-enable at 2s with a 5s delay
+      vi.advanceTimersByTime(1000);
+      handle.update({ teaser: { enabled: false } });
+      vi.advanceTimersByTime(1000);
+      handle.update({ teaser: { enabled: true, delay: 5000 } });
+
+      // 5s measured from the re-enable: nothing at +4s, teaser at +5s
+      vi.advanceTimersByTime(4000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      vi.advanceTimersByTime(1000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      handle.unmount();
+    });
+
     it("an _apiConfig refresh with an unchanged delay does not reset a visible teaser", () => {
       vi.useFakeTimers();
 

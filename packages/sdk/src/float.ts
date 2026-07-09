@@ -319,10 +319,12 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   let audioCtx: AudioContext | null = null;
   let welcomeSequenceStarted = false;
   let welcomeTimers: number[] = [];
-  // Delay the pending sequence was armed with, and when — so a config change
-  // (e.g. the async API config arriving after mount) can reschedule it.
+  // Delay the pending sequence was armed with, and when the current waiting
+  // period began (mount, or a re-enable after a disable). The anchor survives
+  // deferred arms and reschedules: the teaser always fires at the resolved
+  // delay measured from the anchor, crediting time already waited.
   let armedTeaserDelay: number | null = null;
-  let armedAtMs = 0;
+  let delayAnchorMs: number | null = null;
   let teaserDelivered = false;
   const persistOpenState = (open: boolean) => {
     setPersistedOpenState({
@@ -450,10 +452,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   };
 
   const maybeStartWelcomeSequence = (
-    teaserConfig = resolveTeaserConfig(currentConfig),
-    // Actual timer duration; differs from teaserConfig.delay when a
-    // reschedule credits time already waited.
-    timerDelay = teaserConfig.delay
+    teaserConfig = resolveTeaserConfig(currentConfig)
   ) => {
     if (welcomeSequenceStarted || isOpen) return;
 
@@ -461,9 +460,21 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     // (e.g. async API config arriving) can still kick off the sequence.
     if (!teaserConfig.enabled) return;
 
+    // Anchor before any deferral so the eventual arm credits time already
+    // waited; ??= keeps the original anchor across reschedules.
+    delayAnchorMs ??= Date.now();
+
+    // While the config API fetch is in flight, don't arm with a delay it may
+    // override — a slow fetch must not set off the teaser early. update()
+    // clears the flag when the fetched config arrives and re-enters here.
+    if (currentConfig._apiConfigPending) return;
+
     welcomeSequenceStarted = true;
     armedTeaserDelay = teaserConfig.delay;
-    armedAtMs = Date.now();
+    const timerDelay = Math.max(
+      0,
+      teaserConfig.delay - (Date.now() - delayAnchorMs)
+    );
 
     if (teaserConfig.sound) {
       // The chime tracks the teaser: it announces the bubble 1s ahead of it
@@ -496,12 +507,17 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       clearWelcomeTimers();
       removeTeaser();
       welcomeSequenceStarted = false;
+      // Forget the arm tracking so a later re-enable starts a fresh sequence
+      // measured from the re-enable, not from the original anchor.
+      armedTeaserDelay = null;
+      delayAnchorMs = null;
+      teaserDelivered = false;
       return;
     }
 
-    // A delay change while the teaser is still pending (typically the API
-    // config arriving after mount armed the default) reschedules the timers,
-    // crediting the time already waited. Never reschedule once the teaser
+    // A delay change while the teaser is still pending (e.g. the API config
+    // updating a customer-configured delay) reschedules the timers; the arm
+    // credits time waited since the anchor. Never reschedule once the teaser
     // has been delivered or the sequence was cancelled (e.g. by opening).
     if (
       welcomeSequenceStarted &&
@@ -512,12 +528,6 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     ) {
       clearWelcomeTimers();
       welcomeSequenceStarted = false;
-      const elapsed = Date.now() - armedAtMs;
-      maybeStartWelcomeSequence(
-        teaserConfig,
-        Math.max(0, teaserConfig.delay - elapsed)
-      );
-      return;
     }
 
     maybeStartWelcomeSequence(teaserConfig);
@@ -696,6 +706,12 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     ) => {
       const prevApiTeaser = currentConfig._apiConfig?.embedSettings?.teaser;
       currentConfig = { ...currentConfig, ...options };
+
+      // The fetched config arriving ends the deferral of delay-sensitive
+      // behavior (see _apiConfigPending).
+      if (options._apiConfig) {
+        currentConfig = { ...currentConfig, _apiConfigPending: false };
+      }
 
       // An _apiConfig refresh that omits teaser settings keeps the previous
       // ones — a later payload must not silently undo an earlier API disable.
