@@ -1118,6 +1118,154 @@ describe("createFloatBubble", () => {
     });
   });
 
+  describe("teaser dismiss", () => {
+    it("dismiss button removes the teaser and dot without opening the chat", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(3000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      const dismissBtn = document.querySelector(
+        ".perspective-float-teaser-dismiss"
+      ) as HTMLButtonElement;
+      expect(dismissBtn).toBeTruthy();
+      expect(dismissBtn.getAttribute("aria-label")).toBe("Dismiss message");
+
+      dismissBtn.click();
+
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+      expect(
+        document.querySelector(".perspective-float-notification-dot")
+      ).toBeFalsy();
+      // Dismissing is not engaging — the chat must stay closed.
+      expect(handle.isOpen).toBe(false);
+      expect(document.querySelector(".perspective-float-window")).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("teaser.dismissible=false hides the dismiss button", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { dismissible: false },
+      });
+
+      vi.advanceTimersByTime(3000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+      expect(
+        document.querySelector(".perspective-float-teaser-dismiss")
+      ).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("a dismissal is not re-armed by a later config update", () => {
+      vi.useFakeTimers();
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+        teaser: { delay: 1000 },
+      });
+
+      vi.advanceTimersByTime(1000);
+      (
+        document.querySelector(
+          ".perspective-float-teaser-dismiss"
+        ) as HTMLButtonElement
+      ).click();
+
+      // A config refresh with a different delay would normally reschedule
+      // the sequence — after a dismissal it must stay quiet.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (handle.update as any)({
+        _apiConfig: {
+          primaryColor: "#7c3aed",
+          textColor: "#ffffff",
+          darkPrimaryColor: "#a78bfa",
+          darkTextColor: "#ffffff",
+          embedSettings: { teaser: { delay: 5000 } },
+        },
+      });
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+
+      handle.unmount();
+    });
+
+    it("a dismissal persists across mounts in the same session (no teaser, no chime)", () => {
+      vi.useFakeTimers();
+      const audioCtxCtor = vi.fn(() => createFakeAudioContext());
+      vi.stubGlobal("AudioContext", audioCtxCtor);
+
+      const first = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(3000);
+      (
+        document.querySelector(
+          ".perspective-float-teaser-dismiss"
+        ) as HTMLButtonElement
+      ).click();
+      first.unmount();
+      audioCtxCtor.mockClear();
+
+      // Simulates a page navigation: a fresh mount in the same session.
+      const second = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(10000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeFalsy();
+      expect(
+        document.querySelector(".perspective-float-notification-dot")
+      ).toBeFalsy();
+      expect(audioCtxCtor).not.toHaveBeenCalled();
+
+      second.unmount();
+      vi.unstubAllGlobals();
+    });
+
+    it("a dismissal is scoped to the researchId", () => {
+      vi.useFakeTimers();
+
+      const first = createFloatBubble({
+        researchId: "research-a",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(3000);
+      (
+        document.querySelector(
+          ".perspective-float-teaser-dismiss"
+        ) as HTMLButtonElement
+      ).click();
+      first.unmount();
+
+      const second = createFloatBubble({
+        researchId: "research-b",
+        welcomeMessage: "Hello!",
+      });
+
+      vi.advanceTimersByTime(3000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+
+      second.unmount();
+    });
+  });
+
   describe("launcher config", () => {
     afterEach(() => {
       document.body.innerHTML = "";

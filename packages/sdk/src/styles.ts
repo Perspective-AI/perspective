@@ -363,6 +363,38 @@ export function injectStyles(): void {
       font-weight: 500;
     }
 
+    .perspective-float-teaser-dismiss {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid var(--perspective-teaser-border);
+      background: var(--perspective-teaser-bg);
+      color: var(--perspective-close-text);
+      box-shadow: var(--perspective-shadow-sm);
+      cursor: pointer;
+    }
+
+    .perspective-float-teaser-dismiss:hover {
+      color: var(--perspective-close-hover-text);
+    }
+
+    .perspective-float-teaser-dismiss:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+
+    .perspective-float-teaser-dismiss svg {
+      width: 12px;
+      height: 12px;
+    }
+
     @keyframes perspective-teaser-in {
       from {
         opacity: 0;

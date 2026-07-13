@@ -21,7 +21,12 @@ import {
 } from "./iframe";
 import { createLoadingIndicator, prefetchSceneImage } from "./loading";
 import { injectStyles, AUDIO_ICON, MESSAGES_ICON, CLOSE_ICON } from "./styles";
-import { getPersistedOpenState, setPersistedOpenState } from "./state";
+import {
+  getPersistedOpenState,
+  setPersistedOpenState,
+  getPersistedTeaserDismissed,
+  setPersistedTeaserDismissed,
+} from "./state";
 import {
   cn,
   getThemeClass,
@@ -100,6 +105,7 @@ function resolveTeaserConfig(
     enabled: merged.enabled !== false,
     delay,
     sound: merged.sound !== false,
+    dismissible: merged.dismissible !== false,
   };
 }
 
@@ -326,6 +332,12 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   let armedTeaserDelay: number | null = null;
   let delayAnchorMs: number | null = null;
   let teaserDelivered = false;
+  // An explicit × dismissal holds for the whole browser session: it survives
+  // config updates (which otherwise re-arm the sequence) and page navigations.
+  let teaserDismissed = getPersistedTeaserDismissed({
+    researchId,
+    host: config.host,
+  });
   const persistOpenState = (open: boolean) => {
     setPersistedOpenState({
       researchId,
@@ -415,6 +427,13 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     }
   };
 
+  const dismissTeaser = () => {
+    teaserDismissed = true;
+    setPersistedTeaserDismissed({ researchId, host: config.host });
+    clearWelcomeTimers();
+    removeTeaser();
+  };
+
   const renderTeaser = (message: string) => {
     removeTeaser();
     if (isOpen) return;
@@ -432,6 +451,19 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
 
     teaserEl.appendChild(messageEl);
     teaserEl.addEventListener("click", () => openFloat());
+
+    if (resolveTeaserConfig(currentConfig).dismissible) {
+      const dismissBtn = document.createElement("button");
+      dismissBtn.className = "perspective-float-teaser-dismiss";
+      dismissBtn.innerHTML = CLOSE_ICON;
+      dismissBtn.setAttribute("aria-label", "Dismiss message");
+      dismissBtn.addEventListener("click", (event) => {
+        // The teaser itself opens the chat on click — a dismissal must not.
+        event.stopPropagation();
+        dismissTeaser();
+      });
+      teaserEl.appendChild(dismissBtn);
+    }
 
     document.body.appendChild(teaserEl);
     teaser = teaserEl;
@@ -454,7 +486,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   const maybeStartWelcomeSequence = (
     teaserConfig = resolveTeaserConfig(currentConfig)
   ) => {
-    if (welcomeSequenceStarted || isOpen) return;
+    if (welcomeSequenceStarted || isOpen || teaserDismissed) return;
 
     // Not marked as started, so a later update() that enables the teaser
     // (e.g. async API config arriving) can still kick off the sequence.

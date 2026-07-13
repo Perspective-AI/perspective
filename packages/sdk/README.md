@@ -196,7 +196,7 @@ interface EmbedConfig {
   theme?: "light" | "dark" | "system"; // Theme preference (default: "system")
   channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode (default: from server config)
   welcomeMessage?: string; // Teaser text next to float button (float-type only)
-  teaser?: TeaserConfig; // Teaser on/off, delay, and sound (float-type only)
+  teaser?: TeaserConfig; // Teaser on/off, delay, sound, and dismissibility (float-type only)
   buttonText?: string; // Custom text for popup/slider trigger buttons
   params?: Record<string, string>; // Custom URL parameters for tracking
   brand?: {
@@ -397,7 +397,7 @@ createFloatBubble({
 });
 ```
 
-The teaser appears after 3 seconds with a chime sound. Click the teaser or the float button to open the chat. Only applies to float-type embeds.
+The teaser appears after 3 seconds with a chime sound. Click the teaser or the float button to open the chat, or the teaser's × button to dismiss it without opening the chat (the dismissal holds for the rest of the browser session). Only applies to float-type embeds.
 
 ### Teaser Control
 
@@ -411,6 +411,7 @@ createFloatBubble({
     enabled: true, // false disables the whole welcome sequence (teaser, chime, dot)
     delay: 5000, // ms after mount before the teaser appears (default: 3000)
     sound: false, // mute the chime (default: true)
+    dismissible: false, // hide the teaser's × button (default: true)
   },
 });
 ```
@@ -418,6 +419,7 @@ createFloatBubble({
 - `enabled: false` turns off the teaser bubble, the chime sound, and the notification dot entirely.
 - `delay` sets when the teaser bubble appears, in milliseconds. The chime tracks the teaser, playing 1 second before it appears (or immediately, when `delay` is under a second).
 - `sound: false` mutes the chime while keeping the teaser bubble.
+- `dismissible: false` removes the × button from the teaser bubble. By default, dismissing the teaser also clears the notification dot and keeps the teaser hidden for the rest of the browser session (per agent, stored in `sessionStorage`).
 
 Or declaratively via data attributes:
 
@@ -434,11 +436,12 @@ Or declaratively via data attributes:
 ></div>
 ```
 
-| Data Attribute                  | Description                             |
-| ------------------------------- | --------------------------------------- |
-| `data-perspective-teaser`       | `"false"` disables the welcome sequence |
-| `data-perspective-teaser-delay` | Milliseconds before the teaser appears  |
-| `data-perspective-teaser-sound` | `"false"` mutes the chime               |
+| Data Attribute                        | Description                             |
+| ------------------------------------- | --------------------------------------- |
+| `data-perspective-teaser`             | `"false"` disables the welcome sequence |
+| `data-perspective-teaser-delay`       | Milliseconds before the teaser appears  |
+| `data-perspective-teaser-sound`       | `"false"` mutes the chime               |
+| `data-perspective-teaser-dismissible` | `"false"` hides the teaser's × button   |
 
 Teaser settings configured in the Perspective dashboard (delivered via the config API) take precedence over values passed in code.
 
@@ -661,28 +664,29 @@ For non-module environments, use the browser bundle:
 
 ### Data Attributes Reference
 
-| Attribute                         | Description                                             |
-| --------------------------------- | ------------------------------------------------------- |
-| `data-perspective-widget`         | Inline widget embed                                     |
-| `data-perspective-frame`          | Widget frame: `"layout=fill,radius=4px,shadow=none,…"`  |
-| `data-perspective-popup`          | Popup trigger button                                    |
-| `data-perspective-slider`         | Slider trigger button                                   |
-| `data-perspective-float`          | Floating chat bubble                                    |
-| `data-perspective-fullpage`       | Full page embed                                         |
-| `data-perspective-params`         | Custom params: `"key1=value1,key2=value2"`              |
-| `data-perspective-theme`          | Theme: `"light"`, `"dark"`, or `"system"`               |
-| `data-perspective-brand`          | Light mode colors: `"primary=#xxx,bg=#yyy"`             |
-| `data-perspective-brand-dark`     | Dark mode colors                                        |
-| `data-perspective-no-style`       | Disable auto-styling on trigger buttons                 |
-| `data-perspective-disable-close`  | Prevent user from closing popup/slider                  |
-| `data-perspective-auto-open`      | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`  |
-| `data-perspective-show-once`      | Show-once dedup: `"session"`, `"visitor"`, or `"false"` |
-| `data-perspective-launcher-icon`  | Launcher icon: `"avatar"`, `"default"`, or image URL    |
-| `data-perspective-launcher-style` | Launcher CSS: `"width:64px;border-radius:12px"`         |
-| `data-perspective-launcher-class` | CSS class(es) for the launcher button                   |
-| `data-perspective-teaser`         | `"false"` disables the float welcome teaser             |
-| `data-perspective-teaser-delay`   | Milliseconds before the teaser appears (default 3000)   |
-| `data-perspective-teaser-sound`   | `"false"` mutes the teaser chime                        |
+| Attribute                             | Description                                             |
+| ------------------------------------- | ------------------------------------------------------- |
+| `data-perspective-widget`             | Inline widget embed                                     |
+| `data-perspective-frame`              | Widget frame: `"layout=fill,radius=4px,shadow=none,…"`  |
+| `data-perspective-popup`              | Popup trigger button                                    |
+| `data-perspective-slider`             | Slider trigger button                                   |
+| `data-perspective-float`              | Floating chat bubble                                    |
+| `data-perspective-fullpage`           | Full page embed                                         |
+| `data-perspective-params`             | Custom params: `"key1=value1,key2=value2"`              |
+| `data-perspective-theme`              | Theme: `"light"`, `"dark"`, or `"system"`               |
+| `data-perspective-brand`              | Light mode colors: `"primary=#xxx,bg=#yyy"`             |
+| `data-perspective-brand-dark`         | Dark mode colors                                        |
+| `data-perspective-no-style`           | Disable auto-styling on trigger buttons                 |
+| `data-perspective-disable-close`      | Prevent user from closing popup/slider                  |
+| `data-perspective-auto-open`          | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`  |
+| `data-perspective-show-once`          | Show-once dedup: `"session"`, `"visitor"`, or `"false"` |
+| `data-perspective-launcher-icon`      | Launcher icon: `"avatar"`, `"default"`, or image URL    |
+| `data-perspective-launcher-style`     | Launcher CSS: `"width:64px;border-radius:12px"`         |
+| `data-perspective-launcher-class`     | CSS class(es) for the launcher button                   |
+| `data-perspective-teaser`             | `"false"` disables the float welcome teaser             |
+| `data-perspective-teaser-delay`       | Milliseconds before the teaser appears (default 3000)   |
+| `data-perspective-teaser-sound`       | `"false"` mutes the teaser chime                        |
+| `data-perspective-teaser-dismissible` | `"false"` hides the teaser's × button                   |
 
 ### Auto-Trigger (Data Attributes)
 

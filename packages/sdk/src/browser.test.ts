@@ -893,6 +893,25 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
     });
 
+    it("parses data-perspective-teaser-dismissible='false' to hide the dismiss button", async () => {
+      vi.useFakeTimers();
+      document.body.innerHTML = `
+        <div data-perspective-float="test-id"
+             data-perspective-teaser-dismissible="false"></div>
+      `;
+      autoInit();
+
+      // The teaser is deferred until the config fetch resolves
+      await flushConfigFetch();
+      await flushConfigFetch();
+
+      vi.advanceTimersByTime(3000);
+      expect(document.querySelector(".perspective-float-teaser")).toBeTruthy();
+      expect(
+        document.querySelector(".perspective-float-teaser-dismiss")
+      ).toBeFalsy();
+    });
+
     it("does not arm the teaser before the config fetch resolves", () => {
       vi.useFakeTimers();
       // Never-resolving fetch: the config stays in flight for the whole test
