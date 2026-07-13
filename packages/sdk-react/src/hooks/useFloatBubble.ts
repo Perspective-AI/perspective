@@ -115,13 +115,19 @@ export function useFloatBubble(
   const teaserEnabled = teaser?.enabled;
   const teaserDelay = teaser?.delay;
   const teaserSound = teaser?.sound;
+  const teaserDismissible = teaser?.dismissible;
   const hasTeaser = teaser !== undefined;
   const stableTeaser = useMemo(
     (): EmbedConfig["teaser"] =>
       hasTeaser
-        ? { enabled: teaserEnabled, delay: teaserDelay, sound: teaserSound }
+        ? {
+            enabled: teaserEnabled,
+            delay: teaserDelay,
+            sound: teaserSound,
+            dismissible: teaserDismissible,
+          }
         : undefined,
-    [hasTeaser, teaserEnabled, teaserDelay, teaserSound]
+    [hasTeaser, teaserEnabled, teaserDelay, teaserSound, teaserDismissible]
   );
 
   // Resolve ReactNode icons to SVG strings for the core SDK
