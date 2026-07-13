@@ -285,6 +285,10 @@ import { FloatBubble } from "@perspective-ai/sdk-react";
 
 // Disable the welcome sequence entirely (no teaser, chime, or dot)
 <FloatBubble researchId="your-research-id" teaser={{ enabled: false }} />
+
+// Hide the teaser's × button (by default users can dismiss the teaser
+// without opening the chat; a dismissal holds for the browser session)
+<FloatBubble researchId="your-research-id" teaser={{ dismissible: false }} />
 ```
 
 ## Hook Options
@@ -298,7 +302,7 @@ interface UsePopupOptions {
   theme?: "light" | "dark" | "system";
   channel?: "TEXT" | "VOICE" | ["TEXT", "VOICE"]; // Interaction mode
   welcomeMessage?: string; // Teaser text (float only)
-  teaser?: TeaserConfig; // Teaser on/off, delay (ms), and chime sound (float only)
+  teaser?: TeaserConfig; // Teaser on/off, delay (ms), chime sound, and dismissibility (float only)
   buttonText?: string; // Trigger button text (popup/slider)
   params?: Record<string, string>;
   brand?: {

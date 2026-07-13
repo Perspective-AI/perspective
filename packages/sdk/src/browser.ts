@@ -379,7 +379,8 @@ function extractLauncherConfig(
  * Extract teaser config from element data attributes:
  * data-perspective-teaser="false" disables the welcome sequence,
  * data-perspective-teaser-delay="5000" sets the teaser delay in ms,
- * data-perspective-teaser-sound="false" mutes the chime.
+ * data-perspective-teaser-sound="false" mutes the chime,
+ * data-perspective-teaser-dismissible="false" hides the teaser's × button.
  */
 function extractTeaserConfig(
   el: HTMLElement
@@ -387,6 +388,7 @@ function extractTeaserConfig(
   const enabledAttr = el.getAttribute(DATA_ATTRS.teaser);
   const delayAttr = el.getAttribute(DATA_ATTRS.teaserDelay);
   const soundAttr = el.getAttribute(DATA_ATTRS.teaserSound);
+  const dismissibleAttr = el.getAttribute(DATA_ATTRS.teaserDismissible);
 
   const teaser: NonNullable<EmbedConfig["teaser"]> = {};
 
@@ -403,6 +405,10 @@ function extractTeaserConfig(
 
   if (soundAttr === "false") {
     teaser.sound = false;
+  }
+
+  if (dismissibleAttr === "false") {
+    teaser.dismissible = false;
   }
 
   return Object.keys(teaser).length > 0 ? teaser : undefined;

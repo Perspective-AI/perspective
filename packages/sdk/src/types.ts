@@ -122,6 +122,8 @@ export interface TeaserConfig {
   delay?: number;
   /** Whether the chime sound plays. It fires 1s before the teaser appears (or immediately, when `delay` is under 1s). Default: `true`. */
   sound?: boolean;
+  /** Whether the teaser shows an × button that dismisses it (and the notification dot) without opening the chat. A dismissal persists for the browser session. Default: `true`. */
+  dismissible?: boolean;
 }
 
 /** Customization options for the float launcher button */

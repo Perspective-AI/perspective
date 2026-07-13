@@ -95,6 +95,7 @@ export const DATA_ATTRS = {
   teaser: "data-perspective-teaser",
   teaserDelay: "data-perspective-teaser-delay",
   teaserSound: "data-perspective-teaser-sound",
+  teaserDismissible: "data-perspective-teaser-dismissible",
   disableJsonLdAttribution: "data-perspective-disable-jsonld-attribution",
 } as const;
 
@@ -200,4 +201,5 @@ export const STORAGE_KEYS = {
   triggerShown: "perspective-trigger-shown",
   embedAuthToken: "perspective-embed-auth-token",
   embedState: "perspective-embed-state",
+  teaserDismissed: "perspective-teaser-dismissed",
 } as const;
