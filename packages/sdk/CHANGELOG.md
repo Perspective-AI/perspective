@@ -1,5 +1,11 @@
 # @perspective-ai/sdk
 
+## 1.15.0
+
+### Minor Changes
+
+- 30483ae: Add an × dismiss button to the float teaser bubble so users can close it without opening the chat. Dismissing removes the teaser and the notification dot, and persists for the rest of the browser session (per agent). Configurable via `teaser.dismissible` (default `true`) or `data-perspective-teaser-dismissible="false"`.
+
 ## 1.14.1
 
 ### Patch Changes
