@@ -64,6 +64,34 @@ describe("useFloatBubble", () => {
     expect(mockUnmount).toHaveBeenCalledTimes(1);
   });
 
+  it("forwards all teaser fields to createFloatBubble", async () => {
+    const { unmount } = renderHook(() =>
+      useFloatBubble({
+        researchId: "test-research-id",
+        teaser: {
+          enabled: true,
+          delay: 2000,
+          sound: false,
+          dismissible: false,
+        },
+      })
+    );
+    await act(async () => {});
+
+    expect(mockCreateFloatBubble).toHaveBeenCalledWith(
+      expect.objectContaining({
+        teaser: {
+          enabled: true,
+          delay: 2000,
+          sound: false,
+          dismissible: false,
+        },
+      })
+    );
+
+    unmount();
+  });
+
   it("returns expected interface", async () => {
     const { result, unmount } = renderHook(() =>
       useFloatBubble({ researchId: "test-research-id" })

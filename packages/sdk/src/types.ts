@@ -149,7 +149,7 @@ export interface EmbedConfig {
   channel?: AIAssistantChannel | AIAssistantChannel[] | null;
   /** Welcome message shown as a teaser bubble next to the float button. Only used for float-type embeds. */
   welcomeMessage?: string;
-  /** Controls if and when the welcome teaser appears (`enabled`, `delay`, `sound`). Only used for float-type embeds. */
+  /** Controls if and when the welcome teaser appears (`enabled`, `delay`, `sound`, `dismissible`). Only used for float-type embeds. */
   teaser?: TeaserConfig;
   /** Custom button text for popup/slider triggers */
   buttonText?: string;
