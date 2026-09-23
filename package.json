@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.25.0",
   "engines": {
-    "node": ">=20"
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   },
   "scripts": {
     "postinstall": "lefthook install",
@@ -42,7 +42,7 @@
     "@arethetypeswrong/cli": "^0.18.2",
     "@changesets/cli": "^2.30.0",
     "@playwright/test": "^1.60.0",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^5.0.1",
     "happy-dom": "^20.8.9",
     "lefthook": "^2.0.15",
     "oxlint": "^1.0.0",
@@ -51,6 +51,6 @@
     "turbo": "^2.10.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.5",
-    "vitest": "^4.1.9"
+    "vitest": "^5.0.1"
   }
 }

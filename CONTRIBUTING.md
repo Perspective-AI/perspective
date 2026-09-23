@@ -4,7 +4,7 @@ Thanks for helping make the Perspective Embed SDK better. PRs, issues, and frame
 
 ## Prerequisites
 
-- **Node** 20+
+- **Node** 22.12+, 24, or 26+ (required by Vitest 5; see `engines` in `package.json`)
 - **pnpm** 10+ (the repo pins `pnpm@10.25.0` — install via `corepack enable` or `npm i -g pnpm`)
 
 ## Setup
