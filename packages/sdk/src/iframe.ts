@@ -707,7 +707,10 @@ function setupGlobalListeners(): void {
   setupThemeListener();
 
   globalMessageHandler = (event: MessageEvent) => {
-    if (!event.data?.type?.startsWith("perspective:")) return;
+    // Receives every message on the host page, including third-party scripts
+    // whose `type` may be a number or object.
+    if (typeof event.data?.type !== "string") return;
+    if (!event.data.type.startsWith("perspective:")) return;
     if (event.data.type === MESSAGE_TYPES.requestScrollbarStyles) {
       const iframes = Array.from(
         document.querySelectorAll("iframe[data-perspective]")
