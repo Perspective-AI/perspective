@@ -6,6 +6,7 @@ import {
   registerIframe,
   notifyThemeChange,
   ensureHostPreconnect,
+  ensureGlobalListeners,
 } from "./iframe";
 import { MESSAGE_TYPES, PARAM_KEYS, PARAM_VALUES } from "./constants";
 
@@ -553,6 +554,25 @@ describe("ensureHostPreconnect", () => {
       "preconnect",
     ]);
   });
+});
+
+describe("global message listener", () => {
+  // Regression: the page-wide listener called `.startsWith` on any message
+  // `type`, so a third-party script posting `{ type: 123 }` threw on the host.
+  it.each([123, { name: "ad" }, [["x"]], true])(
+    "ignores host-page messages whose type is %j",
+    (type) => {
+      const iframe = document.createElement("iframe");
+      const unregister = registerIframe(iframe, "https://getperspective.ai");
+      ensureGlobalListeners();
+
+      expect(() =>
+        window.dispatchEvent(new MessageEvent("message", { data: { type } }))
+      ).not.toThrow();
+
+      unregister();
+    }
+  );
 });
 
 describe("registerIframe", () => {

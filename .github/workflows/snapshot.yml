@@ -67,7 +67,12 @@ jobs:
         if: steps.changesets.outputs.has_changesets == 'true'
         id: publish
         run: |
+          # Without pipefail, `| tee` masks a failed publish and the job
+          # reports success (and posts the snapshot comment) anyway. Scoped to
+          # this line so `grep | head -1` below can't fail on SIGPIPE.
+          set -o pipefail
           pnpm changeset publish --tag "pr-${{ github.event.pull_request.number }}" --no-git-tag 2>&1 | tee /tmp/publish-output.txt
+          set +o pipefail
           # Extract published versions
           sdk_version=$(grep -o '@perspective-ai/sdk@[^ ]*' /tmp/publish-output.txt | head -1 | sed 's/@perspective-ai\/sdk@//')
           react_version=$(grep -o '@perspective-ai/sdk-react@[^ ]*' /tmp/publish-output.txt | head -1 | sed 's/@perspective-ai\/sdk-react@//')
