@@ -68,9 +68,11 @@ export interface BrandColors {
 
 /** CSS properties for launcher styling */
 export type LauncherStyle = {
-  [K in keyof CSSStyleDeclaration as CSSStyleDeclaration[K] extends string
-    ? K
-    : never]?: string;
+  [
+    K in keyof CSSStyleDeclaration as CSSStyleDeclaration[K] extends string
+      ? K
+      : never
+  ]?: string;
 };
 
 /** Icon configuration for the float launcher button */

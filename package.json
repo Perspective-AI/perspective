@@ -3,58 +3,39 @@
   "private": true,
   "packageManager": "pnpm@10.25.0",
   "engines": {
-    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+    "node": "^22.22.1 || ^24.11.0 || >=26.0.0"
   },
   "scripts": {
-    "postinstall": "lefthook install",
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "oxlint --fix",
-    "lint:check": "oxlint",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "typecheck": "turbo typecheck",
-    "test": "turbo test",
-    "test:watch": "turbo test -- --watch",
-    "test:coverage": "turbo test -- --coverage",
-    "test:ssr": "turbo test:ssr",
+    "postinstall": "vp config",
+    "build": "vp run -r build",
+    "dev": "vp run -r --parallel dev",
+    "lint": "vp lint --fix",
+    "lint:check": "vp lint",
+    "format": "vp fmt .",
+    "format:check": "vp fmt --check .",
+    "typecheck": "vp run -r typecheck",
+    "test": "vp run -r test",
+    "test:watch": "vp run -r build && vp run -r --parallel test --watch",
+    "test:coverage": "vp run -r test --coverage",
+    "test:ssr": "vp run -r test:ssr",
     "test:types": "attw --pack packages/sdk --ignore-rules=no-resolution && attw --pack packages/sdk-react --ignore-rules=no-resolution",
-    "test:e2e": "turbo test:e2e",
+    "test:e2e": "vp run -r test:e2e",
     "test:e2e:ui": "pnpm --filter @perspective/sdk exec playwright test --ui",
     "check": "pnpm lint:check && pnpm format:check && pnpm typecheck",
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
-    "release": "turbo build && changeset publish"
-  },
-  "pnpm": {
-    "overrides": {
-      "picomatch@<2.3.2": "^2.3.2",
-      "picomatch@>=4.0.0 <4.0.4": "^4.0.4",
-      "rollup@>=4.0.0 <4.59.0": "^4.59.0",
-      "fast-uri@<3.1.6": "^3.1.6",
-      "js-yaml@>=4.0.0 <4.3.2": "^4.3.2",
-      "read-yaml-file@1.1.0": "^2.1.0",
-      "ws@>=8.0.0 <8.21.0": "^8.21.0",
-      "brace-expansion@<1.1.18": "^1.1.18",
-      "postcss@>=8.0.0 <8.5.23": "^8.5.23",
-      "nanoid@>=3.0.0 <3.3.18": "^3.3.18",
-      "vite>esbuild": "^0.28.1",
-      "tsup>esbuild": "0.27.2"
-    }
+    "release": "vp run -r build && changeset publish"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^2.30.0",
     "@playwright/test": "^1.60.0",
-    "@vitest/coverage-v8": "^5.0.1",
+    "@vitest/coverage-v8": "catalog:",
     "happy-dom": "^20.8.9",
-    "lefthook": "^2.0.15",
-    "oxlint": "^1.0.0",
-    "prettier": "^3.5.0",
     "serve": "^14.2.6",
-    "turbo": "^2.10.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.5",
-    "vitest": "^5.0.1"
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

@@ -4,3 +4,28 @@ packages:
 
 ignoredBuiltDependencies:
   - esbuild
+overrides:
+  picomatch@<2.3.2: ^2.3.2
+  picomatch@>=4.0.0 <4.0.4: ^4.0.4
+  fast-uri@<3.1.6: ^3.1.6
+  js-yaml@>=4.0.0 <4.3.2: ^4.3.2
+  read-yaml-file@1.1.0: ^2.1.0
+  ws@>=8.0.0 <8.21.0: ^8.21.0
+  brace-expansion@<1.1.18: ^1.1.18
+  postcss@>=8.0.0 <8.5.23: ^8.5.23
+  nanoid@>=3.0.0 <3.3.18: ^3.3.18
+  vite>esbuild: ^0.28.1
+  vite@*: "catalog:"
+  vitest@*: "catalog:"
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@1.0.0
+  vitest: 5.0.1
+  vite-plus: 1.0.0
+  "@vitest/coverage-v8": 5.0.1
+peerDependencyRules:
+  allowAny:
+    - vite
+    - vitest
+  allowedVersions:
+    vite: "*"
+    vitest: "*"

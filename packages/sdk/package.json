@@ -46,14 +46,6 @@
     "dist",
     "src"
   ],
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:ssr": "node -e \"require('./dist/index.cjs'); require('./dist/constants.cjs');\" && echo 'SSR safe ✓'"
-  },
   "keywords": [
     "perspective",
     "perspective-ai",
@@ -84,7 +76,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.9",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite-plus": "catalog:"
   }
 }

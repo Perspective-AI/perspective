@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vite-plus/test";
 import { createFloatBubble, createChatBubble } from "./float";
 import { prefetchSceneImage } from "./loading";
 import * as config from "./config";

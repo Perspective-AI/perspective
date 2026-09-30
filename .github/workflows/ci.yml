@@ -12,10 +12,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-
 jobs:
   ci:
     name: Lint, Test & Build
@@ -33,6 +29,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Build first: type-aware lint rules read @perspective-ai/sdk's types
+      # from its dist/, and the later steps reuse the cached build.
+      - name: Build
+        run: pnpm build
+
       - name: Lint
         run: pnpm lint:check
 
@@ -44,9 +45,6 @@ jobs:
 
       - name: Test
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
 
       - name: Test SSR
         run: pnpm test:ssr
@@ -66,19 +64,18 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
     # GitHub overrides HOME to /github/home in container jobs, so Playwright looks
     # for browsers in the default ~/.cache path instead of where the image bakes
-    # them. Point it at the image's location — and note turbo.json must allowlist
-    # this var via passThroughEnv, or strict env mode strips it from `playwright test`.
+    # them. Point it at the image's location — and note the `test:e2e` task in
+    # packages/sdk/vite.config.ts must list this var in `cache.untrackedEnv`, or
+    # Vite Task's clean environment strips it from `playwright test`.
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      # This job never commits, so skip installing the Vite+ git hooks from the
+      # `vp config` postinstall (the container's workspace is also owned by a
+      # different UID, which git's dubious-ownership guard rejects).
+      VP_GIT_HOOKS: "0"
 
     steps:
       - uses: actions/checkout@v4
-
-      # The container runs as root but the mounted workspace is owned by the host
-      # runner UID, so git's dubious-ownership guard blocks the lefthook postinstall
-      # hook. Trust the workspace before install runs.
-      - name: Trust workspace for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: pnpm/action-setup@v4
 

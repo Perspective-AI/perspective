@@ -751,8 +751,8 @@ test.describe("Auto-Trigger Popup", () => {
 
     // destroyAll + autoInit should NOT re-trigger (localStorage marker persists)
     await page.evaluate(() => {
-      window.Perspective!.destroyAll();
-      window.Perspective!.autoInit();
+      (window as any).Perspective.destroyAll();
+      (window as any).Perspective.autoInit();
     });
 
     await page.waitForTimeout(700);
