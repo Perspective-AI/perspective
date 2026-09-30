@@ -117,13 +117,12 @@ export default defineConfig({
       "test-results",
       "playwright-report",
     ],
+    // Type-aware rules and the type check resolve @perspective-ai/sdk through
+    // its built dist/, so build before linting: CI and the pre-commit hook do,
+    // and `pnpm check` runs `pnpm typecheck` (which builds) first.
     options: {
-      // Type-aware rules read @perspective-ai/sdk's types from its dist/, so
-      // lint after `pnpm build` for accurate results (CI does).
       typeAware: true,
-      // Type errors come from `pnpm typecheck`, which builds workspace
-      // dependencies first, so lint also works on a clean checkout.
-      typeCheck: false,
+      typeCheck: true,
     },
     jsPlugins: [
       {

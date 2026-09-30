@@ -3,6 +3,16 @@ import pkg from "./package.json";
 
 const define = { PKG_VERSION: JSON.stringify(pkg.version) };
 
+// CI restores the task cache across runs, so keep per-install state out of
+// the fingerprints: pnpm rewrites node_modules/.modules.yaml on every install,
+// and Vitest reads its own results cache under node_modules/.vite. Neither
+// changes what vp pack or vp test produce.
+const TRACK_INPUTS = [
+  { auto: true },
+  { pattern: "!node_modules/.modules.yaml", base: "workspace" as const },
+];
+const TEST_INPUTS = [...TRACK_INPUTS, "!node_modules/.vite/**"];
+
 export default defineConfig({
   define,
   pack: [
@@ -57,10 +67,10 @@ export default defineConfig({
   },
   run: {
     tasks: {
-      build: "vp pack",
+      build: { command: "vp pack", cache: { input: TRACK_INPUTS } },
       dev: { command: "vp pack --watch", cache: false },
       typecheck: "tsc --noEmit",
-      test: "vp test run",
+      test: { command: "vp test run", cache: { input: TEST_INPUTS } },
       "test:e2e": {
         command: "playwright test",
         dependsOn: ["build"],

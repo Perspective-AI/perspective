@@ -20,8 +20,8 @@
     "test:ssr": "vp run -r test:ssr",
     "test:types": "attw --pack packages/sdk --ignore-rules=no-resolution && attw --pack packages/sdk-react --ignore-rules=no-resolution",
     "test:e2e": "vp run -r test:e2e",
-    "test:e2e:ui": "pnpm --filter @perspective/sdk exec playwright test --ui",
-    "check": "pnpm lint:check && pnpm format:check && pnpm typecheck",
+    "test:e2e:ui": "vp run @perspective-ai/sdk#build && pnpm --filter @perspective-ai/sdk exec playwright test --ui",
+    "check": "pnpm typecheck && pnpm lint:check && pnpm format:check",
     "changeset": "changeset",
     "version": "changeset version && pnpm install --lockfile-only",
     "release": "vp run -r build && changeset publish"

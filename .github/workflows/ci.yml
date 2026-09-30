@@ -20,37 +20,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      # Installs vp (the version pinned by the vite-plus catalog entry), Node.js
+      # from `engines`, and pnpm from `packageManager`, then runs `vp install`.
+      - uses: voidzero-dev/setup-vp@v1.21.1
         with:
           node-version-file: package.json
-          cache: pnpm
+          cache: true
+          run-install: |
+            args: ["--frozen-lockfile"]
 
-      - run: pnpm install --frozen-lockfile
+      # Reuse Vite Task results from earlier runs; tasks whose inputs changed
+      # still re-run. Experimental upstream:
+      # https://viteplus.dev/guide/github-actions-cache
+      - name: Restore Vite Task cache
+        id: vite-task-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: vite-task-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vite-task-${{ runner.os }}-${{ runner.arch }}-
 
-      # Build first: type-aware lint rules read @perspective-ai/sdk's types
-      # from its dist/, and the later steps reuse the cached build.
+      # Build first: type-aware lint and its type check read
+      # @perspective-ai/sdk's types from its dist/, and later steps reuse it.
       - name: Build
-        run: pnpm build
+        run: vp run build
 
       - name: Lint
-        run: pnpm lint:check
+        run: vp run lint:check
 
       - name: Format
-        run: pnpm format:check
+        run: vp run format:check
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: vp run typecheck
 
       - name: Test
-        run: pnpm test
+        run: vp run test
 
       - name: Test SSR
-        run: pnpm test:ssr
+        run: vp run test:ssr
 
       - name: Test types
-        run: pnpm test:types
+        run: vp run test:types
+
+      - name: Save Vite Task cache
+        if: success()
+        uses: actions/cache/save@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: ${{ steps.vite-task-cache.outputs.cache-primary-key }}
 
   e2e:
     name: E2E Tests
@@ -77,20 +96,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@v1.21.1
         with:
           node-version-file: package.json
-          cache: pnpm
+          cache: true
+          run-install: |
+            args: ["--frozen-lockfile"]
 
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm build
+      # Separate prefix from the `ci` job: the container's workspace path and
+      # environment differ, so its task fingerprints do too.
+      - name: Restore Vite Task cache
+        id: vite-task-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: vite-task-e2e-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vite-task-e2e-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Test E2E
-        run: pnpm test:e2e
+        run: vp run test:e2e
+
+      - name: Save Vite Task cache
+        if: success()
+        uses: actions/cache/save@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: ${{ steps.vite-task-cache.outputs.cache-primary-key }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

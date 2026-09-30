@@ -24,15 +24,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@v1.21.1
         with:
           node-version-file: package.json
-          cache: pnpm
+          cache: true
           registry-url: https://registry.npmjs.org
-
-      - run: pnpm install --frozen-lockfile
+          run-install: |
+            args: ["--frozen-lockfile"]
 
       - name: Check for changesets
         id: changesets
@@ -55,9 +53,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # No Vite Task cache restore here: published files always come from a
+      # fresh build.
       - name: Build
         if: steps.changesets.outputs.has_changesets == 'true'
-        run: pnpm build
+        run: vp run build
 
       - name: Publish snapshot
         if: steps.changesets.outputs.has_changesets == 'true'
@@ -109,10 +109,12 @@ jobs:
     if: github.event.action == 'closed' || github.event.pull_request.merged == true
 
     steps:
-      - uses: actions/setup-node@v4
+      # No checkout: this job only needs npm and registry auth.
+      - uses: voidzero-dev/setup-vp@v1.21.1
         with:
-          node-version: 20
+          node-version: lts
           registry-url: https://registry.npmjs.org
+          run-install: false
 
       - name: Remove dist-tags
         continue-on-error: true
