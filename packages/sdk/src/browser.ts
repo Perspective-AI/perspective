@@ -23,6 +23,7 @@ import type {
   FloatHandle,
   FrameConfig,
   InternalEmbedConfig,
+  InternalUpdateOptions,
   ShowOnce,
   ThemeConfig,
   TriggerConfig,
@@ -97,9 +98,7 @@ function setupApiAutoTrigger(
       ? { type: "timeout", delay: api.delay ?? 5000 }
       : { type: "exit-intent" };
   const showOnce: ShowOnce =
-    api.showOnce === "false"
-      ? false
-      : ((api.showOnce as ShowOnce) ?? "session");
+    api.showOnce === "false" ? false : (api.showOnce ?? "session");
 
   if (!shouldShow(researchId, showOnce)) return;
 
@@ -244,7 +243,7 @@ function parseBrandAttr(attrValue: string | null): BrandColors | undefined {
     if (key && valueParts.length > 0) {
       const value = valueParts.join("=").trim();
       if (value) {
-        const k = key.trim() as keyof BrandColors;
+        const k = key.trim();
         if (k === "primary" || k === "bg") {
           colors[k] = value;
         }
@@ -689,7 +688,7 @@ function autoInit(): void {
               triggerCleanups.set(researchId, cleanup);
             }
           } catch (e) {
-            console.warn("[Perspective]", (e as Error).message);
+            console.warn("[Perspective]", e instanceof Error ? e.message : e);
           }
         }
       } else {
@@ -882,8 +881,10 @@ function autoInit(): void {
         ) {
           const channels =
             config.channel ?? config.allowedChannels ?? undefined;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (floatHandle.update as any)({
+          // Float handles also accept the internal _apiConfig.
+          const update: (options: InternalUpdateOptions) => void =
+            floatHandle.update;
+          update({
             channel: channels,
             welcomeMessage: config.welcomeMessage,
             _apiConfig: config,

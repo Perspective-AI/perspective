@@ -292,6 +292,7 @@ export function createIframe(
 ): HTMLIFrameElement {
   if (!hasDom()) {
     // Return a stub for SSR
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- inert SSR stub
     return {} as HTMLIFrameElement;
   }
 
@@ -425,6 +426,9 @@ export function setupMessageListener(
           event.data.error
         ) as import("./types").EmbedError;
         error.code =
+          // Pass through codes from newer app versions that this SDK's
+          // ErrorCode union doesn't list yet.
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion
           (event.data.code as import("./types").ErrorCode) || "UNKNOWN";
 
         // Always log critical errors to console
@@ -713,11 +717,11 @@ function setupGlobalListeners(): void {
     if (!event.data.type.startsWith("perspective:")) return;
     if (event.data.type === MESSAGE_TYPES.requestScrollbarStyles) {
       const iframes = Array.from(
-        document.querySelectorAll("iframe[data-perspective]")
+        document.querySelectorAll<HTMLIFrameElement>("iframe[data-perspective]")
       );
       const sourceIframe = iframes.find(
-        (iframe) => (iframe as HTMLIFrameElement).contentWindow === event.source
-      ) as HTMLIFrameElement | undefined;
+        (iframe) => iframe.contentWindow === event.source
+      );
       if (sourceIframe) {
         const host = activeIframes.get(sourceIframe);
         if (host && event.origin === host) {

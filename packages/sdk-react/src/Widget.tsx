@@ -58,7 +58,7 @@ export function Widget({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) return undefined;
 
     perfLog("SDK-React", "Widget effect mounted", { researchId });
 

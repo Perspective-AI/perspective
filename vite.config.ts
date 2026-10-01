@@ -1,8 +1,16 @@
 import { defineConfig } from "vite-plus";
 
+// Established internal names: `_apiConfig`/`_apiConfigPending` cross the
+// sdk/sdk-react boundary, and the global guards against double init.
+const UNDERSCORE_NAMES = [
+  "_apiConfig",
+  "_apiConfigPending",
+  "__PERSPECTIVE_SDK_INITIALIZED__",
+];
+
 export default defineConfig({
   lint: {
-    plugins: ["unicorn", "typescript", "oxc", "react"],
+    plugins: ["unicorn", "typescript", "oxc"],
     // Fail on Oxlint's correctness, suspicious and perf categories (the
     // previous per-rule list was the correctness set at "warn").
     categories: {
@@ -11,17 +19,36 @@ export default defineConfig({
       perf: "error",
     },
     rules: {
-      // The React packages use the automatic JSX runtime ("jsx": "react-jsx").
-      "react/react-in-jsx-scope": "off",
-      // DOM queries and test doubles narrow types with deliberate `as` casts.
-      "typescript/no-unsafe-type-assertion": "off",
-      // `_apiConfig` (internal config) and `__…__` globals are intentional.
-      "no-underscore-dangle": "off",
-      // tsconfig's noImplicitReturns already covers this, and the rule flags
-      // React's `if (!x) return;` … `return cleanup;` effect idiom.
-      "typescript/consistent-return": "off",
+      "no-underscore-dangle": ["error", { allow: UNDERSCORE_NAMES }],
       "vite-plus/prefer-vite-plus-imports": "error",
     },
+    overrides: [
+      {
+        files: ["packages/sdk-react/**"],
+        plugins: ["react"],
+        rules: {
+          // sdk-react compiles JSX with the automatic runtime ("react-jsx").
+          "react/react-in-jsx-scope": "off",
+        },
+      },
+      {
+        files: ["**/*.test.ts", "**/*.test.tsx", "packages/sdk/e2e/**"],
+        rules: {
+          // Test doubles and DOM fixtures narrow types with `as` casts.
+          "typescript/no-unsafe-type-assertion": "off",
+        },
+      },
+      {
+        files: ["packages/sdk/e2e/**"],
+        rules: {
+          // The e2e fixtures record events on window.__testEvents.
+          "no-underscore-dangle": [
+            "error",
+            { allow: [...UNDERSCORE_NAMES, "__testEvents"] },
+          ],
+        },
+      },
+    ],
     ignorePatterns: [
       "node_modules",
       "dist",

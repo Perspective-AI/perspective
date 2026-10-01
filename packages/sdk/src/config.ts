@@ -75,7 +75,10 @@ function getScriptHost(): string | null {
     return null;
   }
 
-  const currentScript = document.currentScript as HTMLScriptElement | null;
+  const currentScript =
+    document.currentScript instanceof HTMLScriptElement
+      ? document.currentScript
+      : null;
   if (currentScript?.src) {
     try {
       capturedScriptHost = new URL(currentScript.src).origin;

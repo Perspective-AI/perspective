@@ -362,6 +362,11 @@ export type InternalEmbedConfig = EmbedConfig & {
   _apiConfigPending?: boolean;
 };
 
+/** Options for EmbedHandle.update plus the internal _apiConfig. */
+export type InternalUpdateOptions = Parameters<EmbedHandle["update"]>[0] & {
+  _apiConfig?: ThemeConfig;
+};
+
 /** SDK global configuration */
 export interface SDKConfig {
   /** Override the default host */

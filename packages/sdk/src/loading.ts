@@ -268,6 +268,7 @@ function injectStyles(): void {
 export function createLoadingIndicator(options?: LoadingOptions): HTMLElement {
   // SSR safety - return empty div on server
   if (!hasDom()) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- inert SSR stub
     return { remove: () => {}, style: {} } as unknown as HTMLElement;
   }
 
