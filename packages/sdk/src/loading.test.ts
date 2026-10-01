@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vite-plus/test";
 import { createLoadingIndicator, prefetchSceneImage } from "./loading";
 
 /** The shared stylesheet is injected once; read it back for assertions. */

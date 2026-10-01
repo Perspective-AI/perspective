@@ -54,6 +54,8 @@ export async function fetchEmbedConfig(
       );
       clearTimeout(timeout);
       if (!res.ok) return DEFAULT_THEME;
+      // The config API's response shape is trusted, not validated.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const config = (await res.json()) as EmbedApiConfig;
       configCache.set(key, config);
       return config;

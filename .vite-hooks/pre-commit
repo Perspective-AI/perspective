@@ -1,0 +1,4 @@
+# `vp staged` type-checks sdk-react against @perspective-ai/sdk's dist/, so
+# build it first (a cache hit when the SDK hasn't changed).
+vp run @perspective-ai/sdk#build > /dev/null
+vp staged

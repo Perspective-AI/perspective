@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  vi,
+  afterEach,
+} from "vite-plus/test";
 import {
   createIframe,
   setupMessageListener,
@@ -9,6 +16,13 @@ import {
   ensureGlobalListeners,
 } from "./iframe";
 import { MESSAGE_TYPES, PARAM_KEYS, PARAM_VALUES } from "./constants";
+
+/** Stand-in for `window.location` with a different query string. */
+function locationWithSearch(search: string): URL {
+  const url = new URL(window.location.href);
+  url.search = search;
+  return url;
+}
 
 describe("createIframe", () => {
   it("creates an iframe element", () => {
@@ -68,7 +82,7 @@ describe("createIframe", () => {
     // Simulate parent page URL with search params
     const originalLocation = window.location;
     Object.defineProperty(window, "location", {
-      value: { ...originalLocation, search: "?ref=pricing-enterprise&foo=bar" },
+      value: locationWithSearch("?ref=pricing-enterprise&foo=bar"),
       writable: true,
       configurable: true,
     });
@@ -93,10 +107,7 @@ describe("createIframe", () => {
   it("does not forward reserved params from parent URL", () => {
     const originalLocation = window.location;
     Object.defineProperty(window, "location", {
-      value: {
-        ...originalLocation,
-        search: "?embed=false&theme=dark&perfDebug=0&ref=test",
-      },
+      value: locationWithSearch("?embed=false&theme=dark&perfDebug=0&ref=test"),
       writable: true,
       configurable: true,
     });
@@ -144,7 +155,7 @@ describe("createIframe", () => {
   it("custom params override parent URL params", () => {
     const originalLocation = window.location;
     Object.defineProperty(window, "location", {
-      value: { ...originalLocation, search: "?ref=from-url&source=parent" },
+      value: locationWithSearch("?ref=from-url&source=parent"),
       writable: true,
       configurable: true,
     });
@@ -174,10 +185,9 @@ describe("createIframe", () => {
   it("forwards UTM params from parent URL", () => {
     const originalLocation = window.location;
     Object.defineProperty(window, "location", {
-      value: {
-        ...originalLocation,
-        search: "?utm_source=google&utm_campaign=summer&ref=pricing",
-      },
+      value: locationWithSearch(
+        "?utm_source=google&utm_campaign=summer&ref=pricing"
+      ),
       writable: true,
       configurable: true,
     });
@@ -549,10 +559,11 @@ describe("ensureHostPreconnect", () => {
     const links = Array.from(document.head.querySelectorAll("link")).filter(
       (link) => link.getAttribute("href") === host
     );
-    expect(links.map((link) => link.getAttribute("rel")).sort()).toEqual([
-      "dns-prefetch",
-      "preconnect",
-    ]);
+    const rels = links.map((link) => link.getAttribute("rel"));
+    expect(rels).toHaveLength(2);
+    expect(rels).toEqual(
+      expect.arrayContaining(["dns-prefetch", "preconnect"])
+    );
   });
 });
 

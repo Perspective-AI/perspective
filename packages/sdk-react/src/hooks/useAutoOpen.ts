@@ -44,7 +44,7 @@ export function useAutoOpen(options: UseAutoOpenOptions): UseAutoOpenReturn {
   });
 
   useEffect(() => {
-    if (!shouldShow(researchId, showOnce)) return;
+    if (!shouldShow(researchId, showOnce)) return undefined;
 
     cleanupRef.current = setupTrigger(trigger, () => {
       setTriggered((prev) => {

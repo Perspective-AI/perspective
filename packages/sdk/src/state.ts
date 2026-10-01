@@ -1,6 +1,10 @@
 import { STORAGE_KEYS } from "./constants";
 import { getHost, hasDom } from "./config";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export type PersistedOpenStateType = "popup" | "slider" | "float";
 
 type PersistedOpenState = {
@@ -35,8 +39,10 @@ export function getPersistedOpenState(
       return null;
     }
 
-    const parsed = JSON.parse(raw) as Partial<PersistedOpenState>;
-    return typeof parsed.open === "boolean" ? parsed.open : null;
+    const parsed: unknown = JSON.parse(raw);
+    return isRecord(parsed) && typeof parsed.open === "boolean"
+      ? parsed.open
+      : null;
   } catch {
     return null;
   }
@@ -86,8 +92,8 @@ export function getPersistedTeaserDismissed(key: TeaserDismissedKey): boolean {
       return false;
     }
 
-    const parsed = JSON.parse(raw) as Partial<TeaserDismissedState>;
-    return parsed.dismissed === true;
+    const parsed: unknown = JSON.parse(raw);
+    return isRecord(parsed) && parsed.dismissed === true;
   } catch {
     return false;
   }

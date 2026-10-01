@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  vi,
+  afterEach,
+} from "vite-plus/test";
 
 describe("config", () => {
   let configure: typeof import("./config").configure;

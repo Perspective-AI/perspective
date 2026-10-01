@@ -1,7 +1,6 @@
 import { test, expect, Route } from "@playwright/test";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import { fileURLToPath } from "node:url";
 
 /**
  * E2E tests for @perspective-ai/sdk
@@ -14,11 +13,15 @@ import { fileURLToPath } from "node:url";
  * 5. Origin validation security
  */
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 // Path to built SDK - tests require build first
-const SDK_PATH = path.resolve(__dirname, "../dist/cdn/perspective.global.js");
-const MOCK_IFRAME_PATH = path.resolve(__dirname, "fixtures/mock-iframe.html");
+const SDK_PATH = path.resolve(
+  import.meta.dirname,
+  "../dist/cdn/perspective.global.js"
+);
+const MOCK_IFRAME_PATH = path.resolve(
+  import.meta.dirname,
+  "fixtures/mock-iframe.html"
+);
 
 // Check SDK exists before running tests
 test.beforeAll(async () => {
@@ -751,8 +754,8 @@ test.describe("Auto-Trigger Popup", () => {
 
     // destroyAll + autoInit should NOT re-trigger (localStorage marker persists)
     await page.evaluate(() => {
-      window.Perspective!.destroyAll();
-      window.Perspective!.autoInit();
+      (window as any).Perspective.destroyAll();
+      (window as any).Perspective.autoInit();
     });
 
     await page.waitForTimeout(700);

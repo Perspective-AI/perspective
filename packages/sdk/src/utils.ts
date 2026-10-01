@@ -11,8 +11,7 @@ import { hasDom } from "./config";
  */
 export function cn(...classes: (string | false | null | undefined)[]): string {
   return classes
-    .map((c) => (c || "").split(" "))
-    .flat()
+    .flatMap((c) => (c || "").split(" "))
     .filter(Boolean)
     .join(" ");
 }
@@ -32,7 +31,7 @@ export function getThemeClass(theme: string | undefined): string | undefined {
  * Priority: 1) explicit theme override, 2) system preference
  * SSR-safe: defaults to light theme on server
  */
-export function resolveIsDark(theme?: ThemeValue | string): boolean {
+export function resolveIsDark(theme?: string): boolean {
   if (theme === THEME_VALUES.dark) return true;
   if (theme === THEME_VALUES.light) return false;
   // system or undefined → use system preference (or light on server)
@@ -98,6 +97,12 @@ function hexToRgb(
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
+/** Linearize an 8-bit sRGB channel for the WCAG luminance formula. */
+function linearChannel(c: number): number {
+  const s = c / 255;
+  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+}
+
 /**
  * WCAG relative luminance (0–1) of a hex color, or undefined if unparseable.
  * https://www.w3.org/TR/WCAG20/#relativeluminancedef
@@ -106,12 +111,10 @@ export function relativeLuminance(hex: string): number | undefined {
   const rgb = hexToRgb(hex);
   if (!rgb) return undefined;
 
-  const channel = (c: number): number => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
   return (
-    0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
+    0.2126 * linearChannel(rgb.r) +
+    0.7152 * linearChannel(rgb.g) +
+    0.0722 * linearChannel(rgb.b)
   );
 }
 

@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vite-plus/test";
 import { createFloatBubble, createChatBubble } from "./float";
 import { prefetchSceneImage } from "./loading";
 import * as config from "./config";
@@ -849,6 +856,7 @@ describe("createFloatBubble", () => {
 
       // Flush the fetch promise chain (fetch → json → merge)
       for (let i = 0; i < 5; i++) {
+        // oxlint-disable-next-line no-await-in-loop -- each tick must settle before the next
         await Promise.resolve();
       }
 

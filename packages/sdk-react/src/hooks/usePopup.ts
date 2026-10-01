@@ -6,6 +6,7 @@ import {
   type EmbedHandle,
 } from "@perspective-ai/sdk";
 import { useStableCallback } from "./useStableCallback";
+import { useIsomorphicLayoutEffect } from "./useIsomorphicLayoutEffect";
 import { useEmbedConfig } from "./useEmbedConfig";
 
 /** Options for usePopup hook */
@@ -71,7 +72,9 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
   const handleRef = useRef<EmbedHandle | null>(null);
   const embedConfig = useEmbedConfig(researchId, host);
   const embedConfigRef = useRef(embedConfig);
-  embedConfigRef.current = embedConfig;
+  useIsomorphicLayoutEffect(() => {
+    embedConfigRef.current = embedConfig;
+  });
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
@@ -192,6 +195,9 @@ export function usePopup(options: UsePopupOptions): UsePopupReturn {
     }
 
     createPopup();
+    // Restoring persisted open state reads browser storage, so it has to run
+    // after hydration rather than seed the initial state.
+    // oxlint-disable-next-line react/set-state-in-effect
     setInternalOpen(true);
   }, [createPopup, host, isControlled, researchId]);
 

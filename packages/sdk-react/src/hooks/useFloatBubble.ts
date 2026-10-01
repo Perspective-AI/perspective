@@ -12,6 +12,7 @@ import {
   type EmbedConfig,
   type FloatHandle,
   type LauncherConfig,
+  type ThemeConfig,
 } from "@perspective-ai/sdk";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useStableCallback } from "./useStableCallback";
@@ -19,6 +20,8 @@ import { useEmbedConfig } from "./useEmbedConfig";
 
 /** Launcher config with React support — icon accepts ReactNode in addition to SDK types */
 export interface LauncherConfigReact extends Omit<LauncherConfig, "icon"> {
+  // ReactNode already admits strings; listing the SDK icon names documents them.
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents
   icon?: LauncherConfig["icon"] | ReactNode;
 }
 
@@ -148,11 +151,11 @@ export function useFloatBubble(
       return { ...rest, icon: { svg: renderToStaticMarkup(icon) } };
     }
     // Only pass through valid LauncherIcon values to core SDK
-    if (icon === "default" || icon === "avatar") {
-      return { ...rest, icon: icon as "default" | "avatar" };
+    if (typeof icon === "string" && (icon === "default" || icon === "avatar")) {
+      return { ...rest, icon };
     }
     if (typeof icon === "object" && ("url" in icon || "svg" in icon)) {
-      return { ...rest, icon: icon as { url: string } | { svg: string } };
+      return { ...rest, icon };
     }
     // Unrecognized icon value (truthy primitives, arrays, etc.) — ignore it
     return Object.keys(rest).length > 0 ? rest : undefined;
@@ -177,6 +180,8 @@ export function useFloatBubble(
     });
 
     handleRef.current = newHandle;
+    // Publishes the handle of the bubble just created outside React.
+    // oxlint-disable-next-line react/set-state-in-effect
     setHandle(newHandle);
 
     return () => {
@@ -206,8 +211,13 @@ export function useFloatBubble(
   // Update float with API config when it arrives (appearance, launcher, channels, welcome)
   useEffect(() => {
     if (!embedConfig || !handleRef.current) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (handleRef.current.update as any)({
+    // Float handles also accept the SDK-internal _apiConfig.
+    const update: (
+      options: Parameters<FloatHandle["update"]>[0] & {
+        _apiConfig?: ThemeConfig;
+      }
+    ) => void = handleRef.current.update;
+    update({
       channel: embedConfig.channel ?? embedConfig.allowedChannels ?? undefined,
       welcomeMessage: embedConfig.welcomeMessage,
       _apiConfig: embedConfig,

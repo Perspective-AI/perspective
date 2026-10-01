@@ -26,19 +26,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@v1.21.1
         with:
           node-version-file: package.json
-          cache: pnpm
+          cache: true
           registry-url: https://registry.npmjs.org
+          run-install: |
+            args: ["--frozen-lockfile"]
 
-      - run: pnpm install --frozen-lockfile
-
+      # No Vite Task cache restore here: published files always come from a
+      # fresh build.
       - name: Build
-        run: pnpm build
+        run: vp run build
 
+      # Keep these as pnpm scripts, not `vp run`: Vite Task runs tasks in a
+      # filtered environment, which would hide NODE_AUTH_TOKEN and
+      # GITHUB_TOKEN from `changeset publish`.
       - name: Create Release PR or Publish
         uses: changesets/action@v1
         with:

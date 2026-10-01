@@ -268,6 +268,7 @@ function injectStyles(): void {
 export function createLoadingIndicator(options?: LoadingOptions): HTMLElement {
   // SSR safety - return empty div on server
   if (!hasDom()) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- inert SSR stub
     return { remove: () => {}, style: {} } as unknown as HTMLElement;
   }
 
@@ -293,10 +294,10 @@ export function createLoadingIndicator(options?: LoadingOptions): HTMLElement {
     rememberSceneUrl(sceneUrl);
     scene.dataset.sceneUrl = sceneUrl;
     const img = new Image();
-    img.onload = () => {
+    img.addEventListener("load", () => {
       scene.style.backgroundImage = `url("${sceneUrl}")`;
       scene.style.opacity = "1";
-    };
+    });
     img.src = sceneUrl;
   }
   container.appendChild(scene);

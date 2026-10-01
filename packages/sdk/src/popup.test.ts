@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vite-plus/test";
 import { openPopup } from "./popup";
 import * as config from "./config";
 import { getPersistedOpenState } from "./state";

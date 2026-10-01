@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vite-plus/test";
 import { createWidget } from "./widget";
 import * as config from "./config";
 import * as iframe from "./iframe";
@@ -271,8 +278,8 @@ describe("createWidget", () => {
       host: "https://custom.example.com",
     });
 
-    const iframe = handle.iframe as HTMLIFrameElement;
-    expect(iframe.src).toContain("https://custom.example.com");
+    const iframeEl = handle.iframe as HTMLIFrameElement;
+    expect(iframeEl.src).toContain("https://custom.example.com");
 
     handle.unmount();
   });
@@ -283,8 +290,8 @@ describe("createWidget", () => {
       params: { source: "test", campaign: "demo" },
     });
 
-    const iframe = handle.iframe as HTMLIFrameElement;
-    const url = new URL(iframe.src);
+    const iframeEl = handle.iframe as HTMLIFrameElement;
+    const url = new URL(iframeEl.src);
     expect(url.searchParams.get("source")).toBe("test");
     expect(url.searchParams.get("campaign")).toBe("demo");
 

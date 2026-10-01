@@ -68,9 +68,11 @@ export interface BrandColors {
 
 /** CSS properties for launcher styling */
 export type LauncherStyle = {
-  [K in keyof CSSStyleDeclaration as CSSStyleDeclaration[K] extends string
-    ? K
-    : never]?: string;
+  [
+    K in keyof CSSStyleDeclaration as CSSStyleDeclaration[K] extends string
+      ? K
+      : never
+  ]?: string;
 };
 
 /** Icon configuration for the float launcher button */
@@ -358,6 +360,11 @@ export type InternalEmbedConfig = EmbedConfig & {
    * config arrives via update({ _apiConfig }), which clears the flag.
    */
   _apiConfigPending?: boolean;
+};
+
+/** Options for EmbedHandle.update plus the internal _apiConfig. */
+export type InternalUpdateOptions = Parameters<EmbedHandle["update"]>[0] & {
+  _apiConfig?: ThemeConfig;
 };
 
 /** SDK global configuration */

@@ -12,10 +12,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-
 jobs:
   ci:
     name: Lint, Test & Build
@@ -24,35 +20,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      # Installs vp (the version pinned by the vite-plus catalog entry), Node.js
+      # from `engines`, and pnpm from `packageManager`, then runs `vp install`.
+      - uses: voidzero-dev/setup-vp@v1.21.1
         with:
           node-version-file: package.json
-          cache: pnpm
+          cache: true
+          run-install: |
+            args: ["--frozen-lockfile"]
 
-      - run: pnpm install --frozen-lockfile
+      # Reuse Vite Task results from earlier runs; tasks whose inputs changed
+      # still re-run. Experimental upstream:
+      # https://viteplus.dev/guide/github-actions-cache
+      - name: Restore Vite Task cache
+        id: vite-task-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: vite-task-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vite-task-${{ runner.os }}-${{ runner.arch }}-
+
+      # Build first: type-aware lint and its type check read
+      # @perspective-ai/sdk's types from its dist/, and later steps reuse it.
+      - name: Build
+        run: vp run build
 
       - name: Lint
-        run: pnpm lint:check
+        run: vp run lint:check
 
       - name: Format
-        run: pnpm format:check
+        run: vp run format:check
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: vp run typecheck
 
       - name: Test
-        run: pnpm test
-
-      - name: Build
-        run: pnpm build
+        run: vp run test
 
       - name: Test SSR
-        run: pnpm test:ssr
+        run: vp run test:ssr
 
       - name: Test types
-        run: pnpm test:types
+        run: vp run test:types
+
+      - name: Save Vite Task cache
+        if: success()
+        uses: actions/cache/save@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: ${{ steps.vite-task-cache.outputs.cache-primary-key }}
 
   e2e:
     name: E2E Tests
@@ -66,34 +83,46 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
     # GitHub overrides HOME to /github/home in container jobs, so Playwright looks
     # for browsers in the default ~/.cache path instead of where the image bakes
-    # them. Point it at the image's location — and note turbo.json must allowlist
-    # this var via passThroughEnv, or strict env mode strips it from `playwright test`.
+    # them. Point it at the image's location — and note the `test:e2e` task in
+    # packages/sdk/vite.config.ts must list this var in `cache.untrackedEnv`, or
+    # Vite Task's clean environment strips it from `playwright test`.
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      # This job never commits, so skip installing the Vite+ git hooks from the
+      # `vp config` postinstall (the container's workspace is also owned by a
+      # different UID, which git's dubious-ownership guard rejects).
+      VP_GIT_HOOKS: "0"
 
     steps:
       - uses: actions/checkout@v4
 
-      # The container runs as root but the mounted workspace is owned by the host
-      # runner UID, so git's dubious-ownership guard blocks the lefthook postinstall
-      # hook. Trust the workspace before install runs.
-      - name: Trust workspace for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@v1.21.1
         with:
           node-version-file: package.json
-          cache: pnpm
+          cache: true
+          run-install: |
+            args: ["--frozen-lockfile"]
 
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm build
+      # Separate prefix from the `ci` job: the container's workspace path and
+      # environment differ, so its task fingerprints do too.
+      - name: Restore Vite Task cache
+        id: vite-task-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: vite-task-e2e-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vite-task-e2e-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Test E2E
-        run: pnpm test:e2e
+        run: vp run test:e2e
+
+      - name: Save Vite Task cache
+        if: success()
+        uses: actions/cache/save@v6
+        with:
+          path: node_modules/.vite/task-cache
+          key: ${{ steps.vite-task-cache.outputs.cache-primary-key }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

@@ -70,10 +70,8 @@ export function setupTrigger(
   }
 
   // Exhaustive check
-  const _exhaustive: never = config;
-  throw new Error(
-    `Unknown trigger type: ${(_exhaustive as TriggerConfig).type}`
-  );
+  const unhandled: never = config;
+  throw new Error(`Unknown trigger type: ${(unhandled as TriggerConfig).type}`);
 }
 
 function storageKey(researchId: string): string {

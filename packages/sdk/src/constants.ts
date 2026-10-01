@@ -8,7 +8,7 @@
 // SDK Version & Features
 // ============================================================================
 
-/** SDK version for handshake protocol — replaced at build time by tsup define */
+/** SDK version for handshake protocol — replaced at build time by the `define` in vite.config.ts */
 declare const PKG_VERSION: string;
 export const SDK_VERSION = PKG_VERSION;
 

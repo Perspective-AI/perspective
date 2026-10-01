@@ -4,7 +4,7 @@ Thanks for helping make the Perspective Embed SDK better. PRs, issues, and frame
 
 ## Prerequisites
 
-- **Node** 22.12+, 24, or 26+ (required by Vitest 5; see `engines` in `package.json`)
+- **Node** 22.22.1+, 24.11+, or 26+ (required by Vite+ 1.0 and its `vp staged` pre-commit hook; see `engines` in `package.json`)
 - **pnpm** 10+ (the repo pins `pnpm@10.25.0` — install via `corepack enable` or `npm i -g pnpm`)
 
 ## Setup
@@ -21,12 +21,30 @@ Watch mode during development:
 pnpm dev
 ```
 
-Run a single package's tests:
+Run a single package's tests (builds its workspace dependencies first):
 
 ```bash
-pnpm --filter @perspective-ai/sdk test
-pnpm --filter @perspective-ai/sdk-react test
+pnpm exec vp run --filter @perspective-ai/sdk test
+pnpm exec vp run --filter @perspective-ai/sdk-react test
 ```
+
+## Toolchain
+
+The repo uses [Vite+](https://viteplus.dev) (`vp`), installed as the `vite-plus` dev dependency. Run it as `pnpm exec vp …`, or install the [global CLI](https://viteplus.dev/guide/global-cli), which delegates to the project's version:
+
+| Command              | Tool                                            |
+| -------------------- | ----------------------------------------------- |
+| `vp pack`            | [tsdown](https://tsdown.dev) library builds     |
+| `vp test`            | [Vitest](https://vitest.dev)                    |
+| `vp lint` / `vp fmt` | [Oxlint](https://oxc.rs) / Oxfmt                |
+| `vp check`           | Format, lint, and type-check in one command     |
+| `vp run <task>`      | Cached tasks with workspace dependency ordering |
+
+Configuration lives in `vite.config.ts`: the root file holds `lint`, `fmt`, and `staged`; each package's file holds its `pack`, `test`, and `run.tasks`. The root `pnpm` scripts call `vp run -r <task>`; run `vp cache clean` if you ever need to drop cached task results.
+
+Linting is type-aware and type-checks sdk-react against `@perspective-ai/sdk`'s built `dist/`, so run `pnpm build` before `pnpm lint` on a fresh clone (`pnpm check` and the pre-commit hook build first on their own). CI restores the task cache across runs, so unchanged packages replay their previous results.
+
+`pnpm install` runs `vp config`, which installs the git hooks in `.vite-hooks/`: `pre-commit` builds the SDK (a cache hit when unchanged), then runs `vp staged` (`vp check --fix` on staged files); `pre-push` runs `pnpm typecheck` and `pnpm test`. Use `vp hooks disable` to turn them off in your clone, or `VP_GIT_HOOKS=0` for a single command.
 
 ## Changesets
 
