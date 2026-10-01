@@ -31,7 +31,7 @@ describe("attribution", () => {
       expect(script).toBeTruthy();
       expect(script.type).toBe("application/ld+json");
 
-      const data = JSON.parse(script.textContent!);
+      const data = JSON.parse(script.textContent);
       expect(data["@context"]).toBe("https://schema.org");
       expect(data["@graph"]).toHaveLength(2);
       expect(data["@graph"][0]["@type"]).toBe("SoftwareApplication");
@@ -98,7 +98,7 @@ describe("attribution", () => {
       const { injectGlobalMetadata } = await import("./attribution");
       injectGlobalMetadata();
 
-      expect(window.PerspectiveAI!.version).toBe("old");
+      expect(window.PerspectiveAI.version).toBe("old");
     });
   });
 

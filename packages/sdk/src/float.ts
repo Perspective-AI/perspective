@@ -126,13 +126,13 @@ export function createIconImg(
   img.style.height = "100%";
   img.style.objectFit = "cover";
   img.style.borderRadius = "inherit";
-  img.onerror = () => {
+  img.addEventListener("error", () => {
     const parent = img.parentElement;
     if (parent) {
       img.remove();
       parent.innerHTML = fallbackHtml;
     }
-  };
+  });
   return img;
 }
 

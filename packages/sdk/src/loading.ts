@@ -293,10 +293,10 @@ export function createLoadingIndicator(options?: LoadingOptions): HTMLElement {
     rememberSceneUrl(sceneUrl);
     scene.dataset.sceneUrl = sceneUrl;
     const img = new Image();
-    img.onload = () => {
+    img.addEventListener("load", () => {
       scene.style.backgroundImage = `url("${sceneUrl}")`;
       scene.style.opacity = "1";
-    };
+    });
     img.src = sceneUrl;
   }
   container.appendChild(scene);

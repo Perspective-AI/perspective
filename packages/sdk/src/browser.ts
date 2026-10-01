@@ -127,7 +127,10 @@ type ButtonStyleConfig = {
 const styledButtons = new Map<HTMLElement, ButtonStyleConfig>();
 let buttonThemeMediaQuery: MediaQueryList | null = null;
 
-/** Alias for internal use */
+/**
+ * Alias for internal use. Never rejects (falls back to the default theme), so
+ * fire-and-forget calls below are marked with `void`.
+ */
 const fetchConfig = fetchEmbedConfig;
 
 /**
@@ -469,7 +472,11 @@ function mount(
       : container;
 
   if (!el) {
-    throw new Error(`Container not found: ${container}`);
+    throw new Error(
+      typeof container === "string"
+        ? `Container not found: ${container}`
+        : "Container not found"
+    );
   }
 
   // Destroy existing instance
@@ -486,7 +493,7 @@ function mount(
       break;
     default:
       // For popup/slider/float, just use init - container not used
-      instance = init({ ...config, type }) as EmbedHandle;
+      instance = init({ ...config, type });
       return instance;
   }
 
@@ -571,7 +578,7 @@ function autoInit(): void {
           disableJsonLdAttribution: el.hasAttribute(
             DATA_ATTRS.disableJsonLdAttribution
           ),
-        } as InternalEmbedConfig);
+        });
       }
     });
 
@@ -591,7 +598,7 @@ function autoInit(): void {
           disableJsonLdAttribution: el.hasAttribute(
             DATA_ATTRS.disableJsonLdAttribution
           ),
-        } as InternalEmbedConfig);
+        });
       }
     });
 
@@ -629,7 +636,7 @@ function autoInit(): void {
           disableJsonLdAttribution,
           ...brandConfig,
           ...(cachedConfig && { _apiConfig: cachedConfig }),
-        } as InternalEmbedConfig);
+        });
 
       const dg = globalDestroyGen;
       const ig = idDestroyGen.get(researchId) ?? 0;
@@ -641,7 +648,7 @@ function autoInit(): void {
           // resolved server-side). Pre-fetch in parallel for downstream
           // consumers that may still inspect cachedConfig.
           if (!wasDestroyed(researchId, dg, ig)) {
-            fetchConfig(researchId).then((config) => {
+            void fetchConfig(researchId).then((config) => {
               if (!wasDestroyed(researchId, dg, ig)) cachedConfig = config;
             });
             initPopup();
@@ -661,7 +668,7 @@ function autoInit(): void {
               // Pre-fetch config so it's ready when trigger fires
               // API autoTrigger overrides embed code trigger
               const configPromise = fetchConfig(researchId);
-              configPromise.then((config) => {
+              void configPromise.then((config) => {
                 if (wasDestroyed(researchId, dg, ig)) return;
                 cachedConfig = config;
                 setupApiAutoTrigger(researchId, config, initPopup);
@@ -670,7 +677,7 @@ function autoInit(): void {
               const cleanup = setupTrigger(trigger, () => {
                 triggerCleanups.delete(researchId);
                 // Await config — skip if API autoTrigger will take over (API wins)
-                configPromise.then((config) => {
+                void configPromise.then((config) => {
                   if (wasDestroyed(researchId, dg, ig)) return;
                   cachedConfig = config;
                   if (!config.embedSettings?.autoTrigger?.trigger) {
@@ -689,7 +696,7 @@ function autoInit(): void {
         // Click-to-open mode: styled button
         // Pre-fetch config so it's ready when user clicks
         const configPromise = fetchConfig(researchId);
-        configPromise.then((config) => {
+        void configPromise.then((config) => {
           cachedConfig = config;
           styleButton(el, config, brandConfig);
           // Only arm auto-trigger if not destroyed and popup wasn't already opened
@@ -764,7 +771,7 @@ function autoInit(): void {
             onClose: () => {
               sliderHandle = null;
             },
-          } as InternalEmbedConfig) as EmbedHandle;
+          });
           return sliderHandle;
         };
 
@@ -773,7 +780,7 @@ function autoInit(): void {
 
         // Pre-fetch config so it's ready when user clicks
         const sliderConfigPromise = fetchConfig(researchId);
-        sliderConfigPromise.then((config) => {
+        void sliderConfigPromise.then((config) => {
           sliderConfig = config;
           styleButton(el, config, brandConfig);
           // Only arm auto-trigger if not destroyed and slider wasn't already opened
@@ -842,7 +849,7 @@ function autoInit(): void {
         _apiConfigPending: true,
       } as InternalEmbedConfig);
 
-      fetchConfig(researchId).then((config) => {
+      void fetchConfig(researchId).then((config) => {
         // Update bubble color with fetched theme
         const bubble = document.querySelector<HTMLElement>(
           '[data-perspective="float-bubble"]'

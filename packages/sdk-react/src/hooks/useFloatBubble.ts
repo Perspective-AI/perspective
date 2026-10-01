@@ -19,6 +19,8 @@ import { useEmbedConfig } from "./useEmbedConfig";
 
 /** Launcher config with React support — icon accepts ReactNode in addition to SDK types */
 export interface LauncherConfigReact extends Omit<LauncherConfig, "icon"> {
+  // ReactNode already admits strings; listing the SDK icon names documents them.
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents
   icon?: LauncherConfig["icon"] | ReactNode;
 }
 
@@ -152,7 +154,7 @@ export function useFloatBubble(
       return { ...rest, icon: icon as "default" | "avatar" };
     }
     if (typeof icon === "object" && ("url" in icon || "svg" in icon)) {
-      return { ...rest, icon: icon as { url: string } | { svg: string } };
+      return { ...rest, icon: icon };
     }
     // Unrecognized icon value (truthy primitives, arrays, etc.) — ignore it
     return Object.keys(rest).length > 0 ? rest : undefined;
@@ -177,6 +179,8 @@ export function useFloatBubble(
     });
 
     handleRef.current = newHandle;
+    // Publishes the handle of the bubble just created outside React.
+    // oxlint-disable-next-line react/set-state-in-effect
     setHandle(newHandle);
 
     return () => {

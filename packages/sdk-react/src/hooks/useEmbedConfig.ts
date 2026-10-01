@@ -16,7 +16,8 @@ export function useEmbedConfig(
 
   useEffect(() => {
     let cancelled = false;
-    fetchEmbedConfig(researchId, host).then((result) => {
+    // fetchEmbedConfig never rejects; it falls back to the default theme.
+    void fetchEmbedConfig(researchId, host).then((result) => {
       if (!cancelled) setState({ researchId, host, config: result });
     });
     return () => {

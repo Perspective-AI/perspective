@@ -10,6 +10,14 @@ import { openSlider } from "./slider";
 import * as config from "./config";
 import { getPersistedOpenState } from "./state";
 
+function setViewport(width: number) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+}
+
 describe("openSlider", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -309,14 +317,6 @@ describe("openSlider", () => {
   });
 
   describe("sliderMode: push", () => {
-    const setViewport = (width: number) => {
-      Object.defineProperty(window, "innerWidth", {
-        configurable: true,
-        writable: true,
-        value: width,
-      });
-    };
-
     afterEach(() => {
       setViewport(1024);
       document.documentElement.style.marginRight = "";

@@ -7,7 +7,12 @@ import {
   afterEach,
 } from "vite-plus/test";
 import { renderHook, act } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { useThemeSync } from "./useThemeSync";
+
+function SystemThemeProbe() {
+  return <span>{useThemeSync("system")}</span>;
+}
 
 describe("useThemeSync", () => {
   let mediaQueryListeners: Array<(e: MediaQueryListEvent) => void> = [];
@@ -49,11 +54,15 @@ describe("useThemeSync", () => {
   });
 
   it("returns light initially for SSR safety when theme is system", () => {
-    // Before useEffect runs, should return "light" for consistent SSR
     const { result } = renderHook(() => useThemeSync("system"));
-    // After effect runs, it will update based on system preference
-    // But the initial render should be "light" for SSR
     expect(result.current).toBe("light"); // mockMatches is false
+  });
+
+  it("renders light on the server even when the system prefers dark", () => {
+    mockMatches = true;
+    expect(renderToStaticMarkup(<SystemThemeProbe />)).toBe(
+      "<span>light</span>"
+    );
   });
 
   it("returns dark when system prefers dark and theme is system", () => {
@@ -91,8 +100,10 @@ describe("useThemeSync", () => {
 
     expect(result.current).toBe("light");
 
-    // Simulate system theme change
+    // Simulate system theme change (a real MediaQueryList updates `matches`
+    // before dispatching "change")
     act(() => {
+      mockMatches = true;
       mediaQueryListeners.forEach((handler) => {
         handler({ matches: true } as MediaQueryListEvent);
       });
@@ -102,6 +113,7 @@ describe("useThemeSync", () => {
 
     // Change back
     act(() => {
+      mockMatches = false;
       mediaQueryListeners.forEach((handler) => {
         handler({ matches: false } as MediaQueryListEvent);
       });

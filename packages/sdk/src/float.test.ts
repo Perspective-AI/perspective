@@ -856,6 +856,7 @@ describe("createFloatBubble", () => {
 
       // Flush the fetch promise chain (fetch → json → merge)
       for (let i = 0; i < 5; i++) {
+        // oxlint-disable-next-line no-await-in-loop -- each tick must settle before the next
         await Promise.resolve();
       }
 

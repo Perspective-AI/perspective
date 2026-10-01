@@ -51,7 +51,8 @@ export function Fullpage({
 
     let cancelled = false;
 
-    fetchEmbedConfig(researchId, host).then((config) => {
+    // fetchEmbedConfig never rejects; it falls back to the default theme.
+    void fetchEmbedConfig(researchId, host).then((config) => {
       if (cancelled) return;
       skeleton.remove();
 
