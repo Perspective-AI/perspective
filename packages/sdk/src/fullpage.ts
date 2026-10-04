@@ -17,6 +17,7 @@ import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
+import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -74,6 +75,12 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   container.appendChild(iframe);
   document.body.appendChild(container);
   enrichContainer(container, "fullpage", config);
+  trackEmbedEvent(
+    DATA_LAYER_EVENTS.open,
+    researchId,
+    "fullpage",
+    config.dataLayer
+  );
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
@@ -131,7 +138,11 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
     },
     iframe,
     host,
-    { skipResize: true }
+    {
+      skipResize: true,
+      embedType: "fullpage",
+      dataLayer: config.dataLayer,
+    }
   );
 
   return {

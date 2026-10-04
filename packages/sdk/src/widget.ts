@@ -17,6 +17,7 @@ import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
+import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 type WidgetResources = {
   cleanup: () => void;
@@ -222,6 +223,12 @@ export function createWidget(
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
   enrichContainer(wrapper, "widget", config);
+  trackEmbedEvent(
+    DATA_LAYER_EVENTS.open,
+    researchId,
+    "widget",
+    config.dataLayer
+  );
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
@@ -270,7 +277,7 @@ export function createWidget(
     },
     iframe,
     host,
-    { skipResize: true }
+    { skipResize: true, embedType: "widget", dataLayer: config.dataLayer }
   );
 
   // Register iframe for theme change notifications

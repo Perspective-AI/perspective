@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   autoInit,
+  configure,
   init,
   mount,
   destroy,
@@ -46,6 +47,7 @@ describe("browser entry", () => {
   });
 
   afterEach(() => {
+    configure({ observe: false });
     destroyAll();
     document.body.innerHTML = "";
     vi.useRealTimers();
@@ -750,6 +752,76 @@ describe("browser entry", () => {
 
       const wrapper = document.querySelector(".perspective-embed-root");
       expect(wrapper?.classList.contains("perspective-dark-theme")).toBe(true);
+    });
+
+    it("remounts a widget when its container has left the DOM", () => {
+      const first = document.createElement("div");
+      first.setAttribute("data-perspective-widget", "spa-widget");
+      document.body.appendChild(first);
+      autoInit();
+      expect(first.querySelector("iframe")).toBeTruthy();
+
+      first.remove();
+      const second = document.createElement("div");
+      second.setAttribute("data-perspective-widget", "spa-widget");
+      document.body.appendChild(second);
+      autoInit();
+
+      expect(second.querySelector("iframe")).toBeTruthy();
+      expect(document.querySelectorAll("iframe[data-perspective]").length).toBe(
+        1
+      );
+    });
+
+    it("remounts a float when its marker has left the DOM", () => {
+      const first = document.createElement("div");
+      first.setAttribute("data-perspective-float", "spa-float");
+      document.body.appendChild(first);
+      autoInit();
+      const firstBubble = document.querySelector(".perspective-float-bubble");
+      expect(firstBubble).toBeTruthy();
+
+      first.remove();
+      expect(document.body.contains(firstBubble)).toBe(true);
+
+      const second = document.createElement("div");
+      second.setAttribute("data-perspective-float", "spa-float");
+      document.body.appendChild(second);
+      autoInit();
+
+      const bubbles = document.querySelectorAll(".perspective-float-bubble");
+      expect(bubbles.length).toBe(1);
+      expect(bubbles[0]).not.toBe(firstBubble);
+    });
+
+    it("remounts a fullpage embed when its marker has left the DOM", () => {
+      const first = document.createElement("div");
+      first.setAttribute("data-perspective-fullpage", "spa-fullpage");
+      document.body.appendChild(first);
+      autoInit();
+      const firstOverlay = document.querySelector(".perspective-fullpage");
+      expect(firstOverlay).toBeTruthy();
+
+      first.remove();
+      const second = document.createElement("div");
+      second.setAttribute("data-perspective-fullpage", "spa-fullpage");
+      document.body.appendChild(second);
+      autoInit();
+
+      const overlays = document.querySelectorAll(".perspective-fullpage");
+      expect(overlays.length).toBe(1);
+      expect(overlays[0]).not.toBe(firstOverlay);
+    });
+
+    it("mounts embeds inserted later when observe is enabled", async () => {
+      configure({ observe: true });
+      const el = document.createElement("div");
+      el.setAttribute("data-perspective-widget", "observed-widget");
+      document.body.appendChild(el);
+
+      await vi.waitFor(() => {
+        expect(el.querySelector("iframe")).toBeTruthy();
+      });
     });
 
     it("does not reinitialize popup buttons", async () => {

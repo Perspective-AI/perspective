@@ -18,6 +18,7 @@ import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
+import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 /** Below this viewport width, "push" mode falls back to "overlay" so content isn't shoved off-screen. */
 const PUSH_MIN_VIEWPORT = 640;
@@ -104,6 +105,12 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     document.body.appendChild(backdrop);
   }
   document.body.appendChild(slider);
+  trackEmbedEvent(
+    DATA_LAYER_EVENTS.open,
+    researchId,
+    "slider",
+    config.dataLayer
+  );
   enrichContainer(slider, "slider", config);
 
   // Push mode: shrink the page by the slider's width, animated in sync with the
@@ -166,6 +173,12 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   const removeSlider = () => {
     if (!isOpen) return;
     isOpen = false;
+    trackEmbedEvent(
+      DATA_LAYER_EVENTS.close,
+      researchId,
+      "slider",
+      currentConfig.dataLayer
+    );
     messageCleanup?.();
     unregisterIframe();
     removePush();
@@ -215,7 +228,12 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     },
     iframe,
     host,
-    { skipResize: true, renderCloseButton: !config.disableClose }
+    {
+      skipResize: true,
+      renderCloseButton: !config.disableClose,
+      embedType: "slider",
+      dataLayer: config.dataLayer,
+    }
   );
 
   // Close handlers (disabled when disableClose is enabled)

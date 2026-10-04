@@ -509,6 +509,14 @@ configure({ host: "https://custom-host.example.com" });
 const config = getConfig();
 ```
 
+`configure` also accepts Google Tag Manager settings. See [Install with Google Tag Manager](#install-with-google-tag-manager) for the event names and the loader stub.
+
+| Option          | Description                                                                                                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dataLayer`     | `false` disables lifecycle events. `true` creates the target array when it is missing. Omit it to push only if the array already exists — `window.dataLayer` is not created. |
+| `dataLayerName` | Property on `window` to push to. Default `"dataLayer"`. A custom name is created only when `dataLayer: true`.                                                                |
+| `observe`       | Browser bundle only. `true` watches the document and runs `autoInit` when `data-perspective-*` nodes are inserted after the first scan.                                      |
+
 ## Custom Parameters
 
 Pass tracking or attribution parameters:
@@ -687,6 +695,7 @@ For non-module environments, use the browser bundle:
 | `data-perspective-teaser-delay`       | Milliseconds before the teaser appears (default 3000)   |
 | `data-perspective-teaser-sound`       | `"false"` mutes the teaser chime                        |
 | `data-perspective-teaser-dismissible` | `"false"` hides the teaser's × button                   |
+| `data-perspective-datalayer`          | `"false"` skips dataLayer events for this embed         |
 
 ### Auto-Trigger (Data Attributes)
 
@@ -734,6 +743,110 @@ When `data-perspective-auto-open` is present, the element acts as a hidden confi
   Perspective.configure({ host: "https://custom.example.com" });
 </script>
 ```
+
+## Install with Google Tag Manager
+
+Tag Manager injects the embed script asynchronously, and a History Change
+trigger runs the tag again after a single-page navigation. The browser bundle
+supports both:
+
+- Calls made before the script arrives are queued and replayed. After load,
+  `Perspective` is still a function, so a later `Perspective('autoInit')` runs
+  immediately, and the existing methods (`Perspective.openPopup`,
+  `Perspective.autoInit`, `Perspective.destroy`, …) stay in place.
+- A second load is not a no-op. Queued commands are replayed and `autoInit`
+  scans the page again.
+- If an embed's container (or the marker a float / fullpage was mounted from)
+  is no longer in the document, that instance is destroyed and mounted into the
+  new element.
+- `configure({ observe: true })` — or `Perspective('configure', { observe: true })`
+  — watches for `data-perspective-*` nodes added later. Use this when the page
+  inserts the marker without running the tag again.
+
+The declarative snippet still works unchanged:
+
+```html
+<div data-perspective-float="your-research-id"></div>
+<script src="https://getperspective.ai/v1/perspective.js"></script>
+```
+
+### Custom HTML tag
+
+Replace `YOUR_RESEARCH_ID` and the embed type (`float`, `widget`, `popup`,
+`slider`, or `fullpage`).
+
+```html
+<script>
+  (function (w, d, n, researchId, embedType) {
+    w.PerspectiveObject = n;
+    w[n] =
+      w[n] ||
+      function () {
+        (w[n].q = w[n].q || []).push(arguments);
+      };
+    var attr = "data-perspective-" + embedType;
+    if (!d.querySelector("[" + attr + '="' + researchId + '"]')) {
+      var el = d.createElement("div");
+      el.setAttribute(attr, researchId);
+      (d.body || d.documentElement).appendChild(el);
+    }
+    w[n]("autoInit");
+    if (d.getElementById("perspective-sdk")) return;
+    var s = d.createElement("script");
+    s.id = "perspective-sdk";
+    s.async = true;
+    s.src = "https://getperspective.ai/v1/perspective.js";
+    (d.head || d.documentElement).appendChild(s);
+  })(window, document, "Perspective", "YOUR_RESEARCH_ID", "float");
+</script>
+```
+
+Queued commands, if you would rather not use a data attribute:
+
+| Call                                        | Effect                             |
+| ------------------------------------------- | ---------------------------------- |
+| `Perspective('configure', { ... })`         | Same as `Perspective.configure`    |
+| `Perspective('init', { researchId, type })` | Popup, slider, float, or fullpage  |
+| `Perspective('mount', selector, config)`    | Inline widget                      |
+| `Perspective('autoInit')`                   | Scan `data-perspective-*` elements |
+| `Perspective('destroy', researchId)`        | Tear down one embed                |
+
+Suggested trigger:
+
+1. Tags → New → Custom HTML. Paste the snippet.
+2. Fire on **All Pages** (or Page View) and filter by the page path that should show the interview.
+3. On a single-page app, also fire on **History Change** so the tag runs after client-side navigations.
+4. Preview, then Publish.
+
+`configure({ observe: true })` is the alternative to a History Change trigger when the app itself inserts the marker node.
+
+### dataLayer events
+
+When `window.dataLayer` (or `configure({ dataLayerName })`) already exists, the SDK pushes:
+
+| `event`                              | When                                                                         |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| `perspective_widget_open`            | A widget, popup, slider, or fullpage is shown, or a float window opens       |
+| `perspective_widget_ready`           | The iframe is interactive (`perspective:ready`)                              |
+| `perspective_conversation_started`   | The participant sends their first message (`perspective:conversation-start`) |
+| `perspective_conversation_completed` | The interview is submitted (`perspective:submit`)                            |
+| `perspective_widget_close`           | The embed closes                                                             |
+
+Each push is `{ event, perspective_research_id, perspective_embed_type }`.
+
+The SDK does **not** create `window.dataLayer` unless you opt in with
+`configure({ dataLayer: true })`. Opt out globally with
+`configure({ dataLayer: false })`, or per embed with
+`data-perspective-datalayer="false"`.
+
+In Google Analytics 4, add a Custom Event trigger for
+`perspective_conversation_completed`, fire a GA4 Event tag on it, and mark that
+event as a key event. Allow `https://getperspective.ai` in `script-src` and
+`frame-src` if the page has a Content Security Policy.
+
+If an older Custom HTML tag also listens for `perspective:*` messages and
+pushes these events itself, remove that bridge when you switch to this snippet
+so the events are not counted twice.
 
 ## SSR Safety
 

@@ -97,6 +97,8 @@ export const DATA_ATTRS = {
   teaserSound: "data-perspective-teaser-sound",
   teaserDismissible: "data-perspective-teaser-dismissible",
   disableJsonLdAttribution: "data-perspective-disable-jsonld-attribution",
+  /** "false" opts this embed out of dataLayer / GTM events. */
+  dataLayer: "data-perspective-datalayer",
 } as const;
 
 export type DataAttr = (typeof DATA_ATTRS)[keyof typeof DATA_ATTRS];
@@ -118,6 +120,10 @@ export const MESSAGE_TYPES = {
   // Used to fire the public `onReady` callback and run the SDK→iframe
   // handshake (anonId, init, scrollbar styles, cached auth token).
   ready: "perspective:ready",
+  // conversationStart: the participant sent their first message. The interview
+  // iframe posts this; the SDK forwards it to dataLayer as
+  // perspective_conversation_started.
+  conversationStart: "perspective:conversation-start",
   resize: "perspective:resize",
   submit: "perspective:submit",
   close: "perspective:close",

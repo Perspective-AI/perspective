@@ -29,7 +29,10 @@ export default defineConfig([
     splitting: false,
     define,
   },
-  // IIFE for CDN
+  // IIFE for CDN.
+  // esbuild assigns the exports object to `var Perspective` after the bundle
+  // runs, which would replace the callable API installed inside the module.
+  // Re-claim that global once the assignment has finished.
   {
     entry: { perspective: "src/browser.ts" },
     format: ["iife"],
@@ -39,5 +42,8 @@ export default defineConfig([
     sourcemap: true,
     target: ["es2020", "chrome80", "firefox80", "safari14"],
     define,
+    footer: {
+      js: 'if(typeof window!=="undefined"&&window.__PERSPECTIVE_PUBLIC_API__){window.Perspective=window.__PERSPECTIVE_PUBLIC_API__}',
+    },
   },
 ]);

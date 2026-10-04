@@ -24,6 +24,7 @@ import {
 } from "./constants";
 import { normalizeHex } from "./utils";
 import { isPerfDebug, perfLog } from "./perf";
+import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 // ---------------------------------------------------------------------------
 // Host preconnect — warm DNS + TLS to the embed host before the iframe HTTP
@@ -335,6 +336,10 @@ export function setupMessageListener(
   options?: {
     skipResize?: boolean;
     renderCloseButton?: boolean;
+    /** Embed type copied onto dataLayer events. */
+    embedType?: EmbedType;
+    /** Per-embed dataLayer opt-out (`false` skips pushes for this iframe). */
+    dataLayer?: boolean;
   }
 ): () => void {
   if (!hasDom()) {
@@ -402,8 +407,23 @@ export function setupMessageListener(
           config.onAuth?.({ researchId, token: cachedToken });
         }
         config.onReady?.();
+        trackEmbedEvent(
+          DATA_LAYER_EVENTS.ready,
+          researchId,
+          options?.embedType,
+          options?.dataLayer
+        );
         break;
       }
+
+      case MESSAGE_TYPES.conversationStart:
+        trackEmbedEvent(
+          DATA_LAYER_EVENTS.conversationStarted,
+          researchId,
+          options?.embedType,
+          options?.dataLayer
+        );
+        break;
 
       case MESSAGE_TYPES.resize:
         // Auto-resize iframe height (skip for fixed-container embeds)
@@ -414,9 +434,21 @@ export function setupMessageListener(
 
       case MESSAGE_TYPES.submit:
         config.onSubmit?.({ researchId });
+        trackEmbedEvent(
+          DATA_LAYER_EVENTS.conversationCompleted,
+          researchId,
+          options?.embedType,
+          options?.dataLayer
+        );
         break;
 
       case MESSAGE_TYPES.close:
+        trackEmbedEvent(
+          DATA_LAYER_EVENTS.close,
+          researchId,
+          options?.embedType,
+          options?.dataLayer
+        );
         config.onClose?.();
         break;
 
