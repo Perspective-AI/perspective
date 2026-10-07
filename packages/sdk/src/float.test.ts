@@ -689,6 +689,57 @@ describe("createFloatBubble", () => {
       vi.unstubAllGlobals();
     });
 
+    // Regression for CODEBASE-16X / CODEBASE-162: a host-page navigation that
+    // unmounted the bubble mid-chime leaked the rejected resume().
+    it("unmounting while the chime's resume() is pending leaks no rejection", async () => {
+      vi.useFakeTimers();
+      let rejectPendingResume: ((reason: unknown) => void) | null = null;
+      vi.stubGlobal(
+        "AudioContext",
+        class {
+          constructor() {
+            return {
+              ...createFakeAudioContext(),
+              // Autoplay policy keeps the context suspended until a gesture.
+              state: "suspended",
+              resume: () =>
+                new Promise<void>((_resolve, reject) => {
+                  rejectPendingResume = reject;
+                }),
+              // Closing rejects a still-pending resume(), as browsers do.
+              close: () => {
+                rejectPendingResume?.(
+                  new DOMException(
+                    "Closed before resume completed",
+                    "InvalidStateError"
+                  )
+                );
+                return Promise.resolve();
+              },
+            };
+          }
+        }
+      );
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on("unhandledRejection", onUnhandled);
+
+      const handle = createFloatBubble({
+        researchId: "test-research-id",
+        welcomeMessage: "Hello!",
+      });
+      vi.advanceTimersByTime(2000);
+      expect(rejectPendingResume).not.toBeNull();
+
+      handle.unmount();
+      vi.useRealTimers();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      process.off("unhandledRejection", onUnhandled);
+      vi.unstubAllGlobals();
+
+      expect(unhandled).toEqual([]);
+    });
+
     it("teaser.sound=false skips the chime", () => {
       vi.useFakeTimers();
       const audioCtxCtor = vi.fn(() => createFakeAudioContext());

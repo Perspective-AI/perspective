@@ -419,7 +419,9 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       }
 
       if (audioCtx.state === "suspended") {
-        void audioCtx.resume();
+        // Rejects if unmount() closes the context before it resumes, which the
+        // surrounding try/catch can't catch.
+        audioCtx.resume().catch(() => {});
       }
       createChimeSound(audioCtx);
     } catch {
