@@ -45,15 +45,11 @@ describe("FloatBubble", () => {
     cleanup();
   });
 
-  it("renders only attribution metadata (bubble is added to document.body)", async () => {
+  it("renders nothing (bubble is added to document.body)", async () => {
     const { container } = render(<FloatBubble researchId="test-research-id" />);
     await act(async () => {});
 
-    expect(
-      container.querySelector("script[data-perspective-jsonld]")
-    ).toBeTruthy();
-    // No visible DOM elements — only the JSON-LD script tag
-    expect(container.querySelectorAll(":not(script)")).toHaveLength(0);
+    expect(container.innerHTML).toBe("");
   });
 
   it("calls createFloatBubble on mount", async () => {

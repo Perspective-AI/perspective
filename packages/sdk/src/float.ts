@@ -289,7 +289,7 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
   }
 
   document.body.appendChild(bubble);
-  enrichContainer(bubble, "float", config);
+  enrichContainer(bubble, "float");
 
   // Auto-fetch config when avatar icon is requested but no _apiConfig provided
   // (programmatic API — browser.ts auto-init handles this separately)

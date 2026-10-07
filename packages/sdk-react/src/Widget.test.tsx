@@ -222,6 +222,21 @@ describe("Widget", () => {
     expect(container.getAttribute("role")).toBe("region");
   });
 
+  it("renders only the container — no JSON-LD, deprecated prop not forwarded", async () => {
+    const { container } = render(
+      <Widget researchId="test-research-id" disableJsonLdAttribution />
+    );
+    await act(async () => {});
+
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.children).toHaveLength(1);
+    const widget = screen.getByTestId("perspective-widget");
+    expect(widget.hasAttribute("disableJsonLdAttribution")).toBe(false);
+    expect(mockCreateWidget.mock.calls[0]![1]).not.toHaveProperty(
+      "disableJsonLdAttribution"
+    );
+  });
+
   describe("StrictMode behavior", () => {
     it("creates only one iframe in StrictMode (mock inserts real DOM)", async () => {
       const mockUnmount = vi.fn();

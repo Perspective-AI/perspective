@@ -73,7 +73,7 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
 
   container.appendChild(iframe);
   document.body.appendChild(container);
-  enrichContainer(container, "fullpage", config);
+  enrichContainer(container, "fullpage");
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
