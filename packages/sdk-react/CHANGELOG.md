@@ -1,5 +1,13 @@
 # @perspective-ai/sdk-react
 
+## 1.15.3
+
+### Patch Changes
+
+- 429a4c2: Stop injecting JSON-LD structured data into the host page. `injectJsonLd()`, `DiscoveryMetadata`, and the `disableJsonLdAttribution` option are kept as deprecated no-ops for backwards compatibility.
+- Updated dependencies [429a4c2]
+  - @perspective-ai/sdk@1.15.3
+
 ## 1.15.2
 
 ### Patch Changes
