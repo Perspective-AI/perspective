@@ -568,9 +568,6 @@ function autoInit(): void {
           params,
           ...brandConfig,
           ...(frame && { frame }),
-          disableJsonLdAttribution: el.hasAttribute(
-            DATA_ATTRS.disableJsonLdAttribution
-          ),
         } as InternalEmbedConfig);
       }
     });
@@ -588,9 +585,6 @@ function autoInit(): void {
           type: "fullpage",
           params,
           ...brandConfig,
-          disableJsonLdAttribution: el.hasAttribute(
-            DATA_ATTRS.disableJsonLdAttribution
-          ),
         } as InternalEmbedConfig);
       }
     });
@@ -617,16 +611,12 @@ function autoInit(): void {
 
       // Capture fetched config for passing _apiConfig to init calls
       let cachedConfig: EmbedApiConfig | undefined;
-      const disableJsonLdAttribution = el.hasAttribute(
-        DATA_ATTRS.disableJsonLdAttribution
-      );
       const initPopup = () =>
         init({
           researchId,
           type: "popup",
           params,
           disableClose,
-          disableJsonLdAttribution,
           ...brandConfig,
           ...(cachedConfig && { _apiConfig: cachedConfig }),
         } as InternalEmbedConfig);
@@ -748,16 +738,12 @@ function autoInit(): void {
         // Tracks the live handle so a second click on the same trigger toggles
         // the slider closed instead of re-opening it.
         let sliderHandle: EmbedHandle | null = null;
-        const disableJsonLdAttribution = el.hasAttribute(
-          DATA_ATTRS.disableJsonLdAttribution
-        );
         const initSlider = () => {
           sliderHandle = init({
             researchId,
             type: "slider",
             params,
             disableClose,
-            disableJsonLdAttribution,
             sliderMode,
             ...brandConfig,
             ...(sliderConfig && { _apiConfig: sliderConfig }),
@@ -828,9 +814,6 @@ function autoInit(): void {
         researchId,
         type: "float",
         params,
-        disableJsonLdAttribution: floatEl.hasAttribute(
-          DATA_ATTRS.disableJsonLdAttribution
-        ),
         ...brandConfig,
         ...(launcherConfig && { launcher: launcherConfig }),
         ...(teaserConfig && { teaser: teaserConfig }),
@@ -936,7 +919,6 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
     );
   }
 
-  // JSON-LD injection deferred to enrichContainer (needs per-embed config for disableJsonLdAttribution)
   injectGlobalMetadata();
 
   if (document.readyState === "loading") {

@@ -91,7 +91,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   modal.appendChild(iframe);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
-  enrichContainer(overlay, "popup", config);
+  enrichContainer(overlay, "popup");
 
   // Mutable config reference for updates
   let currentConfig = { ...config };

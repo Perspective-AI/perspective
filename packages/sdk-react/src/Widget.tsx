@@ -1,11 +1,4 @@
-import {
-  useRef,
-  useEffect,
-  Fragment,
-  type HTMLAttributes,
-  type RefObject,
-} from "react";
-import { DiscoveryMetadata } from "./DiscoveryMetadata";
+import { useRef, useEffect, type HTMLAttributes, type RefObject } from "react";
 import {
   createWidget,
   perfLog,
@@ -33,7 +26,8 @@ export function Widget({
   theme,
   host,
   frame,
-  disableJsonLdAttribution,
+  // Deprecated no-op; pulled out so it isn't spread onto the <div>.
+  disableJsonLdAttribution: _disableJsonLdAttribution,
   onReady,
   onVisualReady,
   onSubmit,
@@ -72,7 +66,6 @@ export function Widget({
       theme,
       host,
       frame,
-      disableJsonLdAttribution,
       onReady: stableOnReady,
       onVisualReady: stableOnVisualReady,
       onSubmit: stableOnSubmit,
@@ -103,7 +96,6 @@ export function Widget({
     theme,
     host,
     frame,
-    disableJsonLdAttribution,
     stableOnReady,
     stableOnVisualReady,
     stableOnSubmit,
@@ -114,15 +106,12 @@ export function Widget({
   ]);
 
   return (
-    <Fragment>
-      {!disableJsonLdAttribution && <DiscoveryMetadata />}
-      <div
-        ref={containerRef}
-        className={className}
-        style={style}
-        data-testid="perspective-widget"
-        {...divProps}
-      />
-    </Fragment>
+    <div
+      ref={containerRef}
+      className={className}
+      style={style}
+      data-testid="perspective-widget"
+      {...divProps}
+    />
   );
 }
