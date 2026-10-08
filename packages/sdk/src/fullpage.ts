@@ -100,7 +100,18 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
 
+  let destroyed = false;
+
   const unmount = () => {
+    if (destroyed) return;
+    destroyed = true;
+
+    trackEmbedEvent(
+      DATA_LAYER_EVENTS.close,
+      researchId,
+      "fullpage",
+      currentConfig.dataLayer
+    );
     messageCleanup?.();
     unregisterIframe();
     container.remove();

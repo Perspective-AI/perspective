@@ -23,6 +23,7 @@ type WidgetResources = {
   cleanup: () => void;
   unregister: () => void;
   wrapper: HTMLElement;
+  dataLayer?: boolean;
 };
 
 const widgetResources = new WeakMap<HTMLIFrameElement, WidgetResources>();
@@ -51,10 +52,15 @@ function createExistingWidgetHandle(
   );
 
   let destroyed = false;
+  const dataLayer = existingIframe
+    ? widgetResources.get(existingIframe)?.dataLayer
+    : undefined;
 
   const unmount = () => {
     if (destroyed) return;
     destroyed = true;
+
+    trackEmbedEvent(DATA_LAYER_EVENTS.close, researchId, "widget", dataLayer);
 
     if (existingIframe) {
       const resources = widgetResources.get(existingIframe);
@@ -287,6 +293,7 @@ export function createWidget(
     cleanup,
     unregister: unregisterIframe,
     wrapper,
+    dataLayer: config.dataLayer,
   });
 
   let destroyed = false;
@@ -295,6 +302,12 @@ export function createWidget(
     if (destroyed) return;
     destroyed = true;
 
+    trackEmbedEvent(
+      DATA_LAYER_EVENTS.close,
+      researchId,
+      "widget",
+      currentConfig.dataLayer
+    );
     cleanup();
     unregisterIframe();
     widgetResources.delete(iframe);

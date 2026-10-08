@@ -1022,7 +1022,28 @@ interface PerspectiveCommandFn {
   createChatBubble: typeof createChatBubble;
 }
 
+/**
+ * Commands queued while `document.readyState === "loading"` (a parser-inserted
+ * script, or GTM injecting the tag before later markup). Running `mount` then
+ * throws "Container not found" and the command is discarded. Hold the whole
+ * queue — including `configure`, so host/opt-out stay in order — until
+ * DOMContentLoaded, then flush once.
+ */
+let deferDomCommands = false;
+const deferredDomCommands: ArrayLike<unknown>[] = [];
+
+function flushDeferredDomCommands(api: PerspectiveCommandFn): void {
+  deferDomCommands = false;
+  const queued = deferredDomCommands.splice(0);
+  for (const args of queued) invoke(api, args);
+}
+
 function invoke(api: PerspectiveCommandFn, args: ArrayLike<unknown>): void {
+  if (deferDomCommands) {
+    deferredDomCommands.push(args);
+    return;
+  }
+
   const command = args[0];
   try {
     switch (command) {
@@ -1113,7 +1134,11 @@ function boot(): void {
       installed.q.length = 0;
       replay(installed, extra);
     }
-    installed.autoInit();
+    // The first evaluation already scans on DOMContentLoaded. Scanning now
+    // would run before that flush and miss programmatic mounts still queued.
+    if (document.readyState !== "loading") {
+      installed.autoInit();
+    }
     return;
   }
 
@@ -1136,23 +1161,28 @@ function boot(): void {
 
   window.__PERSPECTIVE_PUBLIC_API__ = perspective;
   window.Perspective = perspective;
-  replay(perspective, queued);
-
-  if (getConfig().observe === true) {
-    startAutoInitObserver();
-  }
 
   if (document.readyState === "loading") {
+    deferDomCommands = true;
     perfLog("SDK", "waiting for DOMContentLoaded");
     document.addEventListener(
       "DOMContentLoaded",
       () => {
         perfLog("SDK", "DOMContentLoaded fired");
+        flushDeferredDomCommands(perspective);
+        if (getConfig().observe === true) {
+          startAutoInitObserver();
+        }
         autoInit();
       },
       { once: true }
     );
+    replay(perspective, queued);
   } else {
+    replay(perspective, queued);
+    if (getConfig().observe === true) {
+      startAutoInitObserver();
+    }
     perfLog("SDK", "DOM already ready, autoInit immediately", {
       readyState: document.readyState,
     });

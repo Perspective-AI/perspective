@@ -109,6 +109,89 @@ describe("dataLayer", () => {
     });
 
     handle.destroy();
+    expect(
+      events().filter((entry) => entry.event === "perspective_widget_close")
+    ).toHaveLength(1);
+  });
+
+  it("emits close when a widget is destroyed", () => {
+    window.dataLayer = [];
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const handle = mount(container, { researchId: "research-destroy" });
+    handle.destroy();
+
+    expect(events().map((entry) => entry.event)).toEqual([
+      "perspective_widget_open",
+      "perspective_widget_close",
+    ]);
+    expect(events()[1]).toMatchObject({
+      perspective_research_id: "research-destroy",
+      perspective_embed_type: "widget",
+    });
+  });
+
+  it("emits close when a fullpage embed is destroyed", () => {
+    window.dataLayer = [];
+    const handle = init({
+      researchId: "research-fullpage",
+      type: "fullpage",
+    });
+    handle.destroy();
+
+    expect(events()).toEqual([
+      {
+        event: "perspective_widget_open",
+        perspective_research_id: "research-fullpage",
+        perspective_embed_type: "fullpage",
+      },
+      {
+        event: "perspective_widget_close",
+        perspective_research_id: "research-fullpage",
+        perspective_embed_type: "fullpage",
+      },
+    ]);
+  });
+
+  it("emits one close when a fullpage iframe closes and the handle is destroyed", () => {
+    window.dataLayer = [];
+    const handle = init({
+      researchId: "research-fullpage-msg",
+      type: "fullpage",
+    });
+    const iframe = document.querySelector(
+      ".perspective-fullpage iframe"
+    ) as HTMLIFrameElement;
+    postFromIframe(iframe, MESSAGE_TYPES.close, "research-fullpage-msg");
+    handle.destroy();
+
+    expect(events().map((entry) => entry.event)).toEqual([
+      "perspective_widget_open",
+      "perspective_widget_close",
+    ]);
+  });
+
+  it("emits close then open when a widget remounts after its container leaves the DOM", () => {
+    window.dataLayer = [];
+    const first = document.createElement("div");
+    first.setAttribute("data-perspective-widget", "spa-widget");
+    document.body.appendChild(first);
+    autoInit();
+
+    first.remove();
+    const second = document.createElement("div");
+    second.setAttribute("data-perspective-widget", "spa-widget");
+    document.body.appendChild(second);
+    autoInit();
+
+    expect(events().map((entry) => entry.event)).toEqual([
+      "perspective_widget_open",
+      "perspective_widget_close",
+      "perspective_widget_open",
+    ]);
+    expect(
+      events().every((entry) => entry.perspective_research_id === "spa-widget")
+    ).toBe(true);
   });
 
   it("does not create window.dataLayer when it is missing", () => {

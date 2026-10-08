@@ -102,6 +102,57 @@ describe("GTM loader", () => {
     expect(document.querySelector(".perspective-overlay")).toBeFalsy();
   });
 
+  it("defers a queued mount until the container exists at DOMContentLoaded", async () => {
+    Object.defineProperty(document, "readyState", {
+      configurable: true,
+      get: () => "loading",
+    });
+    installStub();
+    const stub = window.Perspective!;
+    stub("configure", { host: "https://cdn.example.com" });
+    stub("mount", "#slot", { researchId: "late-mount" });
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await importBrowser();
+
+    expect(document.querySelector("iframe")).toBeFalsy();
+    expect(warn).not.toHaveBeenCalled();
+
+    const slot = document.createElement("div");
+    slot.id = "slot";
+    document.body.appendChild(slot);
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+
+    expect(slot.querySelector("iframe")).toBeTruthy();
+    expect(slot.querySelector("iframe")?.getAttribute("src")).toContain(
+      "https://cdn.example.com/"
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("defers Perspective('mount') calls made while the document is still loading", async () => {
+    Object.defineProperty(document, "readyState", {
+      configurable: true,
+      get: () => "loading",
+    });
+    await importBrowser();
+
+    window.Perspective?.("configure", { host: "https://cdn.example.com" });
+    window.Perspective?.("mount", "#direct-slot", {
+      researchId: "direct-late",
+    });
+    expect(document.querySelector("iframe")).toBeFalsy();
+
+    const slot = document.createElement("div");
+    slot.id = "direct-slot";
+    document.body.appendChild(slot);
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+
+    expect(slot.querySelector("iframe")?.getAttribute("src")).toContain(
+      "https://cdn.example.com/"
+    );
+  });
+
   it("waits for DOMContentLoaded before the initial autoInit", async () => {
     Object.defineProperty(document, "readyState", {
       configurable: true,
