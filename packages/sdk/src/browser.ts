@@ -566,19 +566,18 @@ function dataLayerFromEl(el: HTMLElement): { dataLayer?: false } {
 /**
  * Whether autoInit should mount into `anchor`.
  * A live instance is left alone. An instance whose rendered container or
- * source marker is no longer in the document is destroyed so a replacement
- * marker (SPA history change) can mount again.
+ * source marker is no longer in the document is replaced so a new marker (SPA
+ * history change) can mount again. init()/mount() unmount the old instance,
+ * which keeps its persisted open state, the same as a full page load would.
  */
 function shouldAutoMount(researchId: string, anchor: HTMLElement): boolean {
-  const instance = instances.get(researchId);
   if (
-    instance?.container?.isConnected &&
+    instances.get(researchId)?.container?.isConnected &&
     anchors.get(researchId)?.isConnected !== false
   ) {
     return false;
   }
 
-  if (instance) destroy(researchId);
   anchors.set(researchId, anchor);
   return true;
 }

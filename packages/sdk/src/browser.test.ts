@@ -794,6 +794,26 @@ describe("browser entry", () => {
       expect(bubbles[0]).not.toBe(firstBubble);
     });
 
+    it("keeps an open float open when its marker is replaced", () => {
+      const first = document.createElement("div");
+      first.setAttribute("data-perspective-float", "spa-float-open");
+      document.body.appendChild(first);
+      autoInit();
+      document.querySelector<HTMLElement>(".perspective-float-bubble")!.click();
+      expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+
+      first.remove();
+      const second = document.createElement("div");
+      second.setAttribute("data-perspective-float", "spa-float-open");
+      document.body.appendChild(second);
+      autoInit();
+
+      expect(
+        document.querySelectorAll(".perspective-float-bubble").length
+      ).toBe(1);
+      expect(document.querySelector(".perspective-float-window")).toBeTruthy();
+    });
+
     it("remounts a fullpage embed when its marker has left the DOM", () => {
       const first = document.createElement("div");
       first.setAttribute("data-perspective-fullpage", "spa-fullpage");
