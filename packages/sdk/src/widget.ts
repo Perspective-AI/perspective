@@ -221,7 +221,7 @@ export function createWidget(
 
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
-  enrichContainer(wrapper, "widget", config);
+  enrichContainer(wrapper, "widget");
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
