@@ -384,19 +384,31 @@ function App() {
 }
 ```
 
-## Google Tag Manager / dataLayer
+## Google Tag Manager and Google Analytics
 
-When the page already has `window.dataLayer` (most sites running Google Tag Manager), embeds push lifecycle events to it: `perspective_widget_open`, `perspective_widget_ready`, `perspective_conversation_started`, `perspective_conversation_completed` and `perspective_widget_close`. See the [core SDK docs](../sdk/README.md#datalayer-events) for the payload and GA4 setup.
+If your site uses Google Tag Manager, Perspective automatically tells it when
+visitors open an interview, start a conversation and finish it. You can use
+these events to count finished interviews as conversions in Google Analytics.
+See the [core SDK docs](../sdk/README.md#track-results-in-google-analytics)
+for the event names and setup steps.
 
-If you already push your own Perspective events — for example from `onSubmit` — remove that code, or turn the built-in events off so conversions are not counted twice:
+On pages without Tag Manager, nothing is sent.
+
+**Already tracking Perspective yourself?** If your code sends its own events,
+for example in `onSubmit`, remove that code when you upgrade. Otherwise every
+event is counted twice. Or turn the built-in events off:
 
 ```tsx
 import { configure } from "@perspective-ai/sdk";
 
+// For your whole site
 configure({ dataLayer: false });
 ```
 
-To opt out a single embed instead, pass `dataLayer={false}` to the component or hook, e.g. `<Widget researchId="…" dataLayer={false} />`.
+```tsx
+// For one interview only
+<Widget researchId="…" dataLayer={false} />
+```
 
 ## TypeScript
 

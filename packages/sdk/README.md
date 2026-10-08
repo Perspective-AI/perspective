@@ -509,13 +509,13 @@ configure({ host: "https://custom-host.example.com" });
 const config = getConfig();
 ```
 
-`configure` also accepts Google Tag Manager settings. See [Install with Google Tag Manager](#install-with-google-tag-manager) for the event names and the loader stub.
+`configure` also has settings for Google Tag Manager. See [Install with Google Tag Manager](#install-with-google-tag-manager) for how they are used.
 
-| Option          | Description                                                                                                                                                                  |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dataLayer`     | `false` disables lifecycle events. `true` creates the target array when it is missing. Omit it to push only if the array already exists — `window.dataLayer` is not created. |
-| `dataLayerName` | Property on `window` to push to. Default `"dataLayer"`. A custom name is created only when `dataLayer: true`.                                                                |
-| `observe`       | Browser bundle only. `true` watches the document and runs `autoInit` when `data-perspective-*` nodes are inserted after the first scan.                                      |
+| Option          | Description                                                                                                                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dataLayer`     | Events sent to Google Tag Manager. Leave it out to send them only on pages that have Tag Manager. `false` turns them off. `true` sends them even when Tag Manager isn't on the page yet. |
+| `dataLayerName` | Only needed if your Tag Manager setup uses a name other than the standard `dataLayer`.                                                                                                   |
+| `observe`       | Script tag only. `true` shows interviews whose elements your site adds to the page later, for example after switching pages without a reload.                                            |
 
 ## Custom Parameters
 
@@ -672,30 +672,30 @@ For non-module environments, use the browser bundle:
 
 ### Data Attributes Reference
 
-| Attribute                             | Description                                             |
-| ------------------------------------- | ------------------------------------------------------- |
-| `data-perspective-widget`             | Inline widget embed                                     |
-| `data-perspective-frame`              | Widget frame: `"layout=fill,radius=4px,shadow=none,…"`  |
-| `data-perspective-popup`              | Popup trigger button                                    |
-| `data-perspective-slider`             | Slider trigger button                                   |
-| `data-perspective-float`              | Floating chat bubble                                    |
-| `data-perspective-fullpage`           | Full page embed                                         |
-| `data-perspective-params`             | Custom params: `"key1=value1,key2=value2"`              |
-| `data-perspective-theme`              | Theme: `"light"`, `"dark"`, or `"system"`               |
-| `data-perspective-brand`              | Light mode colors: `"primary=#xxx,bg=#yyy"`             |
-| `data-perspective-brand-dark`         | Dark mode colors                                        |
-| `data-perspective-no-style`           | Disable auto-styling on trigger buttons                 |
-| `data-perspective-disable-close`      | Prevent user from closing popup/slider                  |
-| `data-perspective-auto-open`          | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`  |
-| `data-perspective-show-once`          | Show-once dedup: `"session"`, `"visitor"`, or `"false"` |
-| `data-perspective-launcher-icon`      | Launcher icon: `"avatar"`, `"default"`, or image URL    |
-| `data-perspective-launcher-style`     | Launcher CSS: `"width:64px;border-radius:12px"`         |
-| `data-perspective-launcher-class`     | CSS class(es) for the launcher button                   |
-| `data-perspective-teaser`             | `"false"` disables the float welcome teaser             |
-| `data-perspective-teaser-delay`       | Milliseconds before the teaser appears (default 3000)   |
-| `data-perspective-teaser-sound`       | `"false"` mutes the teaser chime                        |
-| `data-perspective-teaser-dismissible` | `"false"` hides the teaser's × button                   |
-| `data-perspective-datalayer`          | `"false"` skips dataLayer events for this embed         |
+| Attribute                             | Description                                               |
+| ------------------------------------- | --------------------------------------------------------- |
+| `data-perspective-widget`             | Inline widget embed                                       |
+| `data-perspective-frame`              | Widget frame: `"layout=fill,radius=4px,shadow=none,…"`    |
+| `data-perspective-popup`              | Popup trigger button                                      |
+| `data-perspective-slider`             | Slider trigger button                                     |
+| `data-perspective-float`              | Floating chat bubble                                      |
+| `data-perspective-fullpage`           | Full page embed                                           |
+| `data-perspective-params`             | Custom params: `"key1=value1,key2=value2"`                |
+| `data-perspective-theme`              | Theme: `"light"`, `"dark"`, or `"system"`                 |
+| `data-perspective-brand`              | Light mode colors: `"primary=#xxx,bg=#yyy"`               |
+| `data-perspective-brand-dark`         | Dark mode colors                                          |
+| `data-perspective-no-style`           | Disable auto-styling on trigger buttons                   |
+| `data-perspective-disable-close`      | Prevent user from closing popup/slider                    |
+| `data-perspective-auto-open`          | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`    |
+| `data-perspective-show-once`          | Show-once dedup: `"session"`, `"visitor"`, or `"false"`   |
+| `data-perspective-launcher-icon`      | Launcher icon: `"avatar"`, `"default"`, or image URL      |
+| `data-perspective-launcher-style`     | Launcher CSS: `"width:64px;border-radius:12px"`           |
+| `data-perspective-launcher-class`     | CSS class(es) for the launcher button                     |
+| `data-perspective-teaser`             | `"false"` disables the float welcome teaser               |
+| `data-perspective-teaser-delay`       | Milliseconds before the teaser appears (default 3000)     |
+| `data-perspective-teaser-sound`       | `"false"` mutes the teaser chime                          |
+| `data-perspective-teaser-dismissible` | `"false"` hides the teaser's × button                     |
+| `data-perspective-datalayer`          | `"false"` stops this interview sending Tag Manager events |
 
 ### Auto-Trigger (Data Attributes)
 
@@ -746,34 +746,16 @@ When `data-perspective-auto-open` is present, the element acts as a hidden confi
 
 ## Install with Google Tag Manager
 
-Tag Manager injects the embed script asynchronously, and a History Change
-trigger runs the tag again after a single-page navigation. The browser bundle
-supports both:
+You can add a Perspective interview to your website from Google Tag Manager,
+without changing your site's code. It works on regular websites and on sites
+that switch pages without a full reload (common with React, Next.js or Vue).
 
-- Calls made before the script arrives are queued and replayed. After load,
-  `Perspective` is still a function, so a later `Perspective('autoInit')` runs
-  immediately, and the existing methods (`Perspective.openPopup`,
-  `Perspective.autoInit`, `Perspective.destroy`, …) stay in place.
-- A second load is not a no-op. Queued commands are replayed and `autoInit`
-  scans the page again.
-- If an embed's container (or the marker a float / fullpage was mounted from)
-  is no longer in the document, that instance is destroyed and mounted into the
-  new element.
-- `configure({ observe: true })` — or `Perspective('configure', { observe: true })`
-  — watches for `data-perspective-*` nodes added later. Use this when the page
-  inserts the marker without running the tag again.
+### Step 1: Create the tag
 
-The declarative snippet still works unchanged:
-
-```html
-<div data-perspective-float="your-research-id"></div>
-<script src="https://getperspective.ai/v1/perspective.js"></script>
-```
-
-### Custom HTML tag
-
-Replace `YOUR_RESEARCH_ID` and the embed type (`float`, `widget`, `popup`,
-`slider`, or `fullpage`).
+1. In Tag Manager, go to **Tags → New → Tag Configuration → Custom HTML**.
+2. Paste the code below.
+3. On the last line, replace `YOUR_RESEARCH_ID` with your research ID, and
+   `float` with how you want the interview to appear (see the table below).
 
 ```html
 <script>
@@ -800,63 +782,132 @@ Replace `YOUR_RESEARCH_ID` and the embed type (`float`, `widget`, `popup`,
 </script>
 ```
 
-Queued commands, if you would rather not use a data attribute:
+| Type       | What visitors see                         | Notes                                                                                                                                     |
+| ---------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `float`    | A chat bubble in the corner of the screen | Works as is.                                                                                                                              |
+| `fullpage` | The interview fills the whole page        | Works as is.                                                                                                                              |
+| `widget`   | The interview shown inside the page       | Appears at the bottom of the page. To place it elsewhere, add `<div data-perspective-widget="YOUR_RESEARCH_ID"></div>` where you want it. |
+| `popup`    | A button that opens a pop-up window       | Add the button to your page yourself, e.g. `<button data-perspective-popup="YOUR_RESEARCH_ID">Share feedback</button>`.                   |
+| `slider`   | A button that opens a side panel          | Add the button to your page yourself, e.g. `<button data-perspective-slider="YOUR_RESEARCH_ID">Share feedback</button>`.                  |
 
-| Call                                        | Effect                             |
-| ------------------------------------------- | ---------------------------------- |
-| `Perspective('configure', { ... })`         | Same as `Perspective.configure`    |
-| `Perspective('init', { researchId, type })` | Popup, slider, float, or fullpage  |
-| `Perspective('mount', selector, config)`    | Inline widget                      |
-| `Perspective('autoInit')`                   | Scan `data-perspective-*` elements |
-| `Perspective('destroy', researchId)`        | Tear down one embed                |
+If the page already has a Perspective element for this interview, the tag uses
+it instead of adding a new one.
 
-Suggested trigger:
+### Step 2: Choose when it runs
 
-1. Tags → New → Custom HTML. Paste the snippet.
-2. Fire on **All Pages** (or Page View) and filter by the page path that should show the interview.
-3. On a single-page app, also fire on **History Change** so the tag runs after client-side navigations.
-4. Preview, then Publish.
+1. Add a trigger for **All Pages**, or a **Page View** trigger limited to the
+   pages where the interview should appear.
+2. If your site switches pages without a full reload, also add a
+   **History Change** trigger. This runs the tag again each time a visitor
+   moves to another page, so the interview shows up there too.
 
-`configure({ observe: true })` is the alternative to a History Change trigger when the app itself inserts the marker node.
+### Step 3: Preview and publish
 
-### dataLayer events
+Use **Preview** to check the interview appears where you expect, then
+**Publish**.
 
-When `window.dataLayer` (or `configure({ dataLayerName })`) already exists, the SDK pushes the events below. This applies to every build — the script tag, the npm package and `@perspective-ai/sdk-react` — not only Tag Manager installs.
+### What the tag takes care of
 
-| `event`                              | When                                                                         |
-| ------------------------------------ | ---------------------------------------------------------------------------- |
-| `perspective_widget_open`            | A widget, popup, slider, or fullpage is shown, or a float window opens       |
-| `perspective_widget_ready`           | The iframe is interactive (`perspective:ready`)                              |
-| `perspective_conversation_started`   | The participant sends their first message (`perspective:conversation-start`) |
-| `perspective_conversation_completed` | The interview is submitted (`perspective:submit`)                            |
-| `perspective_widget_close`           | The embed closes                                                             |
+- **It doesn't matter which loads first.** Your tag can run before the
+  Perspective script has finished downloading. Nothing is lost; it starts as
+  soon as the script is ready.
+- **Running it again is safe.** If the tag runs again (for example on a
+  History Change), the interview is not shown twice. If the page was replaced,
+  the interview moves to the new page, and an open chat stays open.
+- **Older installs keep working.** A plain
+  `<div data-perspective-float="…"></div>` plus
+  `<script src="https://getperspective.ai/v1/perspective.js"></script>`
+  works exactly as before.
 
-Each push is `{ event, perspective_research_id, perspective_embed_type }`.
+### Track results in Google Analytics
 
-The SDK does **not** create `window.dataLayer` unless you opt in with
-`configure({ dataLayer: true })`. To opt out everywhere:
+If Tag Manager is on the page, Perspective tells it what visitors do with the
+interview. You can use these events as triggers in Tag Manager:
 
-```typescript
-import { configure } from "@perspective-ai/sdk";
+| Event name                           | What it means                                   |
+| ------------------------------------ | ----------------------------------------------- |
+| `perspective_widget_open`            | The interview was shown, or the chat was opened |
+| `perspective_widget_ready`           | The interview finished loading and can be used  |
+| `perspective_conversation_started`   | The visitor sent their first message            |
+| `perspective_conversation_completed` | The visitor finished the interview              |
+| `perspective_widget_close`           | The interview was closed                        |
 
-configure({ dataLayer: false });
-```
+Each event also says which interview it came from
+(`perspective_research_id`) and how it was shown (`perspective_embed_type`),
+so you can tell interviews apart in your reports.
 
-With the script tag, `Perspective('configure', { dataLayer: false })` does the
-same. To opt out a single embed, add `data-perspective-datalayer="false"` to a
-script-tag embed, or pass `dataLayer: false` in the config for `createWidget`,
-`openPopup`, `openSlider`, `createFloatBubble` or `createFullpage` (or as a
-prop to the `@perspective-ai/sdk-react` components and hooks).
+To count finished interviews as conversions in Google Analytics 4:
 
-In Google Analytics 4, add a Custom Event trigger for
-`perspective_conversation_completed`, fire a GA4 Event tag on it, and mark that
-event as a key event. Allow `https://getperspective.ai` in `script-src` and
-`frame-src` if the page has a Content Security Policy.
+1. In Tag Manager, create a **Custom Event** trigger with the event name
+   `perspective_conversation_completed`.
+2. Create a **Google Analytics: GA4 Event** tag that fires on that trigger.
+3. In Google Analytics, mark the event as a **key event**.
 
-**Upgrading:** if your site already pushes its own Perspective events — a
-Custom HTML tag that listens for `perspective:*` messages, or `onSubmit` /
-`onReady` callbacks that call `dataLayer.push` — remove that code or call
-`configure({ dataLayer: false })`, so the events are not counted twice.
+This works the same whether you add Perspective with Tag Manager, the script
+tag, the npm package or the React package. On pages without Tag Manager,
+nothing is sent and nothing is added to the page.
+
+### Avoid counting things twice
+
+If you set up your own Perspective tracking before this was built in — for
+example a Tag Manager tag that listens for Perspective messages, or site code
+that sends these events in `onSubmit` — remove it when you upgrade. Otherwise
+every event is counted twice. Or turn the built-in events off, as shown below.
+
+### Turn the events off
+
+- **For your whole site (Tag Manager):** in the tag above, add
+  `w[n]("configure", { dataLayer: false });` on the line just before
+  `w[n]("autoInit");`.
+- **For your whole site (in code):**
+
+  ```typescript
+  import { configure } from "@perspective-ai/sdk";
+
+  configure({ dataLayer: false });
+  ```
+
+- **For one interview only:** add `data-perspective-datalayer="false"` to its
+  element. In code, pass `dataLayer: false` in its options, or
+  `dataLayer={false}` to the React component or hook.
+
+### If your site has a Content Security Policy
+
+Some sites only allow scripts and frames from approved addresses. If yours
+does, allow `https://getperspective.ai` for both scripts (`script-src`) and
+frames (`frame-src`). Your developer will know if this applies.
+
+<details>
+<summary><strong>For developers: more options</strong></summary>
+
+**Commands you can call from the tag.** Instead of adding an element to the
+page, the tag can call these. Calls made before the script has loaded wait and
+then run in order.
+
+| Call                                        | What it does                                                     |
+| ------------------------------------------- | ---------------------------------------------------------------- |
+| `Perspective('configure', { ... })`         | Change settings (same as `configure()` in code)                  |
+| `Perspective('init', { researchId, type })` | Open a popup, slider, float or fullpage interview                |
+| `Perspective('mount', selector, config)`    | Show the interview inside the element matching `selector`        |
+| `Perspective('autoInit')`                   | Look for `data-perspective-*` elements on the page and show them |
+| `Perspective('destroy', researchId)`        | Remove one interview                                             |
+
+After the script loads, `Perspective` keeps all its usual methods
+(`Perspective.openPopup`, `Perspective.destroy`, and so on).
+
+**Elements your site adds later.** If your site adds a Perspective element by
+itself (without the tag running again), turn on `observe` and the interview
+appears as soon as the element does:
+`Perspective('configure', { observe: true })`.
+
+**Other event settings.**
+
+- `configure({ dataLayer: true })` sends events even if the page doesn't have
+  Tag Manager's `window.dataLayer` yet, by creating it.
+- `configure({ dataLayerName: "myLayer" })` sends events to a different name,
+  if your Tag Manager setup doesn't use the standard `dataLayer`.
+
+</details>
 
 ## SSR Safety
 
