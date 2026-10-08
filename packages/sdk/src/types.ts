@@ -192,6 +192,12 @@ export interface EmbedConfig {
   frame?: FrameConfig;
   /** @deprecated No longer has any effect. */
   disableJsonLdAttribution?: boolean;
+  /**
+   * When `false`, this embed does not push lifecycle events to the dataLayer.
+   * Omit to follow the global `configure({ dataLayer })` setting.
+   * Equivalent attribute: `data-perspective-datalayer="false"`.
+   */
+  dataLayer?: boolean;
   /** Customize the floating launcher button appearance. Only used for float-type embeds. */
   launcher?: LauncherConfig;
   /** Callback when the iframe is visually painted but not yet hydrated. Fires significantly earlier than `onReady` — used internally by the SDK to hide the loading skeleton ASAP. Most consumers should use `onReady` instead. */
@@ -296,6 +302,7 @@ export interface InitMessage {
 export type EmbedMessage =
   | { type: "perspective:visual-ready"; researchId: string }
   | { type: "perspective:ready"; researchId: string }
+  | { type: "perspective:conversation-start"; researchId: string }
   | { type: "perspective:resize"; researchId: string; height: number }
   | { type: "perspective:submit"; researchId: string; data?: unknown }
   | { type: "perspective:close"; researchId: string }
@@ -364,4 +371,23 @@ export type InternalEmbedConfig = EmbedConfig & {
 export interface SDKConfig {
   /** Override the default host */
   host?: string;
+  /**
+   * Google Tag Manager / gtag dataLayer integration.
+   * - omitted: push lifecycle events only when the target array already exists.
+   *   `window.dataLayer` is never created.
+   * - `true`: create the array when it is missing, then push.
+   * - `false`: do not push.
+   */
+  dataLayer?: boolean;
+  /**
+   * Property name on `window` to push to. Defaults to `"dataLayer"`.
+   * A custom name is still only created when `dataLayer: true`.
+   */
+  dataLayerName?: string;
+  /**
+   * Browser bundle only. When `true`, watch the document and run `autoInit`
+   * for `data-perspective-*` nodes inserted after the initial scan (SPA
+   * renders that do not re-execute the embed snippet).
+   */
+  observe?: boolean;
 }

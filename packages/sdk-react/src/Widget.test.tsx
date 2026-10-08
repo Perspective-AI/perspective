@@ -88,6 +88,22 @@ describe("Widget", () => {
     expect(container.style.minHeight).toBe("600px"); // Custom overrides default
   });
 
+  it("forwards dataLayer to createWidget instead of the div", async () => {
+    render(
+      <Widget
+        researchId="test-research-id"
+        dataLayer={false}
+        data-testid="widget"
+      />
+    );
+    await act(async () => {});
+
+    expect(mockCreateWidget.mock.calls[0]![1]).toEqual(
+      expect.objectContaining({ dataLayer: false })
+    );
+    expect(screen.getByTestId("widget").hasAttribute("datalayer")).toBe(false);
+  });
+
   it("calls createWidget with correct config", async () => {
     const onReady = vi.fn();
     const onVisualReady = vi.fn();

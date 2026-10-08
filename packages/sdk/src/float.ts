@@ -663,7 +663,12 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       },
       iframe,
       host,
-      { skipResize: true, renderCloseButton: !currentConfig.disableClose }
+      {
+        skipResize: true,
+        renderCloseButton: !currentConfig.disableClose,
+        embedType: "float",
+        dataLayer: currentConfig.dataLayer,
+      }
     );
 
     // Register iframe for theme change notifications

@@ -270,7 +270,7 @@ export function createWidget(
     },
     iframe,
     host,
-    { skipResize: true }
+    { skipResize: true, embedType: "widget", dataLayer: config.dataLayer }
   );
 
   // Register iframe for theme change notifications

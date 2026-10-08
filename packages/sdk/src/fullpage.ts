@@ -93,7 +93,12 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
   // Register iframe for theme change notifications
   const unregisterIframe = registerIframe(iframe, host);
 
+  let destroyed = false;
+
   const unmount = () => {
+    if (destroyed) return;
+    destroyed = true;
+
     messageCleanup?.();
     unregisterIframe();
     container.remove();
@@ -131,7 +136,11 @@ export function createFullpage(config: InternalEmbedConfig): EmbedHandle {
     },
     iframe,
     host,
-    { skipResize: true }
+    {
+      skipResize: true,
+      embedType: "fullpage",
+      dataLayer: config.dataLayer,
+    }
   );
 
   return {

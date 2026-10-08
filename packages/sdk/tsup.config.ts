@@ -29,11 +29,11 @@ export default defineConfig([
     splitting: false,
     define,
   },
-  // IIFE for CDN
+  // IIFE for CDN. No globalName: boot() installs window.Perspective itself,
+  // and esbuild's `var Perspective = exports` would overwrite that callable.
   {
     entry: { perspective: "src/browser.ts" },
     format: ["iife"],
-    globalName: "Perspective",
     outDir: "dist/cdn",
     minify: true,
     sourcemap: true,

@@ -24,6 +24,7 @@ import {
 } from "./constants";
 import { normalizeHex } from "./utils";
 import { isPerfDebug, perfLog } from "./perf";
+import { trackEmbedEvent } from "./datalayer";
 
 // ---------------------------------------------------------------------------
 // Host preconnect — warm DNS + TLS to the embed host before the iframe HTTP
@@ -335,6 +336,13 @@ export function setupMessageListener(
   options?: {
     skipResize?: boolean;
     renderCloseButton?: boolean;
+    /**
+     * Report this embed's lifecycle to the dataLayer: open now, close on the
+     * iframe's close message or on cleanup, whichever comes first.
+     */
+    embedType?: EmbedType;
+    /** Per-embed dataLayer opt-out (`false` skips pushes for this iframe). */
+    dataLayer?: boolean;
   }
 ): () => void {
   if (!hasDom()) {
@@ -343,6 +351,19 @@ export function setupMessageListener(
 
   // Track active auth flow cleanup for concurrent request prevention and embed teardown
   let activeAuthCleanup: (() => void) | null = null;
+
+  const track = (event: Parameters<typeof trackEmbedEvent>[0]) => {
+    if (options?.embedType) {
+      trackEmbedEvent(event, researchId, options.embedType, options.dataLayer);
+    }
+  };
+  let closed = false;
+  const trackClose = () => {
+    if (closed) return;
+    closed = true;
+    track("close");
+  };
+  track("open");
 
   const handler = (event: MessageEvent<EmbedMessage>) => {
     // Security: Only accept messages from our embed host and from the expected iframe
@@ -387,6 +408,8 @@ export function setupMessageListener(
             renderCloseButton: options.renderCloseButton,
           }),
         });
+        // Before host callbacks, so one that throws can't drop the event.
+        track("ready");
         // Layer 2 → Layer 1 relay: on iframe load, send any cached token from
         // parent's first-party localStorage back to the iframe. On Safari this
         // is the only restore path — iframe localStorage (Layer 1) was wiped
@@ -405,6 +428,10 @@ export function setupMessageListener(
         break;
       }
 
+      case MESSAGE_TYPES.conversationStart:
+        track("conversationStarted");
+        break;
+
       case MESSAGE_TYPES.resize:
         // Auto-resize iframe height (skip for fixed-container embeds)
         if (!options?.skipResize) {
@@ -413,10 +440,12 @@ export function setupMessageListener(
         break;
 
       case MESSAGE_TYPES.submit:
+        track("conversationCompleted");
         config.onSubmit?.({ researchId });
         break;
 
       case MESSAGE_TYPES.close:
+        trackClose();
         config.onClose?.();
         break;
 
@@ -590,6 +619,7 @@ export function setupMessageListener(
 
   window.addEventListener("message", handler);
   return () => {
+    trackClose();
     window.removeEventListener("message", handler);
     activeAuthCleanup?.();
   };

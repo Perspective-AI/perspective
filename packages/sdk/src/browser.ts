@@ -14,6 +14,10 @@
  *   <script>
  *     Perspective.openPopup({ researchId: 'xxx' });
  *   </script>
+ *
+ *   Google Tag Manager can call Perspective() before this file loads. A stub
+ *   queues those calls (`Perspective('init', config)`, `mount`, `configure`,
+ *   `autoInit`, `destroy`); this script replays them and stays callable.
  */
 
 import type {
@@ -23,6 +27,7 @@ import type {
   FloatHandle,
   FrameConfig,
   InternalEmbedConfig,
+  SDKConfig,
   ShowOnce,
   ThemeConfig,
   TriggerConfig,
@@ -46,7 +51,7 @@ import { openPopup } from "./popup";
 import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
-import { configure, getConfig, hasDom } from "./config";
+import { configure as setGlobalConfig, getConfig, hasDom } from "./config";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark, readableTextColor, isValidDelayMs } from "./utils";
 import { injectGlobalMetadata } from "./attribution";
@@ -56,6 +61,13 @@ perfLog("SDK", "script evaluated");
 
 // Track all active instances
 const instances: Map<string, EmbedHandle | FloatHandle> = new Map();
+
+/**
+ * Marker element each auto-mounted embed was created from. Float and fullpage
+ * render outside that marker (bubble / overlay on document.body), so the
+ * rendered container can stay connected after an SPA drops the marker.
+ */
+const anchors = new Map<string, HTMLElement>();
 
 // Track pending auto-init skeletons so destroy/destroyAll can cancel them
 const pendingInits: Map<string, { cancelled: boolean; skeleton: HTMLElement }> =
@@ -503,6 +515,7 @@ function destroy(researchId: string): void {
     instance.destroy();
     instances.delete(researchId);
   }
+  anchors.delete(researchId);
   // Cancel any pending auto-init for this researchId
   const pending = pendingInits.get(researchId);
   if (pending) {
@@ -521,6 +534,7 @@ function destroyAll(): void {
   globalDestroyGen++;
   instances.forEach((instance) => instance.unmount());
   instances.clear();
+  anchors.clear();
   // Cancel all pending auto-inits
   pendingInits.forEach((pending) => {
     pending.cancelled = true;
@@ -537,6 +551,35 @@ function destroyAll(): void {
       .querySelectorAll<HTMLElement>("[data-perspective-initialized]")
       .forEach((el) => el.removeAttribute("data-perspective-initialized"));
   }
+}
+
+/**
+ * `data-perspective-datalayer="false"` opts one embed out of dataLayer pushes.
+ */
+function dataLayerFromEl(el: HTMLElement): { dataLayer?: false } {
+  if (el.getAttribute(DATA_ATTRS.dataLayer) === "false") {
+    return { dataLayer: false };
+  }
+  return {};
+}
+
+/**
+ * Whether autoInit should mount into `anchor`.
+ * A live instance is left alone. An instance whose rendered container or
+ * source marker is no longer in the document is replaced so a new marker (SPA
+ * history change) can mount again. init()/mount() unmount the old instance,
+ * which keeps its persisted open state, the same as a full page load would.
+ */
+function shouldAutoMount(researchId: string, anchor: HTMLElement): boolean {
+  if (
+    instances.get(researchId)?.container?.isConnected &&
+    anchors.get(researchId)?.isConnected !== false
+  ) {
+    return false;
+  }
+
+  anchors.set(researchId, anchor);
+  return true;
 }
 
 /**
@@ -557,7 +600,7 @@ function autoInit(): void {
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.widget}]`)
     .forEach((el) => {
       const researchId = el.getAttribute(DATA_ATTRS.widget);
-      if (researchId && !instances.has(researchId)) {
+      if (researchId && shouldAutoMount(researchId, el)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
         const frame = parseFrameAttr(el.getAttribute(DATA_ATTRS.frame));
@@ -568,6 +611,7 @@ function autoInit(): void {
           params,
           ...brandConfig,
           ...(frame && { frame }),
+          ...dataLayerFromEl(el),
         } as InternalEmbedConfig);
       }
     });
@@ -577,7 +621,7 @@ function autoInit(): void {
     .querySelectorAll<HTMLElement>(`[${DATA_ATTRS.fullpage}]`)
     .forEach((el) => {
       const researchId = el.getAttribute(DATA_ATTRS.fullpage);
-      if (researchId && !instances.has(researchId)) {
+      if (researchId && shouldAutoMount(researchId, el)) {
         const params = parseParamsAttr(el);
         const brandConfig = extractBrandConfig(el);
         init({
@@ -585,6 +629,7 @@ function autoInit(): void {
           type: "fullpage",
           params,
           ...brandConfig,
+          ...dataLayerFromEl(el),
         } as InternalEmbedConfig);
       }
     });
@@ -618,6 +663,7 @@ function autoInit(): void {
           params,
           disableClose,
           ...brandConfig,
+          ...dataLayerFromEl(el),
           ...(cachedConfig && { _apiConfig: cachedConfig }),
         } as InternalEmbedConfig);
 
@@ -746,6 +792,7 @@ function autoInit(): void {
             disableClose,
             sliderMode,
             ...brandConfig,
+            ...dataLayerFromEl(el),
             ...(sliderConfig && { _apiConfig: sliderConfig }),
             onClose: () => {
               sliderHandle = null;
@@ -805,7 +852,7 @@ function autoInit(): void {
     const researchId =
       floatEl.getAttribute(DATA_ATTRS.float) ||
       floatEl.getAttribute(DATA_ATTRS.chat);
-    if (researchId && !instances.has(researchId)) {
+    if (researchId && shouldAutoMount(researchId, floatEl)) {
       const params = parseParamsAttr(floatEl);
       const brandConfig = extractBrandConfig(floatEl);
       const launcherConfig = extractLauncherConfig(floatEl);
@@ -815,6 +862,7 @@ function autoInit(): void {
         type: "float",
         params,
         ...brandConfig,
+        ...dataLayerFromEl(floatEl),
         ...(launcherConfig && { launcher: launcherConfig }),
         ...(teaserConfig && { teaser: teaserConfig }),
         _apiConfig: DEFAULT_THEME,
@@ -826,10 +874,12 @@ function autoInit(): void {
       } as InternalEmbedConfig);
 
       fetchConfig(researchId).then((config) => {
+        // A remount or destroy since then replaced this float; its marker's
+        // config no longer applies.
+        if (instances.get(researchId) !== floatHandle) return;
+
         // Update bubble color with fetched theme
-        const bubble = document.querySelector<HTMLElement>(
-          '[data-perspective="float-bubble"]'
-        );
+        const bubble = floatHandle.container;
         if (bubble && !floatEl.hasAttribute(DATA_ATTRS.noStyle)) {
           // Only apply theme colors if launcher.style didn't override backgroundColor
           if (!launcherConfig?.style?.backgroundColor) {
@@ -852,61 +902,198 @@ function autoInit(): void {
           }
         }
 
-        if (
-          floatHandle.type === "float" &&
-          instances.get(researchId) === floatHandle
-        ) {
-          const channels =
-            config.channel ?? config.allowedChannels ?? undefined;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (floatHandle.update as any)({
-            channel: channels,
-            welcomeMessage: config.welcomeMessage,
-            _apiConfig: config,
-          });
-        }
+        const channels = config.channel ?? config.allowedChannels ?? undefined;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (floatHandle.update as any)({
+          channel: channels,
+          welcomeMessage: config.welcomeMessage,
+          _apiConfig: config,
+        });
       });
     }
   }
 }
 
-// Build the public API
-const Perspective = {
-  // Configuration
+/**
+ * Global SDK configure. Starts or stops the optional DOM observer in addition
+ * to storing host / dataLayer settings.
+ */
+function configure(config: SDKConfig): void {
+  setGlobalConfig(config);
+  if (!hasDom()) return;
+  if (config.observe === true) {
+    startAutoInitObserver();
+  } else if (config.observe === false) {
+    stopAutoInitObserver();
+  }
+}
+
+const EMBED_SELECTOR = [
+  DATA_ATTRS.widget,
+  DATA_ATTRS.popup,
+  DATA_ATTRS.slider,
+  DATA_ATTRS.float,
+  DATA_ATTRS.chat,
+  DATA_ATTRS.fullpage,
+]
+  .map((attr) => `[${attr}]`)
+  .join(",");
+
+let autoInitObserver: MutationObserver | null = null;
+
+function nodeRequestsEmbed(node: Node): boolean {
+  if (!(node instanceof HTMLElement)) return false;
+  if (node.matches(EMBED_SELECTOR)) return true;
+  return !!node.querySelector(EMBED_SELECTOR);
+}
+
+function startAutoInitObserver(): void {
+  if (autoInitObserver || typeof MutationObserver !== "function") return;
+  const root = document.body;
+  if (!root) {
+    // Re-check: configure({ observe: false }) may have run in the meantime.
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        if (getConfig().observe === true) startAutoInitObserver();
+      },
+      { once: true }
+    );
+    return;
+  }
+
+  // One callback per batch of mutations, so one scan covers the batch.
+  autoInitObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (nodeRequestsEmbed(node)) {
+          autoInit();
+          return;
+        }
+      }
+    }
+  });
+  autoInitObserver.observe(root, { childList: true, subtree: true });
+}
+
+function stopAutoInitObserver(): void {
+  autoInitObserver?.disconnect();
+  autoInitObserver = null;
+}
+
+const methods = {
   configure,
   getConfig,
-
-  // Instance management
   init,
   mount,
   destroy,
   destroyAll,
   autoInit,
-
-  // Direct creation functions (primary API)
   createWidget,
   openPopup,
   openSlider,
   createFloatBubble,
   createFullpage,
-
-  // Legacy alias
   createChatBubble,
 };
+
+/** Callable global: `Perspective('init', config)` plus the method API. */
+type PerspectiveCommandFn = ((...args: unknown[]) => void) & typeof methods;
+
+/**
+ * Commands queued while `document.readyState === "loading"` (a parser-inserted
+ * script, or GTM injecting the tag before later markup). Running `mount` then
+ * throws "Container not found" and the command is discarded. Hold the whole
+ * queue — including `configure`, so host/opt-out stay in order — until
+ * DOMContentLoaded, then flush once.
+ */
+let deferDomCommands = false;
+const deferredDomCommands: ArrayLike<unknown>[] = [];
+
+function flushDeferredDomCommands(): void {
+  deferDomCommands = false;
+  for (const args of deferredDomCommands.splice(0)) invoke(args);
+}
+
+function invoke(args: ArrayLike<unknown>): void {
+  if (deferDomCommands) {
+    deferredDomCommands.push(args);
+    return;
+  }
+
+  const command = args[0];
+  try {
+    switch (command) {
+      case "init":
+        init(args[1] as EmbedConfig);
+        return;
+      case "mount":
+        mount(args[1] as HTMLElement | string, args[2] as EmbedConfig);
+        return;
+      case "configure":
+        configure((args[1] ?? {}) as SDKConfig);
+        return;
+      case "autoInit":
+        autoInit();
+        return;
+      case "destroy":
+        if (typeof args[1] === "string") destroy(args[1]);
+        return;
+      default:
+        console.warn("[Perspective] Unknown command:", command);
+    }
+  } catch (error) {
+    console.warn("[Perspective] Command failed:", command, error);
+  }
+}
+
+function queuedCommands(value: unknown): ArrayLike<unknown>[] {
+  if (typeof value !== "function") return [];
+  const queue = (value as { q?: unknown }).q;
+  return Array.isArray(queue) ? queue.slice() : [];
+}
 
 declare global {
   interface Window {
     __PERSPECTIVE_SDK_INITIALIZED__?: boolean;
-    Perspective?: typeof Perspective;
+    /** Real API captured on first evaluation so a later script load can find it. */
+    __PERSPECTIVE_PUBLIC_API__?: PerspectiveCommandFn;
+    Perspective?: PerspectiveCommandFn;
   }
 }
 
-// Prevent duplicate initialization when script is loaded multiple times
-// (e.g., SPAs, tag managers, hot-reload, or accidental double-include).
-// Without this guard, each script evaluation would register new listeners
-// and create isolated module state, causing memory leaks and duplicate handlers.
-if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
+const perspective: PerspectiveCommandFn = Object.assign(function perspective(
+  ...args: unknown[]
+) {
+  invoke(args);
+}, methods);
+
+/**
+ * Call through `api` itself rather than this module's `invoke`: on a second
+ * evaluation `api` belongs to the first, and only its `invoke` knows whether
+ * commands are still being held for DOMContentLoaded.
+ */
+function replay(api: PerspectiveCommandFn, queued: ArrayLike<unknown>[]): void {
+  for (const args of queued) api(...Array.from(args));
+}
+
+function boot(): void {
+  const installed = window.__PERSPECTIVE_PUBLIC_API__;
+
+  // Second evaluation (GTM re-injected the script, SPA history change, or a
+  // double include). Replay anything queued on a fresh stub and scan again.
+  // Delegating to the first evaluation's API keeps one instance map — this
+  // module's copies would otherwise mount duplicates.
+  if (installed) {
+    const queued = queuedCommands(window.Perspective);
+    window.Perspective = installed;
+    replay(installed, [...queued, ["autoInit"]]);
+    return;
+  }
+
   window.__PERSPECTIVE_SDK_INITIALIZED__ = true;
+
+  const queued = queuedCommands(window.Perspective);
 
   // Add attribution comment next to the script tag
   const script = document.currentScript;
@@ -921,12 +1108,19 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
 
   injectGlobalMetadata();
 
-  if (document.readyState === "loading") {
+  window.__PERSPECTIVE_PUBLIC_API__ = perspective;
+  window.Perspective = perspective;
+
+  deferDomCommands = document.readyState === "loading";
+  replay(perspective, queued);
+
+  if (deferDomCommands) {
     perfLog("SDK", "waiting for DOMContentLoaded");
     document.addEventListener(
       "DOMContentLoaded",
       () => {
         perfLog("SDK", "DOMContentLoaded fired");
+        flushDeferredDomCommands();
         autoInit();
       },
       { once: true }
@@ -937,8 +1131,10 @@ if (hasDom() && !window.__PERSPECTIVE_SDK_INITIALIZED__) {
     });
     autoInit();
   }
+}
 
-  window.Perspective = Perspective;
+if (hasDom()) {
+  boot();
 }
 
 // Export for module usage
@@ -958,4 +1154,4 @@ export {
   createFullpage,
 };
 
-export default Perspective;
+export default perspective;

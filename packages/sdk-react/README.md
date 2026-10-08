@@ -365,7 +365,7 @@ interface UseFloatBubbleReturn {
 
 ### useThemeSync
 
-Sync theme between your app and embedded interviews:
+Sync theme between your app and embedded conversations:
 
 ```tsx
 import { useThemeSync } from "@perspective-ai/sdk-react";
@@ -382,6 +382,32 @@ function App() {
     </button>
   );
 }
+```
+
+## Google Tag Manager and Google Analytics
+
+If your site uses Google Tag Manager, Perspective automatically tells it when
+visitors open a conversation, send their first message and finish it. You can use
+these events to count finished conversations as conversions in Google Analytics.
+See the [core SDK docs](../sdk/README.md#track-results-in-google-analytics)
+for the event names and setup steps.
+
+On pages without Tag Manager, nothing is sent.
+
+**Already tracking Perspective yourself?** If your code sends its own events,
+for example in `onSubmit`, remove that code when you upgrade. Otherwise every
+event is counted twice. Or turn the built-in events off:
+
+```tsx
+import { configure } from "@perspective-ai/sdk";
+
+// For your whole site
+configure({ dataLayer: false });
+```
+
+```tsx
+// For one conversation only
+<Widget researchId="…" dataLayer={false} />
 ```
 
 ## TypeScript

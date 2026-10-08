@@ -175,7 +175,12 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
     },
     iframe,
     host,
-    { skipResize: true, renderCloseButton: !config.disableClose }
+    {
+      skipResize: true,
+      renderCloseButton: !config.disableClose,
+      embedType: "popup",
+      dataLayer: config.dataLayer,
+    }
   );
 
   // Close handlers (disabled when disableClose is enabled)

@@ -215,7 +215,12 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     },
     iframe,
     host,
-    { skipResize: true, renderCloseButton: !config.disableClose }
+    {
+      skipResize: true,
+      renderCloseButton: !config.disableClose,
+      embedType: "slider",
+      dataLayer: config.dataLayer,
+    }
   );
 
   // Close handlers (disabled when disableClose is enabled)
