@@ -17,13 +17,11 @@ import { injectStyles } from "./styles";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
-import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 type WidgetResources = {
   cleanup: () => void;
   unregister: () => void;
   wrapper: HTMLElement;
-  dataLayer?: boolean;
 };
 
 const widgetResources = new WeakMap<HTMLIFrameElement, WidgetResources>();
@@ -52,15 +50,10 @@ function createExistingWidgetHandle(
   );
 
   let destroyed = false;
-  const dataLayer = existingIframe
-    ? widgetResources.get(existingIframe)?.dataLayer
-    : undefined;
 
   const unmount = () => {
     if (destroyed) return;
     destroyed = true;
-
-    trackEmbedEvent(DATA_LAYER_EVENTS.close, researchId, "widget", dataLayer);
 
     if (existingIframe) {
       const resources = widgetResources.get(existingIframe);
@@ -229,12 +222,6 @@ export function createWidget(
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
   enrichContainer(wrapper, "widget");
-  trackEmbedEvent(
-    DATA_LAYER_EVENTS.open,
-    researchId,
-    "widget",
-    config.dataLayer
-  );
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
@@ -293,7 +280,6 @@ export function createWidget(
     cleanup,
     unregister: unregisterIframe,
     wrapper,
-    dataLayer: config.dataLayer,
   });
 
   let destroyed = false;
@@ -302,12 +288,6 @@ export function createWidget(
     if (destroyed) return;
     destroyed = true;
 
-    trackEmbedEvent(
-      DATA_LAYER_EVENTS.close,
-      researchId,
-      "widget",
-      currentConfig.dataLayer
-    );
     cleanup();
     unregisterIframe();
     widgetResources.delete(iframe);

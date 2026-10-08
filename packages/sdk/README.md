@@ -778,7 +778,6 @@ Replace `YOUR_RESEARCH_ID` and the embed type (`float`, `widget`, `popup`,
 ```html
 <script>
   (function (w, d, n, researchId, embedType) {
-    w.PerspectiveObject = n;
     w[n] =
       w[n] ||
       function () {

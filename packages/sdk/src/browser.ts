@@ -52,7 +52,6 @@ import { openSlider } from "./slider";
 import { createFloatBubble, createChatBubble } from "./float";
 import { createFullpage } from "./fullpage";
 import { configure as setGlobalConfig, getConfig, hasDom } from "./config";
-import { resetDataLayerState } from "./datalayer";
 import { getPersistedOpenState } from "./state";
 import { resolveIsDark, readableTextColor, isValidDelayMs } from "./utils";
 import { injectGlobalMetadata } from "./attribution";
@@ -536,7 +535,6 @@ function destroyAll(): void {
   instances.forEach((instance) => instance.unmount());
   instances.clear();
   anchors.clear();
-  resetDataLayerState();
   // Cancel all pending auto-inits
   pendingInits.forEach((pending) => {
     pending.cancelled = true;
@@ -573,20 +571,14 @@ function dataLayerFromEl(el: HTMLElement): { dataLayer?: false } {
  */
 function shouldAutoMount(researchId: string, anchor: HTMLElement): boolean {
   const instance = instances.get(researchId);
-  if (!instance) {
-    anchors.set(researchId, anchor);
-    return true;
-  }
-
-  const renderedConnected = !!instance.container?.isConnected;
-  const recorded = anchors.get(researchId);
-  const recordedGone = !!recorded && !recorded.isConnected;
-
-  if (renderedConnected && !recordedGone) {
+  if (
+    instance?.container?.isConnected &&
+    anchors.get(researchId)?.isConnected !== false
+  ) {
     return false;
   }
 
-  destroy(researchId);
+  if (instance) destroy(researchId);
   anchors.set(researchId, anchor);
   return true;
 }
@@ -953,21 +945,11 @@ const EMBED_SELECTOR = [
   .join(",");
 
 let autoInitObserver: MutationObserver | null = null;
-let observedAutoInitScheduled = false;
 
 function nodeRequestsEmbed(node: Node): boolean {
   if (!(node instanceof HTMLElement)) return false;
   if (node.matches(EMBED_SELECTOR)) return true;
   return !!node.querySelector(EMBED_SELECTOR);
-}
-
-function scheduleObservedAutoInit(): void {
-  if (observedAutoInitScheduled) return;
-  observedAutoInitScheduled = true;
-  queueMicrotask(() => {
-    observedAutoInitScheduled = false;
-    autoInit();
-  });
 }
 
 function startAutoInitObserver(): void {
@@ -984,11 +966,12 @@ function startAutoInitObserver(): void {
     return;
   }
 
+  // One callback per batch of mutations, so one scan covers the batch.
   autoInitObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (nodeRequestsEmbed(node)) {
-          scheduleObservedAutoInit();
+          autoInit();
           return;
         }
       }
@@ -1000,26 +983,26 @@ function startAutoInitObserver(): void {
 function stopAutoInitObserver(): void {
   autoInitObserver?.disconnect();
   autoInitObserver = null;
-  observedAutoInitScheduled = false;
 }
 
+const methods = {
+  configure,
+  getConfig,
+  init,
+  mount,
+  destroy,
+  destroyAll,
+  autoInit,
+  createWidget,
+  openPopup,
+  openSlider,
+  createFloatBubble,
+  createFullpage,
+  createChatBubble,
+};
+
 /** Callable global: `Perspective('init', config)` plus the method API. */
-interface PerspectiveCommandFn {
-  (...args: unknown[]): void;
-  configure: typeof configure;
-  getConfig: typeof getConfig;
-  init: typeof init;
-  mount: typeof mount;
-  destroy: typeof destroy;
-  destroyAll: typeof destroyAll;
-  autoInit: typeof autoInit;
-  createWidget: typeof createWidget;
-  openPopup: typeof openPopup;
-  openSlider: typeof openSlider;
-  createFloatBubble: typeof createFloatBubble;
-  createFullpage: typeof createFullpage;
-  createChatBubble: typeof createChatBubble;
-}
+type PerspectiveCommandFn = ((...args: unknown[]) => void) & typeof methods;
 
 /**
  * Commands queued while `document.readyState === "loading"` (a parser-inserted
@@ -1031,13 +1014,12 @@ interface PerspectiveCommandFn {
 let deferDomCommands = false;
 const deferredDomCommands: ArrayLike<unknown>[] = [];
 
-function flushDeferredDomCommands(api: PerspectiveCommandFn): void {
+function flushDeferredDomCommands(): void {
   deferDomCommands = false;
-  const queued = deferredDomCommands.splice(0);
-  for (const args of queued) invoke(api, args);
+  for (const args of deferredDomCommands.splice(0)) invoke(args);
 }
 
-function invoke(api: PerspectiveCommandFn, args: ArrayLike<unknown>): void {
+function invoke(args: ArrayLike<unknown>): void {
   if (deferDomCommands) {
     deferredDomCommands.push(args);
     return;
@@ -1047,19 +1029,19 @@ function invoke(api: PerspectiveCommandFn, args: ArrayLike<unknown>): void {
   try {
     switch (command) {
       case "init":
-        api.init(args[1] as EmbedConfig);
+        init(args[1] as EmbedConfig);
         return;
       case "mount":
-        api.mount(args[1] as HTMLElement | string, args[2] as EmbedConfig);
+        mount(args[1] as HTMLElement | string, args[2] as EmbedConfig);
         return;
       case "configure":
-        api.configure((args[1] ?? {}) as SDKConfig);
+        configure((args[1] ?? {}) as SDKConfig);
         return;
       case "autoInit":
-        api.autoInit();
+        autoInit();
         return;
       case "destroy":
-        if (typeof args[1] === "string") api.destroy(args[1]);
+        if (typeof args[1] === "string") destroy(args[1]);
         return;
       default:
         console.warn("[Perspective] Unknown command:", command);
@@ -1071,33 +1053,8 @@ function invoke(api: PerspectiveCommandFn, args: ArrayLike<unknown>): void {
 
 function queuedCommands(value: unknown): ArrayLike<unknown>[] {
   if (typeof value !== "function") return [];
-  if (value === window.__PERSPECTIVE_PUBLIC_API__) return [];
   const queue = (value as { q?: unknown }).q;
-  if (!Array.isArray(queue)) return [];
-  return queue.slice();
-}
-
-function createCallable(): PerspectiveCommandFn {
-  const call = function perspective(...args: unknown[]) {
-    invoke(call, args);
-  } as PerspectiveCommandFn;
-
-  Object.assign(call, {
-    configure,
-    getConfig,
-    init,
-    mount,
-    destroy,
-    destroyAll,
-    autoInit,
-    createWidget,
-    openPopup,
-    openSlider,
-    createFloatBubble,
-    createFullpage,
-    createChatBubble,
-  });
-  return call;
+  return Array.isArray(queue) ? queue.slice() : [];
 }
 
 declare global {
@@ -1106,11 +1063,14 @@ declare global {
     /** Real API captured on first evaluation so a later script load can find it. */
     __PERSPECTIVE_PUBLIC_API__?: PerspectiveCommandFn;
     Perspective?: PerspectiveCommandFn;
-    PerspectiveObject?: string;
   }
 }
 
-const perspective = createCallable();
+const perspective: PerspectiveCommandFn = Object.assign(function perspective(
+  ...args: unknown[]
+) {
+  invoke(args);
+}, methods);
 
 /**
  * Call through `api` itself rather than this module's `invoke`: on a second
@@ -1128,7 +1088,7 @@ function boot(): void {
   // double include). Replay anything queued on a fresh stub and scan again.
   // Delegating to the first evaluation's API keeps one instance map — this
   // module's copies would otherwise mount duplicates.
-  if (window.__PERSPECTIVE_SDK_INITIALIZED__ && installed) {
+  if (installed) {
     const queued = queuedCommands(window.Perspective);
     window.Perspective = installed;
     replay(installed, [...queued, ["autoInit"]]);
@@ -1155,27 +1115,21 @@ function boot(): void {
   window.__PERSPECTIVE_PUBLIC_API__ = perspective;
   window.Perspective = perspective;
 
-  if (document.readyState === "loading") {
-    deferDomCommands = true;
+  deferDomCommands = document.readyState === "loading";
+  replay(perspective, queued);
+
+  if (deferDomCommands) {
     perfLog("SDK", "waiting for DOMContentLoaded");
     document.addEventListener(
       "DOMContentLoaded",
       () => {
         perfLog("SDK", "DOMContentLoaded fired");
-        flushDeferredDomCommands(perspective);
-        if (getConfig().observe === true) {
-          startAutoInitObserver();
-        }
+        flushDeferredDomCommands();
         autoInit();
       },
       { once: true }
     );
-    replay(perspective, queued);
   } else {
-    replay(perspective, queued);
-    if (getConfig().observe === true) {
-      startAutoInitObserver();
-    }
     perfLog("SDK", "DOM already ready, autoInit immediately", {
       readyState: document.readyState,
     });

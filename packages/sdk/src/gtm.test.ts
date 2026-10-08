@@ -13,10 +13,8 @@ type PerspectiveGlobal = typeof window.Perspective;
 
 function installStub(): void {
   const w = window as Window & {
-    PerspectiveObject?: string;
     Perspective?: PerspectiveGlobal & { q?: ArrayLike<unknown>[] };
   };
-  w.PerspectiveObject = "Perspective";
   w.Perspective = function perspectiveStub() {
     (w.Perspective!.q = w.Perspective!.q || []).push(arguments);
   } as PerspectiveGlobal;
@@ -31,7 +29,6 @@ function clearSdkGlobals(): void {
   delete window.__PERSPECTIVE_SDK_INITIALIZED__;
   delete window.__PERSPECTIVE_PUBLIC_API__;
   delete window.Perspective;
-  delete window.PerspectiveObject;
 }
 
 describe("GTM loader", () => {

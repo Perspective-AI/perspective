@@ -18,7 +18,6 @@ import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
-import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 function createNoOpHandle(researchId: string): EmbedHandle {
   return {
@@ -93,12 +92,6 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   enrichContainer(overlay, "popup");
-  trackEmbedEvent(
-    DATA_LAYER_EVENTS.open,
-    researchId,
-    "popup",
-    config.dataLayer
-  );
 
   // Mutable config reference for updates
   let currentConfig = { ...config };
@@ -135,12 +128,6 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   const removePopup = () => {
     if (!isOpen) return;
     isOpen = false;
-    trackEmbedEvent(
-      DATA_LAYER_EVENTS.close,
-      researchId,
-      "popup",
-      currentConfig.dataLayer
-    );
     messageCleanup?.();
     unregisterIframe();
     overlay.remove();

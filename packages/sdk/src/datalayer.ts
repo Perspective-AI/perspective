@@ -8,6 +8,7 @@
  */
 
 import { getConfig, hasDom } from "./config";
+import type { EmbedType } from "./types";
 
 declare global {
   interface Window {
@@ -16,7 +17,7 @@ declare global {
   }
 }
 
-export const DATA_LAYER_EVENTS = {
+const DATA_LAYER_EVENTS = {
   open: "perspective_widget_open",
   ready: "perspective_widget_ready",
   conversationStarted: "perspective_conversation_started",
@@ -24,23 +25,7 @@ export const DATA_LAYER_EVENTS = {
   close: "perspective_widget_close",
 } as const;
 
-export type PerspectiveDataLayerEvent =
-  (typeof DATA_LAYER_EVENTS)[keyof typeof DATA_LAYER_EVENTS];
-
 const DEFAULT_DATA_LAYER_NAME = "dataLayer";
-
-/** Suppresses a second close for the same embed until it opens again. */
-const closedKeys = new Set<string>();
-
-function embedKey(embedType: string, researchId: string): string {
-  return `${embedType}\0${researchId}`;
-}
-
-function normalizeEmbedType(embedType: string | undefined): string {
-  if (!embedType || embedType === "chat")
-    return embedType === "chat" ? "float" : "widget";
-  return embedType;
-}
 
 /**
  * Push one lifecycle event. `perEmbed` is the embed's own opt-out
@@ -49,25 +34,15 @@ function normalizeEmbedType(embedType: string | undefined): string {
  * embed.
  */
 export function trackEmbedEvent(
-  event: PerspectiveDataLayerEvent,
+  event: keyof typeof DATA_LAYER_EVENTS,
   researchId: string,
-  embedType?: string,
+  embedType: EmbedType,
   perEmbed?: boolean
 ): void {
-  if (perEmbed === false) return;
-  if (!hasDom()) return;
+  if (perEmbed === false || !hasDom()) return;
 
   const config = getConfig();
   if (config.dataLayer === false) return;
-
-  const type = normalizeEmbedType(embedType);
-  const key = embedKey(type, researchId);
-
-  if (event === DATA_LAYER_EVENTS.open) {
-    closedKeys.delete(key);
-  } else if (event === DATA_LAYER_EVENTS.close && closedKeys.has(key)) {
-    return;
-  }
 
   const name = config.dataLayerName || DEFAULT_DATA_LAYER_NAME;
   const host = window as unknown as Record<string, unknown>;
@@ -77,22 +52,12 @@ export function trackEmbedEvent(
     // Never clobber a non-array (for example a custom push wrapper) and never
     // create `window.dataLayer` unless the host opted in.
     if (config.dataLayer !== true || layer != null) return;
-    layer = [];
-    host[name] = layer;
+    layer = host[name] = [];
   }
 
-  if (event === DATA_LAYER_EVENTS.close) {
-    closedKeys.add(key);
-  }
-
-  (layer as Record<string, unknown>[]).push({
-    event,
+  (layer as unknown[]).push({
+    event: DATA_LAYER_EVENTS[event],
     perspective_research_id: researchId,
-    perspective_embed_type: type,
+    perspective_embed_type: embedType,
   });
-}
-
-/** Drop close-dedupe state. Called when every embed is torn down. */
-export function resetDataLayerState(): void {
-  closedKeys.clear();
 }

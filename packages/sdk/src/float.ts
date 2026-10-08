@@ -36,7 +36,6 @@ import {
 } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
-import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 /** Merge API launcher config over a base launcher (API is source of truth) */
 function mergeApiLauncher(
@@ -570,12 +569,6 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
     if (isOpen) return;
     isOpen = true;
     persistOpenState(true);
-    trackEmbedEvent(
-      DATA_LAYER_EVENTS.open,
-      researchId,
-      "float",
-      currentConfig.dataLayer
-    );
     clearWelcomeTimers();
     removeTeaser();
 
@@ -691,12 +684,6 @@ export function createFloatBubble(config: InternalEmbedConfig): FloatHandle {
       persistOpenState(false);
     }
     isOpen = false;
-    trackEmbedEvent(
-      DATA_LAYER_EVENTS.close,
-      researchId,
-      "float",
-      currentConfig.dataLayer
-    );
 
     cleanup?.();
     unregisterIframe?.();

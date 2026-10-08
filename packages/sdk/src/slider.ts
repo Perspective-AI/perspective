@@ -18,7 +18,6 @@ import { setPersistedOpenState } from "./state";
 import { cn, getThemeClass } from "./utils";
 import { enrichContainer } from "./attribution";
 import { perfLog } from "./perf";
-import { DATA_LAYER_EVENTS, trackEmbedEvent } from "./datalayer";
 
 /** Below this viewport width, "push" mode falls back to "overlay" so content isn't shoved off-screen. */
 const PUSH_MIN_VIEWPORT = 640;
@@ -106,12 +105,6 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   }
   document.body.appendChild(slider);
   enrichContainer(slider, "slider");
-  trackEmbedEvent(
-    DATA_LAYER_EVENTS.open,
-    researchId,
-    "slider",
-    config.dataLayer
-  );
 
   // Push mode: shrink the page by the slider's width, animated in sync with the
   // slide-in. Margin lives on <html> to avoid clobbering site-set body margins.
@@ -173,12 +166,6 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
   const removeSlider = () => {
     if (!isOpen) return;
     isOpen = false;
-    trackEmbedEvent(
-      DATA_LAYER_EVENTS.close,
-      researchId,
-      "slider",
-      currentConfig.dataLayer
-    );
     messageCleanup?.();
     unregisterIframe();
     removePush();

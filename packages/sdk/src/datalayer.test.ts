@@ -3,7 +3,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { configure, destroyAll, init, mount, autoInit } from "./browser";
+import {
+  autoInit,
+  configure,
+  createWidget,
+  destroyAll,
+  init,
+  mount,
+} from "./browser";
 import { MESSAGE_TYPES } from "./constants";
 import type { FloatHandle } from "./types";
 
@@ -167,6 +174,26 @@ describe("dataLayer", () => {
 
     expect(events().map((entry) => entry.event)).toEqual([
       "perspective_widget_open",
+      "perspective_widget_close",
+    ]);
+  });
+
+  it("counts close once per widget, even when two share a research id", () => {
+    window.dataLayer = [];
+    const slotA = document.createElement("div");
+    const slotB = document.createElement("div");
+    document.body.append(slotA, slotB);
+    const a = createWidget(slotA, { researchId: "shared" });
+    const b = createWidget(slotB, { researchId: "shared" });
+
+    postFromIframe(a.iframe!, MESSAGE_TYPES.close, "shared");
+    a.destroy();
+    b.destroy();
+
+    expect(events().map((entry) => entry.event)).toEqual([
+      "perspective_widget_open",
+      "perspective_widget_open",
+      "perspective_widget_close",
       "perspective_widget_close",
     ]);
   });
