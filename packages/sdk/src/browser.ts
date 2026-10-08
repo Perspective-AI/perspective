@@ -621,9 +621,6 @@ function autoInit(): void {
           ...brandConfig,
           ...(frame && { frame }),
           ...dataLayerFromEl(el),
-          disableJsonLdAttribution: el.hasAttribute(
-            DATA_ATTRS.disableJsonLdAttribution
-          ),
         } as InternalEmbedConfig);
       }
     });
@@ -642,9 +639,6 @@ function autoInit(): void {
           params,
           ...brandConfig,
           ...dataLayerFromEl(el),
-          disableJsonLdAttribution: el.hasAttribute(
-            DATA_ATTRS.disableJsonLdAttribution
-          ),
         } as InternalEmbedConfig);
       }
     });
@@ -671,16 +665,12 @@ function autoInit(): void {
 
       // Capture fetched config for passing _apiConfig to init calls
       let cachedConfig: EmbedApiConfig | undefined;
-      const disableJsonLdAttribution = el.hasAttribute(
-        DATA_ATTRS.disableJsonLdAttribution
-      );
       const initPopup = () =>
         init({
           researchId,
           type: "popup",
           params,
           disableClose,
-          disableJsonLdAttribution,
           ...brandConfig,
           ...dataLayerFromEl(el),
           ...(cachedConfig && { _apiConfig: cachedConfig }),
@@ -803,16 +793,12 @@ function autoInit(): void {
         // Tracks the live handle so a second click on the same trigger toggles
         // the slider closed instead of re-opening it.
         let sliderHandle: EmbedHandle | null = null;
-        const disableJsonLdAttribution = el.hasAttribute(
-          DATA_ATTRS.disableJsonLdAttribution
-        );
         const initSlider = () => {
           sliderHandle = init({
             researchId,
             type: "slider",
             params,
             disableClose,
-            disableJsonLdAttribution,
             sliderMode,
             ...brandConfig,
             ...dataLayerFromEl(el),
@@ -884,9 +870,6 @@ function autoInit(): void {
         researchId,
         type: "float",
         params,
-        disableJsonLdAttribution: floatEl.hasAttribute(
-          DATA_ATTRS.disableJsonLdAttribution
-        ),
         ...brandConfig,
         ...dataLayerFromEl(floatEl),
         ...(launcherConfig && { launcher: launcherConfig }),
@@ -1149,7 +1132,6 @@ function boot(): void {
     );
   }
 
-  // JSON-LD injection deferred to enrichContainer (needs per-embed config for disableJsonLdAttribution)
   injectGlobalMetadata();
 
   window.__PERSPECTIVE_PUBLIC_API__ = perspective;

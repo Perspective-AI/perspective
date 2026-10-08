@@ -222,7 +222,7 @@ export function createWidget(
 
   wrapper.appendChild(iframe);
   container.appendChild(wrapper);
-  enrichContainer(wrapper, "widget", config);
+  enrichContainer(wrapper, "widget");
   trackEmbedEvent(
     DATA_LAYER_EVENTS.open,
     researchId,

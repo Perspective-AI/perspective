@@ -96,6 +96,7 @@ export const DATA_ATTRS = {
   teaserDelay: "data-perspective-teaser-delay",
   teaserSound: "data-perspective-teaser-sound",
   teaserDismissible: "data-perspective-teaser-dismissible",
+  /** @deprecated No longer has any effect. */
   disableJsonLdAttribution: "data-perspective-disable-jsonld-attribution",
   /** "false" opts this embed out of dataLayer / GTM events. */
   dataLayer: "data-perspective-datalayer",

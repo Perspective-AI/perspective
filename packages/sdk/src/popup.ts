@@ -92,7 +92,7 @@ export function openPopup(config: InternalEmbedConfig): EmbedHandle {
   modal.appendChild(iframe);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
-  enrichContainer(overlay, "popup", config);
+  enrichContainer(overlay, "popup");
   trackEmbedEvent(
     DATA_LAYER_EVENTS.open,
     researchId,

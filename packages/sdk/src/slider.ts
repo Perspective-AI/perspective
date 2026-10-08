@@ -105,13 +105,13 @@ export function openSlider(config: InternalEmbedConfig): EmbedHandle {
     document.body.appendChild(backdrop);
   }
   document.body.appendChild(slider);
+  enrichContainer(slider, "slider");
   trackEmbedEvent(
     DATA_LAYER_EVENTS.open,
     researchId,
     "slider",
     config.dataLayer
   );
-  enrichContainer(slider, "slider", config);
 
   // Push mode: shrink the page by the slider's width, animated in sync with the
   // slide-in. Margin lives on <html> to avoid clobbering site-set body margins.

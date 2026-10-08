@@ -1,5 +1,4 @@
 import { useRef, useEffect, type RefObject } from "react";
-import { DiscoveryMetadata } from "./DiscoveryMetadata";
 import {
   createFullpage,
   createLoadingIndicator,
@@ -24,7 +23,6 @@ export function Fullpage({
   brand,
   theme,
   host,
-  disableJsonLdAttribution,
   onReady,
   onSubmit,
   onNavigate,
@@ -61,7 +59,6 @@ export function Fullpage({
         brand,
         theme,
         host,
-        disableJsonLdAttribution,
         _apiConfig: config,
         onReady: stableOnReady,
         onSubmit: stableOnSubmit,
@@ -94,7 +91,6 @@ export function Fullpage({
     brand,
     theme,
     host,
-    disableJsonLdAttribution,
     stableOnReady,
     stableOnSubmit,
     stableOnNavigate,
@@ -103,6 +99,6 @@ export function Fullpage({
     embedRef,
   ]);
 
-  // The fullpage overlay is added to document.body via SDK; render attribution for SSR
-  return disableJsonLdAttribution ? null : <DiscoveryMetadata />;
+  // The fullpage overlay is added to document.body via SDK
+  return null;
 }

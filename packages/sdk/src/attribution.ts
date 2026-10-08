@@ -16,53 +16,10 @@ import { SDK_VERSION } from "./constants";
 /** Canonical brand URL — always used regardless of configured host */
 const PERSPECTIVE_URL = "https://getperspective.ai";
 
-/** JSON-LD structured data for the widget */
-const JSON_LD = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "SoftwareApplication",
-      "@id": `${PERSPECTIVE_URL}/#widget`,
-      name: "Perspective AI",
-      description:
-        "Rigid forms cause drop-off, weaken qualification, and strip away context. Perspective uses adaptive AI to turn forms into conversations that capture structured data and trigger automation.",
-      url: PERSPECTIVE_URL,
-      applicationCategory: "BusinessApplication",
-      softwareVersion: SDK_VERSION,
-      provider: { "@id": `${PERSPECTIVE_URL}/#organization` },
-      aggregateRating: {
-        "@type": "AggregateRating",
-        ratingValue: "5",
-        bestRating: "5",
-        worstRating: "1",
-        ratingCount: 7,
-        reviewCount: 7,
-      },
-    },
-    {
-      "@type": "Organization",
-      "@id": `${PERSPECTIVE_URL}/#organization`,
-      name: "Perspective AI",
-      url: PERSPECTIVE_URL,
-    },
-  ],
-};
-
 /**
- * Inject JSON-LD structured data into the page.
- * Idempotent — skips if a `[data-perspective-jsonld]` element already exists
- * (e.g. from SSR via DiscoveryMetadata or a previous call).
+ * @deprecated No longer injects anything. Kept for backwards compatibility.
  */
-export function injectJsonLd(): void {
-  if (!hasDom()) return;
-  if (document.querySelector("script[data-perspective-jsonld]")) return;
-
-  const script = document.createElement("script");
-  script.type = "application/ld+json";
-  script.setAttribute("data-perspective-jsonld", "");
-  script.textContent = JSON.stringify(JSON_LD);
-  document.body.appendChild(script);
-}
+export function injectJsonLd(): void {}
 
 declare global {
   interface Window {
@@ -99,7 +56,8 @@ export function injectGlobalMetadata(): void {
 export function enrichContainer(
   el: HTMLElement,
   type: EmbedType,
-  options?: { disableJsonLdAttribution?: boolean }
+  /** @deprecated No longer has any effect. */
+  _options?: { disableJsonLdAttribution?: boolean }
 ): void {
   if (!hasDom()) return;
 
@@ -115,8 +73,5 @@ export function enrichContainer(
     );
   }
 
-  if (!options?.disableJsonLdAttribution) {
-    injectJsonLd();
-  }
   injectGlobalMetadata();
 }

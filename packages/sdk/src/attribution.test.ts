@@ -14,58 +14,13 @@ describe("attribution", () => {
   });
 
   describe("injectJsonLd", () => {
-    it("appends JSON-LD script to document body", async () => {
+    it("is a no-op", async () => {
       const { injectJsonLd } = await import("./attribution");
       injectJsonLd();
 
-      const script = document.querySelector(
-        "script[data-perspective-jsonld]"
-      ) as HTMLScriptElement;
-      expect(script).toBeTruthy();
-      expect(script.type).toBe("application/ld+json");
-
-      const data = JSON.parse(script.textContent!);
-      expect(data["@context"]).toBe("https://schema.org");
-      expect(data["@graph"]).toHaveLength(2);
-      expect(data["@graph"][0]["@type"]).toBe("SoftwareApplication");
-      expect(data["@graph"][0].name).toBe("Perspective AI");
-      expect(data["@graph"][0].softwareVersion).toBe(SDK_VERSION);
-      expect(data["@graph"][0].aggregateRating["@type"]).toBe(
-        "AggregateRating"
-      );
-      expect(data["@graph"][0].aggregateRating.ratingValue).toBe("5");
-      expect(data["@graph"][0].aggregateRating.worstRating).toBe("1");
-      expect(data["@graph"][0].aggregateRating.ratingCount).toBe(7);
-      expect(data["@graph"][1]["@type"]).toBe("Organization");
-      expect(data["@graph"][1].url).toBe("https://getperspective.ai");
-    });
-
-    it("is idempotent — second call does not add duplicate", async () => {
-      const { injectJsonLd } = await import("./attribution");
-      injectJsonLd();
-      injectJsonLd();
-
-      const scripts = document.querySelectorAll(
-        "script[data-perspective-jsonld]"
-      );
-      expect(scripts).toHaveLength(1);
-    });
-
-    it("skips injection when SSR element already exists", async () => {
-      const existing = document.createElement("script");
-      existing.type = "application/ld+json";
-      existing.setAttribute("data-perspective-jsonld", "");
-      existing.textContent = "{}";
-      document.body.appendChild(existing);
-
-      const { injectJsonLd } = await import("./attribution");
-      injectJsonLd();
-
-      const scripts = document.querySelectorAll(
-        "script[data-perspective-jsonld]"
-      );
-      expect(scripts).toHaveLength(1);
-      expect(scripts[0]!.textContent).toBe("{}");
+      expect(
+        document.querySelector('script[type="application/ld+json"]')
+      ).toBeNull();
     });
   });
 
@@ -124,9 +79,6 @@ describe("attribution", () => {
 
       enrichContainer(el, "float");
 
-      expect(
-        document.querySelector("script[data-perspective-jsonld]")
-      ).toBeTruthy();
       expect(window.PerspectiveAI).toBeDefined();
     });
 
@@ -139,24 +91,18 @@ describe("attribution", () => {
       expect(el.getAttribute("data-perspective-type")).toBe("popup");
     });
 
-    it("skips JSON-LD when disableJsonLdAttribution is true", async () => {
+    it("does not inject JSON-LD into the page", async () => {
       const { enrichContainer } = await import("./attribution");
       const parent = document.createElement("div");
       const el = document.createElement("div");
       parent.appendChild(el);
       document.body.appendChild(parent);
 
-      enrichContainer(el, "widget", { disableJsonLdAttribution: true });
+      enrichContainer(el, "widget");
 
-      // Data attributes and comment should still be present
-      expect(el.getAttribute("data-perspective-version")).toBe(SDK_VERSION);
-      expect(el.previousSibling!.nodeType).toBe(Node.COMMENT_NODE);
-      // JSON-LD should NOT be injected
       expect(
-        document.querySelector("script[data-perspective-jsonld]")
+        document.querySelector('script[type="application/ld+json"]')
       ).toBeNull();
-      // Global metadata should still be set
-      expect(window.PerspectiveAI).toBeDefined();
     });
   });
 });

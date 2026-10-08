@@ -190,7 +190,7 @@ export interface EmbedConfig {
    * never out-specified and survives global resets like Tailwind Preflight).
    */
   frame?: FrameConfig;
-  /** When true, skips JSON-LD structured data injection into the parent page. Other attribution signals (data attributes, global metadata, HTML comments) remain active. */
+  /** @deprecated No longer has any effect. */
   disableJsonLdAttribution?: boolean;
   /**
    * When `false`, this embed does not push lifecycle events to the dataLayer.
