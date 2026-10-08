@@ -1006,7 +1006,6 @@ function stopAutoInitObserver(): void {
 /** Callable global: `Perspective('init', config)` plus the method API. */
 interface PerspectiveCommandFn {
   (...args: unknown[]): void;
-  q?: ArrayLike<unknown>[];
   configure: typeof configure;
   getConfig: typeof getConfig;
   init: typeof init;
@@ -1098,7 +1097,6 @@ function createCallable(): PerspectiveCommandFn {
     createFullpage,
     createChatBubble,
   });
-  call.q = [];
   return call;
 }
 
@@ -1114,8 +1112,13 @@ declare global {
 
 const perspective = createCallable();
 
+/**
+ * Call through `api` itself rather than this module's `invoke`: on a second
+ * evaluation `api` belongs to the first, and only its `invoke` knows whether
+ * commands are still being held for DOMContentLoaded.
+ */
 function replay(api: PerspectiveCommandFn, queued: ArrayLike<unknown>[]): void {
-  for (const args of queued) invoke(api, args);
+  for (const args of queued) api(...Array.from(args));
 }
 
 function boot(): void {
@@ -1128,17 +1131,7 @@ function boot(): void {
   if (window.__PERSPECTIVE_SDK_INITIALIZED__ && installed) {
     const queued = queuedCommands(window.Perspective);
     window.Perspective = installed;
-    replay(installed, queued);
-    if (installed.q && installed.q.length > 0) {
-      const extra = installed.q.slice();
-      installed.q.length = 0;
-      replay(installed, extra);
-    }
-    // The first evaluation already scans on DOMContentLoaded. Scanning now
-    // would run before that flush and miss programmatic mounts still queued.
-    if (document.readyState !== "loading") {
-      installed.autoInit();
-    }
+    replay(installed, [...queued, ["autoInit"]]);
     return;
   }
 

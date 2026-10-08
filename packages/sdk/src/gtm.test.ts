@@ -213,6 +213,31 @@ describe("GTM loader", () => {
     expect(bubbles[0]).not.toBe(firstBubble);
   });
 
+  it("defers a second evaluation's queued mount until DOMContentLoaded", async () => {
+    Object.defineProperty(document, "readyState", {
+      configurable: true,
+      get: () => "loading",
+    });
+    await importBrowser();
+
+    installStub();
+    window.Perspective?.("mount", "#second-slot", {
+      researchId: "second-late",
+    });
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await importBrowser();
+    expect(document.querySelector("iframe")).toBeFalsy();
+
+    const slot = document.createElement("div");
+    slot.id = "second-slot";
+    document.body.appendChild(slot);
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+
+    expect(slot.querySelector("iframe")).toBeTruthy();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("remounts a widget whose container was replaced before the second load", async () => {
     document.body.innerHTML =
       '<div data-perspective-widget="spa-widget"></div>';
