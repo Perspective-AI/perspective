@@ -178,6 +178,37 @@ describe("dataLayer", () => {
     ]);
   });
 
+  it("pushes ready and completion even when the host callback throws", () => {
+    window.dataLayer = [];
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const fail = () => {
+      throw new Error("host callback failed");
+    };
+    const handle = mount(container, {
+      researchId: "research-throws",
+      onReady: fail,
+      onSubmit: fail,
+    });
+    // happy-dom rethrows listener errors from dispatchEvent; a browser would
+    // report them to window.onerror instead.
+    const post = (type: string) => {
+      try {
+        postFromIframe(handle.iframe!, type, "research-throws");
+      } catch {
+        // the host callback's error
+      }
+    };
+    post(MESSAGE_TYPES.ready);
+    post(MESSAGE_TYPES.submit);
+
+    expect(events().map((entry) => entry.event)).toEqual([
+      "perspective_widget_open",
+      "perspective_widget_ready",
+      "perspective_conversation_completed",
+    ]);
+  });
+
   it("counts close once per widget, even when two share a research id", () => {
     window.dataLayer = [];
     const slotA = document.createElement("div");

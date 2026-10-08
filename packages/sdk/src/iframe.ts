@@ -408,6 +408,8 @@ export function setupMessageListener(
             renderCloseButton: options.renderCloseButton,
           }),
         });
+        // Before host callbacks, so one that throws can't drop the event.
+        track("ready");
         // Layer 2 → Layer 1 relay: on iframe load, send any cached token from
         // parent's first-party localStorage back to the iframe. On Safari this
         // is the only restore path — iframe localStorage (Layer 1) was wiped
@@ -423,7 +425,6 @@ export function setupMessageListener(
           config.onAuth?.({ researchId, token: cachedToken });
         }
         config.onReady?.();
-        track("ready");
         break;
       }
 
@@ -439,8 +440,8 @@ export function setupMessageListener(
         break;
 
       case MESSAGE_TYPES.submit:
-        config.onSubmit?.({ researchId });
         track("conversationCompleted");
+        config.onSubmit?.({ researchId });
         break;
 
       case MESSAGE_TYPES.close:

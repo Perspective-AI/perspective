@@ -813,6 +813,22 @@ describe("browser entry", () => {
       expect(overlays[0]).not.toBe(firstOverlay);
     });
 
+    it("does not start a deferred observer after observe is turned off", async () => {
+      const body = document.body;
+      body.remove();
+      configure({ observe: true });
+      configure({ observe: false });
+      document.documentElement.appendChild(body);
+      document.dispatchEvent(new Event("DOMContentLoaded"));
+
+      const el = document.createElement("div");
+      el.setAttribute("data-perspective-widget", "not-observed");
+      document.body.appendChild(el);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(el.querySelector("iframe")).toBeFalsy();
+    });
+
     it("mounts embeds inserted later when observe is enabled", async () => {
       configure({ observe: true });
       const el = document.createElement("div");

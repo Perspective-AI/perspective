@@ -956,12 +956,13 @@ function startAutoInitObserver(): void {
   if (autoInitObserver || typeof MutationObserver !== "function") return;
   const root = document.body;
   if (!root) {
+    // Re-check: configure({ observe: false }) may have run in the meantime.
     document.addEventListener(
       "DOMContentLoaded",
-      () => startAutoInitObserver(),
-      {
-        once: true,
-      }
+      () => {
+        if (getConfig().observe === true) startAutoInitObserver();
+      },
+      { once: true }
     );
     return;
   }
