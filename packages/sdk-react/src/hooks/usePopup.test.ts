@@ -82,6 +82,21 @@ describe("usePopup", () => {
     );
   });
 
+  it("forwards dataLayer to openPopup", async () => {
+    const { result } = renderHook(() =>
+      usePopup({ researchId: "test-research-id", dataLayer: false })
+    );
+    await act(async () => {});
+
+    act(() => {
+      result.current.open();
+    });
+
+    expect(mockOpenPopup).toHaveBeenCalledWith(
+      expect.objectContaining({ dataLayer: false })
+    );
+  });
+
   it("sets isOpen to true when open() is called", async () => {
     const { result } = renderHook(() =>
       usePopup({ researchId: "test-research-id" })

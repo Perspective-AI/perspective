@@ -845,7 +845,8 @@ configure({ dataLayer: false });
 With the script tag, `Perspective('configure', { dataLayer: false })` does the
 same. To opt out a single embed, add `data-perspective-datalayer="false"` to a
 script-tag embed, or pass `dataLayer: false` in the config for `createWidget`,
-`openPopup`, `openSlider`, `createFloatBubble` or `createFullpage`.
+`openPopup`, `openSlider`, `createFloatBubble` or `createFullpage` (or as a
+prop to the `@perspective-ai/sdk-react` components and hooks).
 
 In Google Analytics 4, add a Custom Event trigger for
 `perspective_conversation_completed`, fire a GA4 Event tag on it, and mark that

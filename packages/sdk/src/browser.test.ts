@@ -814,6 +814,33 @@ describe("browser entry", () => {
       expect(document.querySelector(".perspective-float-window")).toBeTruthy();
     });
 
+    it("does not restyle a remounted float with the replaced marker's config", async () => {
+      const first = document.createElement("div");
+      first.setAttribute("data-perspective-float", "spa-float-stale");
+      first.setAttribute("data-perspective-brand", "primary=#111111");
+      document.body.appendChild(first);
+      autoInit();
+
+      // Replace the marker before the first config request resolves.
+      first.remove();
+      const second = document.createElement("div");
+      second.setAttribute("data-perspective-float", "spa-float-stale");
+      second.setAttribute(
+        "data-perspective-launcher-style",
+        "background-color: #00ff00"
+      );
+      document.body.appendChild(second);
+      autoInit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const bubble = document.querySelector<HTMLElement>(
+        ".perspective-float-bubble"
+      );
+      expect(bubble?.style.getPropertyValue("--perspective-float-bg")).not.toBe(
+        "#111111"
+      );
+    });
+
     it("remounts a fullpage embed when its marker has left the DOM", () => {
       const first = document.createElement("div");
       first.setAttribute("data-perspective-fullpage", "spa-fullpage");

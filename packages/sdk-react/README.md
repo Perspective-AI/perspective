@@ -396,6 +396,8 @@ import { configure } from "@perspective-ai/sdk";
 configure({ dataLayer: false });
 ```
 
+To opt out a single embed instead, pass `dataLayer={false}` to the component or hook, e.g. `<Widget researchId="…" dataLayer={false} />`.
+
 ## TypeScript
 
 All types are exported:

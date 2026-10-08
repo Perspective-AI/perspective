@@ -874,10 +874,12 @@ function autoInit(): void {
       } as InternalEmbedConfig);
 
       fetchConfig(researchId).then((config) => {
+        // A remount or destroy since then replaced this float; its marker's
+        // config no longer applies.
+        if (instances.get(researchId) !== floatHandle) return;
+
         // Update bubble color with fetched theme
-        const bubble = document.querySelector<HTMLElement>(
-          '[data-perspective="float-bubble"]'
-        );
+        const bubble = floatHandle.container;
         if (bubble && !floatEl.hasAttribute(DATA_ATTRS.noStyle)) {
           // Only apply theme colors if launcher.style didn't override backgroundColor
           if (!launcherConfig?.style?.backgroundColor) {
@@ -900,19 +902,13 @@ function autoInit(): void {
           }
         }
 
-        if (
-          floatHandle.type === "float" &&
-          instances.get(researchId) === floatHandle
-        ) {
-          const channels =
-            config.channel ?? config.allowedChannels ?? undefined;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (floatHandle.update as any)({
-            channel: channels,
-            welcomeMessage: config.welcomeMessage,
-            _apiConfig: config,
-          });
-        }
+        const channels = config.channel ?? config.allowedChannels ?? undefined;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (floatHandle.update as any)({
+          channel: channels,
+          welcomeMessage: config.welcomeMessage,
+          _apiConfig: config,
+        });
       });
     }
   }

@@ -25,6 +25,7 @@ export function Widget({
   brand,
   theme,
   host,
+  dataLayer,
   frame,
   // Deprecated no-op; pulled out so it isn't spread onto the <div>.
   disableJsonLdAttribution: _disableJsonLdAttribution,
@@ -65,6 +66,7 @@ export function Widget({
       brand,
       theme,
       host,
+      dataLayer,
       frame,
       onReady: stableOnReady,
       onVisualReady: stableOnVisualReady,
@@ -95,6 +97,7 @@ export function Widget({
     brand,
     theme,
     host,
+    dataLayer,
     frame,
     stableOnReady,
     stableOnVisualReady,
