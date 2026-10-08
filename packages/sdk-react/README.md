@@ -384,6 +384,18 @@ function App() {
 }
 ```
 
+## Google Tag Manager / dataLayer
+
+When the page already has `window.dataLayer` (most sites running Google Tag Manager), embeds push lifecycle events to it: `perspective_widget_open`, `perspective_widget_ready`, `perspective_conversation_started`, `perspective_conversation_completed` and `perspective_widget_close`. See the [core SDK docs](../sdk/README.md#datalayer-events) for the payload and GA4 setup.
+
+If you already push your own Perspective events — for example from `onSubmit` — remove that code, or turn the built-in events off so conversions are not counted twice:
+
+```tsx
+import { configure } from "@perspective-ai/sdk";
+
+configure({ dataLayer: false });
+```
+
 ## TypeScript
 
 All types are exported:

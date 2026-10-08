@@ -821,7 +821,7 @@ Suggested trigger:
 
 ### dataLayer events
 
-When `window.dataLayer` (or `configure({ dataLayerName })`) already exists, the SDK pushes:
+When `window.dataLayer` (or `configure({ dataLayerName })`) already exists, the SDK pushes the events below. This applies to every build — the script tag, the npm package and `@perspective-ai/sdk-react` — not only Tag Manager installs.
 
 | `event`                              | When                                                                         |
 | ------------------------------------ | ---------------------------------------------------------------------------- |
@@ -834,18 +834,28 @@ When `window.dataLayer` (or `configure({ dataLayerName })`) already exists, the 
 Each push is `{ event, perspective_research_id, perspective_embed_type }`.
 
 The SDK does **not** create `window.dataLayer` unless you opt in with
-`configure({ dataLayer: true })`. Opt out globally with
-`configure({ dataLayer: false })`, or per embed with
-`data-perspective-datalayer="false"`.
+`configure({ dataLayer: true })`. To opt out everywhere:
+
+```typescript
+import { configure } from "@perspective-ai/sdk";
+
+configure({ dataLayer: false });
+```
+
+With the script tag, `Perspective('configure', { dataLayer: false })` does the
+same. To opt out a single embed, add `data-perspective-datalayer="false"` to a
+script-tag embed, or pass `dataLayer: false` in the config for `createWidget`,
+`openPopup`, `openSlider`, `createFloatBubble` or `createFullpage`.
 
 In Google Analytics 4, add a Custom Event trigger for
 `perspective_conversation_completed`, fire a GA4 Event tag on it, and mark that
 event as a key event. Allow `https://getperspective.ai` in `script-src` and
 `frame-src` if the page has a Content Security Policy.
 
-If an older Custom HTML tag also listens for `perspective:*` messages and
-pushes these events itself, remove that bridge when you switch to this snippet
-so the events are not counted twice.
+**Upgrading:** if your site already pushes its own Perspective events — a
+Custom HTML tag that listens for `perspective:*` messages, or `onSubmit` /
+`onReady` callbacks that call `dataLayer.push` — remove that code or call
+`configure({ dataLayer: false })`, so the events are not counted twice.
 
 ## SSR Safety
 
