@@ -46,7 +46,7 @@ npm install @perspective-ai/sdk
 ```typescript
 import { createWidget } from "@perspective-ai/sdk";
 
-const container = document.getElementById("interview-container");
+const container = document.getElementById("conversation-container");
 const handle = createWidget(container, {
   researchId: "your-research-id",
 });
@@ -217,7 +217,7 @@ interface EmbedConfig {
 
 interface BrandColors {
   primary?: string; // Primary accent — buttons, progress bar, links, mic, focus rings
-  bg?: string; // Interview background behind the card, shown only when no background scene is set
+  bg?: string; // Conversation background behind the card, shown only when no background scene is set
   secondary?: string; // @deprecated — ignored, no longer forwarded (no-op)
   text?: string; // @deprecated — ignored, no longer forwarded (no-op)
 }
@@ -465,11 +465,11 @@ openPopup({
 </button>
 ```
 
-Useful for mandatory onboarding flows or required interviews.
+Useful for mandatory onboarding flows or required conversations.
 
 ## Embed Auth (onAuth)
 
-Handle cross-origin authentication tokens from embedded interviews:
+Handle cross-origin authentication tokens from embedded conversations:
 
 ```typescript
 openPopup({
@@ -481,7 +481,7 @@ openPopup({
 });
 ```
 
-The `onAuth` callback fires when the embedded interview completes an authentication flow. The token can be used for custom session management or API calls.
+The `onAuth` callback fires when the embedded conversation completes an authentication flow. The token can be used for custom session management or API calls.
 
 ## State Persistence
 
@@ -515,7 +515,7 @@ const config = getConfig();
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dataLayer`     | Events sent to Google Tag Manager. Leave it out to send them only on pages that have Tag Manager. `false` turns them off. `true` sends them even when Tag Manager isn't on the page yet. |
 | `dataLayerName` | Only needed if your Tag Manager setup uses a name other than the standard `dataLayer`.                                                                                                   |
-| `observe`       | Script tag only. `true` shows interviews whose elements your site adds to the page later, for example after switching pages without a reload.                                            |
+| `observe`       | Script tag only. `true` shows conversations whose elements your site adds to the page later, for example after switching pages without a reload.                                         |
 
 ## Custom Parameters
 
@@ -672,30 +672,30 @@ For non-module environments, use the browser bundle:
 
 ### Data Attributes Reference
 
-| Attribute                             | Description                                               |
-| ------------------------------------- | --------------------------------------------------------- |
-| `data-perspective-widget`             | Inline widget embed                                       |
-| `data-perspective-frame`              | Widget frame: `"layout=fill,radius=4px,shadow=none,…"`    |
-| `data-perspective-popup`              | Popup trigger button                                      |
-| `data-perspective-slider`             | Slider trigger button                                     |
-| `data-perspective-float`              | Floating chat bubble                                      |
-| `data-perspective-fullpage`           | Full page embed                                           |
-| `data-perspective-params`             | Custom params: `"key1=value1,key2=value2"`                |
-| `data-perspective-theme`              | Theme: `"light"`, `"dark"`, or `"system"`                 |
-| `data-perspective-brand`              | Light mode colors: `"primary=#xxx,bg=#yyy"`               |
-| `data-perspective-brand-dark`         | Dark mode colors                                          |
-| `data-perspective-no-style`           | Disable auto-styling on trigger buttons                   |
-| `data-perspective-disable-close`      | Prevent user from closing popup/slider                    |
-| `data-perspective-auto-open`          | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`    |
-| `data-perspective-show-once`          | Show-once dedup: `"session"`, `"visitor"`, or `"false"`   |
-| `data-perspective-launcher-icon`      | Launcher icon: `"avatar"`, `"default"`, or image URL      |
-| `data-perspective-launcher-style`     | Launcher CSS: `"width:64px;border-radius:12px"`           |
-| `data-perspective-launcher-class`     | CSS class(es) for the launcher button                     |
-| `data-perspective-teaser`             | `"false"` disables the float welcome teaser               |
-| `data-perspective-teaser-delay`       | Milliseconds before the teaser appears (default 3000)     |
-| `data-perspective-teaser-sound`       | `"false"` mutes the teaser chime                          |
-| `data-perspective-teaser-dismissible` | `"false"` hides the teaser's × button                     |
-| `data-perspective-datalayer`          | `"false"` stops this interview sending Tag Manager events |
+| Attribute                             | Description                                                  |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `data-perspective-widget`             | Inline widget embed                                          |
+| `data-perspective-frame`              | Widget frame: `"layout=fill,radius=4px,shadow=none,…"`       |
+| `data-perspective-popup`              | Popup trigger button                                         |
+| `data-perspective-slider`             | Slider trigger button                                        |
+| `data-perspective-float`              | Floating chat bubble                                         |
+| `data-perspective-fullpage`           | Full page embed                                              |
+| `data-perspective-params`             | Custom params: `"key1=value1,key2=value2"`                   |
+| `data-perspective-theme`              | Theme: `"light"`, `"dark"`, or `"system"`                    |
+| `data-perspective-brand`              | Light mode colors: `"primary=#xxx,bg=#yyy"`                  |
+| `data-perspective-brand-dark`         | Dark mode colors                                             |
+| `data-perspective-no-style`           | Disable auto-styling on trigger buttons                      |
+| `data-perspective-disable-close`      | Prevent user from closing popup/slider                       |
+| `data-perspective-auto-open`          | Auto-open trigger: `"timeout:5000"` or `"exit-intent"`       |
+| `data-perspective-show-once`          | Show-once dedup: `"session"`, `"visitor"`, or `"false"`      |
+| `data-perspective-launcher-icon`      | Launcher icon: `"avatar"`, `"default"`, or image URL         |
+| `data-perspective-launcher-style`     | Launcher CSS: `"width:64px;border-radius:12px"`              |
+| `data-perspective-launcher-class`     | CSS class(es) for the launcher button                        |
+| `data-perspective-teaser`             | `"false"` disables the float welcome teaser                  |
+| `data-perspective-teaser-delay`       | Milliseconds before the teaser appears (default 3000)        |
+| `data-perspective-teaser-sound`       | `"false"` mutes the teaser chime                             |
+| `data-perspective-teaser-dismissible` | `"false"` hides the teaser's × button                        |
+| `data-perspective-datalayer`          | `"false"` stops this conversation sending Tag Manager events |
 
 ### Auto-Trigger (Data Attributes)
 
@@ -746,7 +746,7 @@ When `data-perspective-auto-open` is present, the element acts as a hidden confi
 
 ## Install with Google Tag Manager
 
-You can add a Perspective interview to your website from Google Tag Manager,
+You can add a Perspective conversation to your website from Google Tag Manager,
 without changing your site's code. It works on regular websites and on sites
 that switch pages without a full reload (common with React, Next.js or Vue).
 
@@ -755,7 +755,7 @@ that switch pages without a full reload (common with React, Next.js or Vue).
 1. In Tag Manager, go to **Tags → New → Tag Configuration → Custom HTML**.
 2. Paste the code below.
 3. On the last line, replace `YOUR_RESEARCH_ID` with your research ID, and
-   `float` with how you want the interview to appear (see the table below).
+   `float` with how you want the conversation to appear (see the table below).
 
 ```html
 <script>
@@ -785,25 +785,25 @@ that switch pages without a full reload (common with React, Next.js or Vue).
 | Type       | What visitors see                         | Notes                                                                                                                                     |
 | ---------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `float`    | A chat bubble in the corner of the screen | Works as is.                                                                                                                              |
-| `fullpage` | The interview fills the whole page        | Works as is.                                                                                                                              |
-| `widget`   | The interview shown inside the page       | Appears at the bottom of the page. To place it elsewhere, add `<div data-perspective-widget="YOUR_RESEARCH_ID"></div>` where you want it. |
+| `fullpage` | The conversation fills the whole page     | Works as is.                                                                                                                              |
+| `widget`   | The conversation shown inside the page    | Appears at the bottom of the page. To place it elsewhere, add `<div data-perspective-widget="YOUR_RESEARCH_ID"></div>` where you want it. |
 | `popup`    | A button that opens a pop-up window       | Add the button to your page yourself, e.g. `<button data-perspective-popup="YOUR_RESEARCH_ID">Share feedback</button>`.                   |
 | `slider`   | A button that opens a side panel          | Add the button to your page yourself, e.g. `<button data-perspective-slider="YOUR_RESEARCH_ID">Share feedback</button>`.                  |
 
-If the page already has a Perspective element for this interview, the tag uses
+If the page already has a Perspective element for this conversation, the tag uses
 it instead of adding a new one.
 
 ### Step 2: Choose when it runs
 
 1. Add a trigger for **All Pages**, or a **Page View** trigger limited to the
-   pages where the interview should appear.
+   pages where the conversation should appear.
 2. If your site switches pages without a full reload, also add a
    **History Change** trigger. This runs the tag again each time a visitor
-   moves to another page, so the interview shows up there too.
+   moves to another page, so the conversation shows up there too.
 
 ### Step 3: Preview and publish
 
-Use **Preview** to check the interview appears where you expect, then
+Use **Preview** to check the conversation appears where you expect, then
 **Publish**.
 
 ### What the tag takes care of
@@ -812,8 +812,8 @@ Use **Preview** to check the interview appears where you expect, then
   Perspective script has finished downloading. Nothing is lost; it starts as
   soon as the script is ready.
 - **Running it again is safe.** If the tag runs again (for example on a
-  History Change), the interview is not shown twice. If the page was replaced,
-  the interview moves to the new page, and an open chat stays open.
+  History Change), the conversation is not shown twice. If the page was replaced,
+  the conversation moves to the new page, and an open chat stays open.
 - **Older installs keep working.** A plain
   `<div data-perspective-float="…"></div>` plus
   `<script src="https://getperspective.ai/v1/perspective.js"></script>`
@@ -822,21 +822,21 @@ Use **Preview** to check the interview appears where you expect, then
 ### Track results in Google Analytics
 
 If Tag Manager is on the page, Perspective tells it what visitors do with the
-interview. You can use these events as triggers in Tag Manager:
+conversation. You can use these events as triggers in Tag Manager:
 
-| Event name                           | What it means                                   |
-| ------------------------------------ | ----------------------------------------------- |
-| `perspective_widget_open`            | The interview was shown, or the chat was opened |
-| `perspective_widget_ready`           | The interview finished loading and can be used  |
-| `perspective_conversation_started`   | The visitor sent their first message            |
-| `perspective_conversation_completed` | The visitor finished the interview              |
-| `perspective_widget_close`           | The interview was closed                        |
+| Event name                           | What it means                                      |
+| ------------------------------------ | -------------------------------------------------- |
+| `perspective_widget_open`            | The conversation was shown, or the chat was opened |
+| `perspective_widget_ready`           | The conversation finished loading and can be used  |
+| `perspective_conversation_started`   | The visitor sent their first message               |
+| `perspective_conversation_completed` | The visitor finished the conversation              |
+| `perspective_widget_close`           | The conversation was closed                        |
 
-Each event also says which interview it came from
-(`perspective_research_id`) and how it was shown (`perspective_embed_type`),
-so you can tell interviews apart in your reports.
+Each event also includes your research ID (`perspective_research_id`) and how
+the conversation was shown (`perspective_embed_type`), so you can break results
+down by both in your reports.
 
-To count finished interviews as conversions in Google Analytics 4:
+To count finished conversations as conversions in Google Analytics 4:
 
 1. In Tag Manager, create a **Custom Event** trigger with the event name
    `perspective_conversation_completed`.
@@ -867,7 +867,7 @@ every event is counted twice. Or turn the built-in events off, as shown below.
   configure({ dataLayer: false });
   ```
 
-- **For one interview only:** add `data-perspective-datalayer="false"` to its
+- **For one conversation only:** add `data-perspective-datalayer="false"` to its
   element. In code, pass `dataLayer: false` in its options, or
   `dataLayer={false}` to the React component or hook.
 
@@ -887,16 +887,16 @@ then run in order.
 | Call                                        | What it does                                                     |
 | ------------------------------------------- | ---------------------------------------------------------------- |
 | `Perspective('configure', { ... })`         | Change settings (same as `configure()` in code)                  |
-| `Perspective('init', { researchId, type })` | Open a popup, slider, float or fullpage interview                |
-| `Perspective('mount', selector, config)`    | Show the interview inside the element matching `selector`        |
+| `Perspective('init', { researchId, type })` | Open a popup, slider, float or fullpage conversation             |
+| `Perspective('mount', selector, config)`    | Show the conversation inside the element matching `selector`     |
 | `Perspective('autoInit')`                   | Look for `data-perspective-*` elements on the page and show them |
-| `Perspective('destroy', researchId)`        | Remove one interview                                             |
+| `Perspective('destroy', researchId)`        | Remove one conversation                                          |
 
 After the script loads, `Perspective` keeps all its usual methods
 (`Perspective.openPopup`, `Perspective.destroy`, and so on).
 
 **Elements your site adds later.** If your site adds a Perspective element by
-itself (without the tag running again), turn on `observe` and the interview
+itself (without the tag running again), turn on `observe` and the conversation
 appears as soon as the element does:
 `Perspective('configure', { observe: true })`.
 
